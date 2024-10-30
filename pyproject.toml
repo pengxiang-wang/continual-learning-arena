@@ -1,0 +1,90 @@
+# Guide (user-friendly):
+# https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
+
+# Specification (technical, formal):
+# https://packaging.python.org/en/latest/specifications/pyproject-toml/
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clarena"
+version = "0.1.1"
+#dynamic = ["version"]
+description = "An open-source machine learning package for continual learning research"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+keywords = ["continual learning", "machine learning", "artificial intelligence"]
+authors = [{ name = "Pengxiang Wang", email = "wangpengxiang@stu.pku.edu.cn" }]
+maintainers = [
+    { name = "Pengxiang Wang", email = "wangpengxiang@stu.pku.edu.cn" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+
+    # PyTorch Lightning is the core of this framework
+    # PyTorch will be automatically installed as Lightning's dependencies
+    # https://lightning.ai/docs/pytorch/stable/
+    "lightning>=2.4.0",
+
+    # Hydra manages the hierarchical configs in this complicated continual learning framework
+    # https://hydra.cc/docs/intro/
+    "hydra-core>=1.3",
+
+    # Torchvision provides the datasets which we need to construct CL datasets
+    # https://pytorch.org/vision/
+    "torchvision>=0.19.0",
+
+    # Torchmetrics provides handy metrics calculating modules which are used in this project
+    # https://lightning.ai/docs/torchmetrics/stable/
+    "torchmetrics",
+
+    # For PyTorch Lightning Tensorboard Logger
+    # https://lightning.ai/docs/pytorch/stable/visualize/experiment_managers.html#tensorboard
+    "tensorboard",
+
+    # For managing csv files easier
+    # https://pandas.pydata.org/
+    "pandas",
+
+    # For plotting the results
+    # https://matplotlib.org/
+    "matplotlib",
+
+    # Help setup project root to avoid "../" in paths
+    # https://pypi.org/project/pyrootutils/
+    "pyrootutils",
+
+    # To enable colored log in the logging system that Hydra takes over to manage
+    # https://hydra.cc/docs/plugins/colorlog/
+    "hydra-colorlog",
+
+    # To enable RichProgressBar callback in PyTorch Lightning: https://lightning.ai/docs/pytorch/stable/common/progress_bar.html#richprogressbar
+    "rich",
+
+    # To enable DeviceStatsMonitor callback in PyTorch Lightning: https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.DeviceStatsMonitor.html#devicestatsmonitor
+    "psutil",
+
+]
+
+[project.urls]
+"Homepage" = "https://pengxiang-wang.com/projects/continual-learning-arena/"
+"Bug Reports" = "https://github.com/pengxiang-wang/continual-learning-arena/issues"
+"Funding" = "https://www.patreon.com/pxwang"
+"Say Thanks!" = "https://github.com/pengxiang-wang/continual-learning-arena/discussions"
+"Source" = "https://github.com/pengxiang-wang/continual-learning-arena/"
+
+# The following would provide a command line executable called `cltrain`
+# which executes the function `clarena.main.cltrain` from this package when invoked.
+[project.scripts]
+cltrain = "clarena.main:cltrain"
+
+[tool.setuptools]
+packages = ["clarena", "clarena.cl_datasets", "clarena.backbones", "clarena.cl_heads", "clarena.cl_algorithms", "clarena.optimizers", "clarena.callbacks"]
