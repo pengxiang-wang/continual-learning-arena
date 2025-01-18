@@ -17,4 +17,4 @@ from .image_show import ImageShowCallback
 from .metrics import MetricsCallback
 from .pylogger import PyloggerCallback
 
-__all__ = []
+__all__ = ["cl_rich_progress_bar", "image_show", "metrics", "pylogger"]

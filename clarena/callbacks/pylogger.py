@@ -20,19 +20,19 @@ class PyloggerCallback(Callback):
     Put logging messages here if you don't want to mess up the `CLAlgorithm` (`LightningModule`) with a huge amount of logging messages.
     """
 
-    def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm):
+    def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
         pylogger.info("Start training task %s!", pl_module.task_id)
 
-    def on_fit_end(self, trainer: Trainer, pl_module: CLAlgorithm):
+    def on_fit_end(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
         pylogger.info("Finish training task %s!", pl_module.task_id)
 
-    def on_test_start(self, trainer: Trainer, pl_module: CLAlgorithm):
+    def on_test_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
         pylogger.info(
             "Start testing task %s on all previous and current tasks!",
             pl_module.task_id,
         )
 
-    def on_test_end(self, trainer: Trainer, pl_module: CLAlgorithm):
+    def on_test_end(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
         pylogger.info(
             "Finish testing task %s on all previous and current tasks!",
             pl_module.task_id,

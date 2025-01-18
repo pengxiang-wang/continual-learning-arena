@@ -9,7 +9,6 @@ import logging
 from lightning import LightningModule
 from torch import Tensor, nn
 from torch.optim import Optimizer
-from typing_extensions import override
 
 from clarena.backbones import CLBackbone
 from clarena.cl_heads import HeadsCIL, HeadsTIL
@@ -74,21 +73,6 @@ class CLAlgorithm(LightningModule):
         self.task_id = task_id
         self.heads.setup_task_id(task_id, num_classes_t)
         self.optimizer = optimizer
-
-    @override
-    def forward(self, input: Tensor, task_id: int):
-        """The default forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`.
-
-        **Args:**
-        - **input** (`Tensor`): The input tensor from data.
-        - **task_id** (`int`): the task ID where the data are from.
-
-        Returns:
-        - The output logits tensor.
-        """
-        feature = self.backbone(input, task_id)
-        logits = self.heads(feature, task_id)
-        return logits
 
     def configure_optimizers(self) -> Optimizer:
         """

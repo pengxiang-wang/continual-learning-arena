@@ -8,6 +8,7 @@ import logging
 from typing import Any
 
 import torch
+from torch import Tensor
 from torch.utils.data import DataLoader
 
 from clarena.cl_algorithms import CLAlgorithm
@@ -35,34 +36,66 @@ class Finetuning(CLAlgorithm):
         """
         super().__init__(backbone=backbone, heads=heads)
 
-    def training_step(self, batch: Any):
+    def forward(self, input: Tensor, stage: str, task_id: int | None = None) -> Tensor:
+        """The forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`.
+
+        **Args:**
+        - **input** (`Tensor`): The input tensor from data.
+        - **stage** (`str`): the stage of the forward pass, should be one of the following:
+            1. 'train': training stage.
+            2. 'validate': validation stage.
+            3. 'test': testing stage.
+        - **task_id** (`int`): the task ID where the data are from. If stage is 'train' or `validate`, it is usually from the current task `self.task_id`. If stage is 'test', it could be from any seen task. In TIL, the task IDs of test data are provided thus this argument can be used. In CIL, they are not provided, so it is just a placeholder for API consistence but never used, and best practices are not to provide this argument and leave it as the default value. Finetuning algorithm works both for TIL and CIL.
+
+        **Returns:**
+        - **logits** (`Tensor`): the output logits tensor.
+        """
+        feature = self.backbone(input, stage=stage, task_id=task_id)
+        logits = self.heads(feature, task_id)
+        return logits
+
+    def training_step(self, batch: Any) -> dict[str, Tensor]:
         """Training step for current task `self.task_id`.
 
         **Args:**
         - **batch** (`Any`): a batch of training data.
+        
+        **Returns:**
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this training step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs.
         """
         x, y = batch
-        logits = self.forward(x, self.task_id)
+        
+        # classification loss
+        logits = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
+        
+        # total loss
         loss = loss_cls
+        
+        # accuracy of the batch
         acc = (logits.argmax(dim=1) == y).float().mean()
 
-        # Return loss is essential for training step, or backpropagation will fail
-        # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
         return {
-            "loss": loss,
+            "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
-            "acc": acc,
+            "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
         }
 
-    def validation_step(self, batch: Any):
+    def validation_step(self, batch: Any) -> dict[str, Tensor]:
         """Validation step for current task `self.task_id`.
 
         **Args:**
         - **batch** (`Any`): a batch of validation data.
+        
+        **Returns:**
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this validation step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics. 
         """
         x, y = batch
-        logits = self.forward(x, self.task_id)
+        logits = self.forward(
+            x,
+            stage="validate",
+            task_id=self.task_id,
+        )
         loss_cls = self.criterion(logits, y)
         acc = (logits.argmax(dim=1) == y).float().mean()
 
@@ -72,18 +105,21 @@ class Finetuning(CLAlgorithm):
             "acc": acc,
         }
 
-    def test_step(self, batch: DataLoader, batch_idx: int, dataloader_idx: int = 0):
+    def test_step(self, batch: DataLoader, batch_idx: int, dataloader_idx: int = 0) -> dict[str, Tensor]:
         """Test step for current task `self.task_id`, which tests for all seen tasks indexed by `dataloader_idx`.
 
         **Args:**
         - **batch** (`Any`): a batch of test data.
         - **dataloader_idx** (`int`): the task ID of seen tasks to be tested. A default value of 0 is given otherwise the LightningModule will raise a `RuntimeError`.
+        
+        **Returns:**
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this test step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics. 
         """
         test_task_id = dataloader_idx + 1
 
         x, y = batch
         logits = self.forward(
-            x, test_task_id
+            x, stage="test", task_id=test_task_id
         )  # use the corresponding head to test (instead of the current task `self.task_id`)
         loss_cls = self.criterion(logits, y)
         acc = (logits.argmax(dim=1) == y).float().mean()

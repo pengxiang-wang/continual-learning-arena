@@ -14,5 +14,7 @@ Please note that this is an API documantation. Please refer to the main document
 
 from .base import CLAlgorithm
 from .finetuning import Finetuning
+from .hat import HAT
+from .adahat import AdaHAT
 
-__all__ = ["CLAlgorithm", "finetuning"]
+__all__ = ["CLAlgorithm", "finetuning", "hat", "adahat"]

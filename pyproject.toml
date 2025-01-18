@@ -46,7 +46,7 @@ dependencies = [
     # https://lightning.ai/docs/torchmetrics/stable/
     "torchmetrics",
 
-    # For PyTorch Lightning Tensorboard Logger
+    # For PyTorch Lightning TensorBoard Logger
     # https://lightning.ai/docs/pytorch/stable/visualize/experiment_managers.html#tensorboard
     "tensorboard",
 

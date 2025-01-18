@@ -15,7 +15,7 @@ pylogger = logging.getLogger(__name__)
 class CLRichProgressBar(RichProgressBar):
     """Customised Rich Progress Bar for continual learning."""
 
-    def get_metrics(self, *args, **kwargs):
+    def get_metrics(self, *args, **kwargs) -> dict[str, int | str | float | dict[str, float]]:
         """Filter out the version number from the metrics displayed in the progress bar."""
         items = super().get_metrics(*args, **kwargs)
         items.pop("v_num", None)  # Remove the version number entry

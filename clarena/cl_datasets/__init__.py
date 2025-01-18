@@ -17,13 +17,16 @@ The datasets are implemented as subclasses of `CLDataset` classes, which are the
 
 """
 
-from .base import CLClassMapping, CLDataset, CLPermutedDataset, Permute
+from .base import CLClassMapping, CLDataset, CLPermutedDataset, CLSplitDataset, Permute
 from .permuted_mnist import PermutedMNIST
+from .split_cifar100 import SplitCIFAR100
 
 __all__ = [
     "CLDataset",
     "CLPermutedDataset",
+    "CLSplitDataset",
     "CLClassMapping",
     "Permute",
     "permuted_mnist",
+    "split_cifar100",
 ]

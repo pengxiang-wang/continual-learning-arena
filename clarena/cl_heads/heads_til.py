@@ -41,9 +41,9 @@ class HeadsTIL(nn.Module):
         **Args:**
         - **feature** (`Tensor`): the feature tensor from the backbone network.
         - **task_id** (`int`): the task ID where the data are from, which is provided by task-incremental setting.
-
+        
         **Returns:**
-        - The output logits tensor.
+        - **logits** (`Tensor`): the output logits tensor.
         """
 
         head_t = self.heads[task_id]

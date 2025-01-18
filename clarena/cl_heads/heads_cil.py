@@ -44,7 +44,7 @@ class HeadsCIL(nn.Module):
         - **task_id** (`int` or `None`): the task ID where the data are from. In CIL, it is just a placeholder for API consistence with the TIL heads but never used. Best practices are not to provide this argument and leave it as the default value.
 
         **Returns:**
-        - The output logits tensor.
+        - **logits** (`Tensor`): the output logits tensor.
         """
         logits = torch.cat(
             [self.heads[t](feature) for t in range(1, self.task_id + 1)], dim=-1

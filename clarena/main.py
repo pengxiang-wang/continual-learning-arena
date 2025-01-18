@@ -5,10 +5,12 @@ import os
 
 from hydra import compose, initialize_config_dir
 
-from clarena import CLExperiment
+from clarena.base import CLExperiment
+
+# It was supposed to be `from clarena import CLExperiment`, but it is not working when pip install -e. So, I am using the full path.
 
 
-def cltrain():
+def cltrain() -> None:
     """Cli entrance for training continual learning models."""
 
     parser = argparse.ArgumentParser(description="Run a continual learning experiment.")
@@ -17,13 +19,13 @@ def cltrain():
         "--config-dir",
         type=str,
         default="configs/",
-        help="The directory path to your configs. Not applicable to example configs.",
+        help="The directory path to your configs.",
     )
     parser.add_argument(
         "--entrance",
         type=str,
         default="entrance",
-        help="The entrance YAML file name in your configs. Not applicable to example configs.",
+        help="The entrance YAML file name in your configs.",
     )
 
     args = parser.parse_args()

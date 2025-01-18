@@ -1,7 +1,9 @@
 # temp codes
 /temp/
+
 /data/
 /outputs/
+/API-docs-by-pdoc/
 
 # general things to ignore
 build/

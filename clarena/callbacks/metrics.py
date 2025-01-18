@@ -23,24 +23,32 @@ pylogger = logging.getLogger(__name__)
 
 
 class MetricsCallback(Callback):
-    """Metrics Callback provides class for logging monitored metrics to Lightning loggers and else.
+    """Metrics Callback provides class for logging monitored metrics to Lightning loggers, saving metrics to files, plotting metrics to figures and so on.
 
     Put `self.log()` here if you don't want to mess up the `CLAlgorithm` (`LightningModule`) with a huge amount of logging.
     """
 
     def __init__(
         self,
+        if_plot_test_acc: bool,
+        if_plot_test_loss_cls: bool,
         test_results_output_dir: str,
-    ):
+    ) -> None:
         """Initialise the Metrics Callback.
 
         **Args:**
-        - **test_results_output_dir** (`str`): the directory to save test results as documents. Better at the output directory.
+        - **if_plot_test_acc** (`bool`): whether to plot accuracy results of testing.
+        - **if_plot_test_loss_cls** (`bool`): whether to plot classification loss results of testing.
+        - **test_results_output_dir** (`str`): the directory to save test results as files (CSVs, metrics plots, ...). Better same as the output directory of the experiment.
         """
+        
+        self.if_plot_test_acc: bool = if_plot_test_acc
+        """Store whether to plot accuracy results of testing."""
+        self.if_plot_test_loss_cls: bool = if_plot_test_loss_cls
+        """Store whether to plot classification loss results of testing."""
 
         if not os.path.exists(test_results_output_dir):
             os.makedirs(test_results_output_dir, exist_ok=True)
-
         self.test_results_output_dir = test_results_output_dir
         """Store the `test_results_output_dir` argument."""
 
@@ -64,7 +72,7 @@ class MetricsCallback(Callback):
         self.acc_test: dict[int, MeanMetricBatch]
         """Classification accuracy of the test data of each seen task. Accumulated and calculated from the test batchs."""
 
-    def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm):
+    def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
         """Initialise the metrics for training and validation and get the current task ID in the beginning of a task's fitting (training and validation)."""
         # get the current task_id from the `CLAlgorithm` object
         self.task_id = pl_module.task_id
@@ -85,7 +93,7 @@ class MetricsCallback(Callback):
         outputs: dict[str, Any],
         batch: Any,
         batch_idx: int,
-    ):
+    ) -> None:
         """Log metrics from training batch.
 
         **Args:**
@@ -131,7 +139,7 @@ class MetricsCallback(Callback):
         self,
         trainer: Trainer,
         pl_module: CLAlgorithm,
-    ):
+    ) -> None:
         """Log metrics from training epoch to plot learning curves and reset the metrics accumulation at the end of training epoch."""
 
         # log the accumulated and computed metrics of the epoch to Lightning loggers, specially for plotting learning curves
@@ -160,7 +168,7 @@ class MetricsCallback(Callback):
         outputs: dict[str, Any],
         batch: Any,
         batch_idx: int,
-    ):
+    ) -> None:
         """Accumulating metrics from validation batch. We don't need to log and monitor the metrics of validation batches.
 
         **Args:**
@@ -183,7 +191,7 @@ class MetricsCallback(Callback):
         self,
         trainer: Trainer,
         pl_module: CLAlgorithm,
-    ):
+    ) -> None:
         """Log metrics of validation to plot learning curves and reset the metrics accumulation at the end of validation epoch."""
 
         # log the accumulated and computed metrics of the epoch to Lightning loggers, specially for plotting learning curves
@@ -204,7 +212,7 @@ class MetricsCallback(Callback):
         self,
         trainer: Trainer,
         pl_module: CLAlgorithm,
-    ):
+    ) -> None:
         """Initialise the metrics for testing each seen task in the beginning of a task's testing."""
 
         # get the current task_id again (double checking) from the `CLAlgorithm` object
@@ -226,7 +234,7 @@ class MetricsCallback(Callback):
         batch: Any,
         batch_idx: int,
         dataloader_idx: int = 0,
-    ):
+    ) -> None:
         """Accumulating metrics from test batch. We don't need to log and monitor the metrics of test batches.
 
         **Args:**
@@ -252,16 +260,19 @@ class MetricsCallback(Callback):
         self,
         trainer: Trainer,
         pl_module: CLAlgorithm,
-    ):
-        """Log metrics of test to csv files learning curves and reset the metrics accumulation at the end of test epoch."""
+    ) -> None:
+        """Save and plot metrics of testing to csv files. """
 
-        self._write_to_acc_csv()
-        self._plot_acc_csv()
-        self._write_to_loss_cls_csv()
-        self._plot_loss_cls_csv()
+        self._save_acc_to_csv()
+        self._save_loss_cls_to_csv()
+        
+        if self.if_plot_test_acc:
+            self._plot_acc()
+        if self.if_plot_test_loss_cls:
+            self._plot_loss_cls()
 
-    def _write_to_acc_csv(self):
-        """Write the test accuracy metrics of `self.task_id` to a csv file in `self.test_metrics_save_dir`."""
+    def _save_acc_to_csv(self) -> None:
+        """Write the test accuracy metrics of `self.task_id` to a csv file in the designated ™directory `self.test_metrics_save_dir`."""
 
         new_line = {"after_training_task": self.task_id}  # the first column
 
@@ -296,8 +307,8 @@ class MetricsCallback(Callback):
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writerow(new_line)
 
-    def _write_to_loss_cls_csv(self):
-        """Write the test classification loss metrics of `self.task_id` in `self.test_metrics_save_dir`."""
+    def _save_loss_cls_to_csv(self) -> None:
+        """Write the test classification loss metrics of `self.task_id` to a csv file in the designated directory `self.test_metrics_save_dir`."""
         new_line = {"after_training_task": self.task_id}  # the first column
 
         # write to the columns and calculate the average classification loss over tasks at the same time
@@ -333,8 +344,8 @@ class MetricsCallback(Callback):
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writerow(new_line)
 
-    def _plot_acc_csv(self):
-        """Plot the test accuracy metrics from the csv file in `self.test_metrics_save_dir`."""
+    def _plot_acc(self) -> None:
+        """Plot the test accuracy metrics and save to the designated directory `self.test_metrics_save_dir`."""
         acc_csv_path = os.path.join(self.test_results_output_dir, "acc.csv")
         acc_fig1_path = os.path.join(self.test_results_output_dir, "ave_acc.png")
         acc_fig2_path = os.path.join(self.test_results_output_dir, "acc.png")
@@ -348,21 +359,29 @@ class MetricsCallback(Callback):
             marker="o",
             linewidth=2,
         )
-        ax.set_xlabel("After training task $t$")
-        ax.set_xlabel("Average Accuracy (AA)")
+        ax.set_xlabel("After training task $t$", fontsize=16)
+        ax.set_xlabel("Average Accuracy (AA)", fontsize=16)
         ax.grid(True)
-        ax.set_xticks(range(1, self.task_id + 1))
-        ax.set_yticks([i * 0.05 for i in range(21)])
+        xticks = [int(i) for i in range(1, self.task_id + 1)]
+        yticks = [i * 0.05 for i in range(21)]
+        ax.set_xticks(xticks)
+        ax.set_yticks(yticks)
+        ax.set_xticklabels(xticks, fontsize=16)
+        ax.set_yticklabels([f"{tick:.2f}" for tick in yticks], fontsize=16)
         fig.savefig(acc_fig1_path)
 
         # plot the accuracy matrix
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(2*(self.task_id+1), 2*(self.task_id+1))) # adaptive figure size
         cax = ax.imshow(
             data.drop(["after_training_task", "average_accuracy"], axis=1),
             interpolation="nearest",
             cmap="Greens",
         )
-        fig.colorbar(cax)
+        colorbar = fig.colorbar(cax)
+        yticks = colorbar.ax.get_yticks()
+        colorbar.ax.set_yticks(yticks)
+        colorbar.ax.set_yticklabels([f"{tick:.2f}" for tick in yticks], fontsize=10+self.task_id) # adaptive font size
+
         for i in range(self.task_id + 1):
             for j in range(1, i + 1):
                 ax.text(
@@ -372,20 +391,22 @@ class MetricsCallback(Callback):
                     ha="center",
                     va="center",
                     color="black",
+                    fontsize=10+self.task_id, # adaptive font size
                 )
+                
+                
         ax.set_xticks(range(self.task_id))
         ax.set_yticks(range(self.task_id))
-
-        ax.set_xticklabels(range(1, self.task_id + 1))
-        ax.set_yticklabels(range(1, self.task_id + 1))
+        ax.set_xticklabels(range(1, self.task_id + 1), fontsize=10+self.task_id) # adaptive font size
+        ax.set_yticklabels(range(1, self.task_id + 1), fontsize=10+self.task_id) # adaptive font size
 
         # Labeling the axes
-        ax.set_xlabel("Testing on task τ")
-        ax.set_ylabel("After training task t")
-        fig.savefig(acc_fig2_path)
+        ax.set_xlabel("Testing on task τ", fontsize=10+self.task_id) # adaptive font size
+        ax.set_ylabel("After training task t", fontsize=10+self.task_id) # adaptive font size
+        fig.savefig(acc_fig2_path) 
 
-    def _plot_loss_cls_csv(self):
-        """Plot the classification loss metrics from the csv file in `self.test_metrics_save_dir`."""
+    def _plot_loss_cls(self) -> None:
+        """Plot the classification loss metrics and save to the designated directory `self.test_metrics_save_dir`."""
         loss_cls_csv_path = os.path.join(self.test_results_output_dir, "loss_cls.csv")
         loss_cls_fig1_path = os.path.join(
             self.test_results_output_dir, "ave_loss_cls.png"
@@ -401,26 +422,33 @@ class MetricsCallback(Callback):
             marker="o",
             linewidth=2,
         )
-        ax.set_xlabel("After training task $t$")
-        ax.set_xlabel("Average Classification Loss")
+        ax.set_xlabel("After training task $t$", fontsize=16)
+        ax.set_xlabel("Average Classification Loss", fontsize=16)
         ax.grid(True)
-        ax.set_xticks(range(1, self.task_id + 1))
-        ax.set_yticks(
-            [
+        
+        xticks = [int(i) for i in range(1, self.task_id + 1)]
+        yticks = [
                 i * 0.5
                 for i in range(int(data["average_classification_loss"].max() / 0.5) + 1)
             ]
-        )
+        ax.set_xticks(xticks)
+        ax.set_yticks(yticks)
+        ax.set_xticklabels(xticks, fontsize=16)
+        ax.set_yticklabels([f"{tick:.1f}" for tick in yticks], fontsize=16)
         fig.savefig(loss_cls_fig1_path)
 
         # plot the accuracy matrix
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(2*(self.task_id+1), 2*(self.task_id+1))) # adaptive figure size
         cax = ax.imshow(
             data.drop(["after_training_task", "average_classification_loss"], axis=1),
             interpolation="nearest",
             cmap="Greens",
         )
-        fig.colorbar(cax)
+        colorbar = fig.colorbar(cax)
+        yticks = colorbar.ax.get_yticks()
+        colorbar.ax.set_yticks(yticks)
+        colorbar.ax.set_yticklabels([f"{tick:.2f}" for tick in yticks], fontsize=10+self.task_id) # adaptive font size
+
         for i in range(self.task_id + 1):
             for j in range(1, i + 1):
                 ax.text(
@@ -430,23 +458,24 @@ class MetricsCallback(Callback):
                     ha="center",
                     va="center",
                     color="black",
+                    fontsize=10+self.task_id, # adaptive font size
                 )
         ax.set_xticks(range(self.task_id))
         ax.set_yticks(range(self.task_id))
 
-        ax.set_xticklabels(range(1, self.task_id + 1))
-        ax.set_yticklabels(range(1, self.task_id + 1))
+        ax.set_xticklabels(range(1, self.task_id + 1), fontsize=10+self.task_id) # adaptive font size
+        ax.set_yticklabels(range(1, self.task_id + 1), fontsize=10+self.task_id) # adaptive font size
 
         # Labeling the axes
-        ax.set_xlabel("Testing on task τ")
-        ax.set_ylabel("After training task t")
+        ax.set_xlabel("Testing on task τ", fontsize=10+self.task_id) # adaptive font size
+        ax.set_ylabel("After training task t", fontsize=10+self.task_id) # adaptive font size
         fig.savefig(loss_cls_fig2_path)
 
 
 class MeanMetricBatch(Metric):
     """A torchmetrics metric to calculate the mean of certain metrics across data batches."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialise the Mean Metric Batch. Add state variables."""
         super().__init__()
 
@@ -458,7 +487,7 @@ class MeanMetricBatch(Metric):
         self.num: Tensor
         """State variable created by `add_state()` to store the number of the data till this batch."""
 
-    def update(self, val: torch.Tensor, batch_size: int):
+    def update(self, val: torch.Tensor, batch_size: int) -> None:
         """Update and accumulate the sum of metric value and num of the data till this batch from the batch.
 
         **Args:**
@@ -468,6 +497,6 @@ class MeanMetricBatch(Metric):
         self.sum += val * batch_size
         self.num += batch_size
 
-    def compute(self):
+    def compute(self) -> None:
         """Compute the mean of the metric value till this batch."""
         return self.sum.float() / self.num

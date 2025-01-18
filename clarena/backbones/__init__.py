@@ -11,7 +11,8 @@ Please note that this is an API documantation. Please refer to the main document
 
 """
 
-from .base import CLBackbone
-from .mlp import MLP
+from .base import CLBackbone, HATMaskBackbone
+from .mlp import MLP, HATMaskMLP
+from .resnet import HATMaskResNet, ResNet
 
-__all__ = ["CLBackbone", "mlp"]
+__all__ = ["CLBackbone", "HATMaskBackbone", "mlp", "resnet"]
