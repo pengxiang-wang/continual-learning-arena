@@ -4,7 +4,6 @@ The submodule in `callbacks` for `MetricsCallback`.
 
 __all__ = ["MetricsCallback"]
 
-import csv
 import logging
 import os
 from typing import Any
@@ -13,10 +12,11 @@ import pandas as pd
 import torch
 from lightning import Callback, Trainer
 from matplotlib import pyplot as plt
+from sympy import im
 from torch import Tensor
-from torchmetrics import MeanMetric, Metric
 
 from clarena.cl_algorithms import CLAlgorithm
+from clarena.utils import MeanMetricBatch, plot, save
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -30,27 +30,44 @@ class MetricsCallback(Callback):
 
     def __init__(
         self,
+        acc_csv_path: str,
+        loss_cls_csv_path: str, 
         if_plot_test_acc: bool,
         if_plot_test_loss_cls: bool,
-        test_results_output_dir: str,
+        ave_acc_plot_path: str | None = None, 
+        acc_matrix_plot_path: str | None  = None, 
+        ave_loss_cls_plot_path: str | None  = None,
+        loss_cls_matrix_plot_path: str | None  = None, 
     ) -> None:
         """Initialise the Metrics Callback.
 
         **Args:**
+        - **acc_csv_path** (`str`): path to save accuracy csv file.
+        - **loss_cls_csv_path**(`str`): path to save classification loss file.
         - **if_plot_test_acc** (`bool`): whether to plot accuracy results of testing.
+        - **ave_acc_plot_path** (`str`): path to save average accuracy line chart plot over different training tasks.
+        - **acc_matrix_plot_path** (`str`): path to save accuracy matrix plot.
         - **if_plot_test_loss_cls** (`bool`): whether to plot classification loss results of testing.
-        - **test_results_output_dir** (`str`): the directory to save test results as files (CSVs, metrics plots, ...). Better same as the output directory of the experiment.
+        - **ave_loss_cls_plot_path** (`str`): path to save average classification loss line chart plot.
+        - **loss_cls_matrix_plot_path** (`str`): path to save classification loss matrix plot.
         """
         
+        self.acc_csv_path: str = acc_csv_path
+        """Store the path to save accuracy csv file."""
+        self.loss_cls_csv_path: str = loss_cls_csv_path
+        """Store the path to save classification loss file."""
         self.if_plot_test_acc: bool = if_plot_test_acc
         """Store whether to plot accuracy results of testing."""
+        self.ave_acc_plot_path: str = ave_acc_plot_path
+        """Store the path to save average accuracy line chart plot."""
+        self.acc_matrix_plot_path: str = acc_matrix_plot_path
+        """Store the path to save accuracy matrix plot."""
         self.if_plot_test_loss_cls: bool = if_plot_test_loss_cls
         """Store whether to plot classification loss results of testing."""
-
-        if not os.path.exists(test_results_output_dir):
-            os.makedirs(test_results_output_dir, exist_ok=True)
-        self.test_results_output_dir = test_results_output_dir
-        """Store the `test_results_output_dir` argument."""
+        self.ave_loss_cls_plot_path: str = ave_loss_cls_plot_path
+        """Store the path to save average classification loss line chart plot."""
+        self.loss_cls_matrix_plot_path: str = loss_cls_matrix_plot_path
+        """Store the path to save classification loss matrix plot."""
 
         self.task_id: int
         """Task ID counter indicating which task is being processed. Self updated during the task loop."""
@@ -263,240 +280,12 @@ class MetricsCallback(Callback):
     ) -> None:
         """Save and plot metrics of testing to csv files. """
 
-        self._save_acc_to_csv()
-        self._save_loss_cls_to_csv()
-        
+        save.save_acc_to_csv(acc_test_metric=self.acc_test, task_id=self.task_id, csv_path=self.acc_csv_path)
+        save.save_loss_cls_to_csv(loss_cls_test_metric=self.loss_cls_test, task_id=self.task_id, csv_path=self.loss_cls_csv_path)        
         if self.if_plot_test_acc:
-            self._plot_acc()
+            plot.plot_ave_acc_from_csv(csv_path=self.acc_csv_path, task_id=self.task_id, plot_path=self.ave_acc_plot_path)
+            plot.plot_acc_matrix_from_csv(csv_path=self.acc_csv_path, task_id=self.task_id, plot_path=self.acc_matrix_plot_path)
+
         if self.if_plot_test_loss_cls:
-            self._plot_loss_cls()
-
-    def _save_acc_to_csv(self) -> None:
-        """Write the test accuracy metrics of `self.task_id` to a csv file in the designated ™directory `self.test_metrics_save_dir`."""
-
-        new_line = {"after_training_task": self.task_id}  # the first column
-
-        # write to the columns and calculate the average accuracy over tasks at the same time
-        average_accuracy_over_tasks = MeanMetric()
-        for task_id in range(1, self.task_id + 1):
-            # task_id = dataloader_idx
-            acc = self.acc_test[task_id].compute().item()
-            new_line[f"test_on_task_{task_id}"] = acc
-            average_accuracy_over_tasks(acc)
-        new_line["average_accuracy"] = average_accuracy_over_tasks.compute().item()
-
-        fieldnames = ["after_training_task", "average_accuracy"] + [
-            f"test_on_task_{task_id}" for task_id in range(1, self.task_id + 1)
-        ]
-
-        # write to the csv file
-        acc_csv_path = os.path.join(self.test_results_output_dir, "acc.csv")
-        is_first = not os.path.exists(acc_csv_path)
-        if not is_first:
-            with open(acc_csv_path, "r", encoding="utf-8") as file:
-                lines = file.readlines()
-                del lines[0]
-        # write header
-        with open(acc_csv_path, "w", encoding="utf-8") as file:
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            writer.writeheader()
-        # write metrics
-        with open(acc_csv_path, "a", encoding="utf-8") as file:
-            if not is_first:
-                file.writelines(lines)
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            writer.writerow(new_line)
-
-    def _save_loss_cls_to_csv(self) -> None:
-        """Write the test classification loss metrics of `self.task_id` to a csv file in the designated directory `self.test_metrics_save_dir`."""
-        new_line = {"after_training_task": self.task_id}  # the first column
-
-        # write to the columns and calculate the average classification loss over tasks at the same time
-        average_classification_loss_over_tasks = MeanMetric()
-        for task_id in range(1, self.task_id + 1):
-            # task_id = dataloader_idx
-            loss_cls = self.loss_cls_test[task_id].compute().item()
-            new_line[f"test_on_task_{task_id}"] = loss_cls
-            average_classification_loss_over_tasks(loss_cls)
-        new_line["average_classification_loss"] = (
-            average_classification_loss_over_tasks.compute().item()
-        )
-
-        fieldnames = ["after_training_task", "average_classification_loss"] + [
-            f"test_on_task_{task_id}" for task_id in range(1, self.task_id + 1)
-        ]
-
-        # write to the csv file
-        loss_cls_csv_path = os.path.join(self.test_results_output_dir, "loss_cls.csv")
-        is_first = not os.path.exists(loss_cls_csv_path)
-        if not is_first:
-            with open(loss_cls_csv_path, "r", encoding="utf-8") as file:
-                lines = file.readlines()
-                del lines[0]
-        # write header
-        with open(loss_cls_csv_path, "w", encoding="utf-8") as file:
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            writer.writeheader()
-        # write metrics
-        with open(loss_cls_csv_path, "a", encoding="utf-8") as file:
-            if not is_first:
-                file.writelines(lines)
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            writer.writerow(new_line)
-
-    def _plot_acc(self) -> None:
-        """Plot the test accuracy metrics and save to the designated directory `self.test_metrics_save_dir`."""
-        acc_csv_path = os.path.join(self.test_results_output_dir, "acc.csv")
-        acc_fig1_path = os.path.join(self.test_results_output_dir, "ave_acc.png")
-        acc_fig2_path = os.path.join(self.test_results_output_dir, "acc.png")
-        data = pd.read_csv(acc_csv_path)
-
-        # plot the average accuracy curve over different training tasks
-        fig, ax = plt.subplots(figsize=(16, 9))
-        ax.plot(
-            data["after_training_task"],
-            data["average_accuracy"],
-            marker="o",
-            linewidth=2,
-        )
-        ax.set_xlabel("After training task $t$", fontsize=16)
-        ax.set_xlabel("Average Accuracy (AA)", fontsize=16)
-        ax.grid(True)
-        xticks = [int(i) for i in range(1, self.task_id + 1)]
-        yticks = [i * 0.05 for i in range(21)]
-        ax.set_xticks(xticks)
-        ax.set_yticks(yticks)
-        ax.set_xticklabels(xticks, fontsize=16)
-        ax.set_yticklabels([f"{tick:.2f}" for tick in yticks], fontsize=16)
-        fig.savefig(acc_fig1_path)
-
-        # plot the accuracy matrix
-        fig, ax = plt.subplots(figsize=(2*(self.task_id+1), 2*(self.task_id+1))) # adaptive figure size
-        cax = ax.imshow(
-            data.drop(["after_training_task", "average_accuracy"], axis=1),
-            interpolation="nearest",
-            cmap="Greens",
-        )
-        colorbar = fig.colorbar(cax)
-        yticks = colorbar.ax.get_yticks()
-        colorbar.ax.set_yticks(yticks)
-        colorbar.ax.set_yticklabels([f"{tick:.2f}" for tick in yticks], fontsize=10+self.task_id) # adaptive font size
-
-        for i in range(self.task_id + 1):
-            for j in range(1, i + 1):
-                ax.text(
-                    j - 1,
-                    i - 1,
-                    f'{data.loc[i - 1,f"test_on_task_{j}"]:.3f}',
-                    ha="center",
-                    va="center",
-                    color="black",
-                    fontsize=10+self.task_id, # adaptive font size
-                )
-                
-                
-        ax.set_xticks(range(self.task_id))
-        ax.set_yticks(range(self.task_id))
-        ax.set_xticklabels(range(1, self.task_id + 1), fontsize=10+self.task_id) # adaptive font size
-        ax.set_yticklabels(range(1, self.task_id + 1), fontsize=10+self.task_id) # adaptive font size
-
-        # Labeling the axes
-        ax.set_xlabel("Testing on task τ", fontsize=10+self.task_id) # adaptive font size
-        ax.set_ylabel("After training task t", fontsize=10+self.task_id) # adaptive font size
-        fig.savefig(acc_fig2_path) 
-
-    def _plot_loss_cls(self) -> None:
-        """Plot the classification loss metrics and save to the designated directory `self.test_metrics_save_dir`."""
-        loss_cls_csv_path = os.path.join(self.test_results_output_dir, "loss_cls.csv")
-        loss_cls_fig1_path = os.path.join(
-            self.test_results_output_dir, "ave_loss_cls.png"
-        )
-        loss_cls_fig2_path = os.path.join(self.test_results_output_dir, "loss_cls.png")
-        data = pd.read_csv(loss_cls_csv_path)
-
-        # plot the average accuracy curve over different training tasks
-        fig, ax = plt.subplots(figsize=(16, 9))
-        ax.plot(
-            data["after_training_task"],
-            data["average_classification_loss"],
-            marker="o",
-            linewidth=2,
-        )
-        ax.set_xlabel("After training task $t$", fontsize=16)
-        ax.set_xlabel("Average Classification Loss", fontsize=16)
-        ax.grid(True)
-        
-        xticks = [int(i) for i in range(1, self.task_id + 1)]
-        yticks = [
-                i * 0.5
-                for i in range(int(data["average_classification_loss"].max() / 0.5) + 1)
-            ]
-        ax.set_xticks(xticks)
-        ax.set_yticks(yticks)
-        ax.set_xticklabels(xticks, fontsize=16)
-        ax.set_yticklabels([f"{tick:.1f}" for tick in yticks], fontsize=16)
-        fig.savefig(loss_cls_fig1_path)
-
-        # plot the accuracy matrix
-        fig, ax = plt.subplots(figsize=(2*(self.task_id+1), 2*(self.task_id+1))) # adaptive figure size
-        cax = ax.imshow(
-            data.drop(["after_training_task", "average_classification_loss"], axis=1),
-            interpolation="nearest",
-            cmap="Greens",
-        )
-        colorbar = fig.colorbar(cax)
-        yticks = colorbar.ax.get_yticks()
-        colorbar.ax.set_yticks(yticks)
-        colorbar.ax.set_yticklabels([f"{tick:.2f}" for tick in yticks], fontsize=10+self.task_id) # adaptive font size
-
-        for i in range(self.task_id + 1):
-            for j in range(1, i + 1):
-                ax.text(
-                    j - 1,
-                    i - 1,
-                    f'{data.loc[i - 1,f"test_on_task_{j}"]:.3f}',
-                    ha="center",
-                    va="center",
-                    color="black",
-                    fontsize=10+self.task_id, # adaptive font size
-                )
-        ax.set_xticks(range(self.task_id))
-        ax.set_yticks(range(self.task_id))
-
-        ax.set_xticklabels(range(1, self.task_id + 1), fontsize=10+self.task_id) # adaptive font size
-        ax.set_yticklabels(range(1, self.task_id + 1), fontsize=10+self.task_id) # adaptive font size
-
-        # Labeling the axes
-        ax.set_xlabel("Testing on task τ", fontsize=10+self.task_id) # adaptive font size
-        ax.set_ylabel("After training task t", fontsize=10+self.task_id) # adaptive font size
-        fig.savefig(loss_cls_fig2_path)
-
-
-class MeanMetricBatch(Metric):
-    """A torchmetrics metric to calculate the mean of certain metrics across data batches."""
-
-    def __init__(self) -> None:
-        """Initialise the Mean Metric Batch. Add state variables."""
-        super().__init__()
-
-        self.add_state("sum", default=torch.tensor(0.0), dist_reduce_fx="sum")
-        self.sum: Tensor
-        """State variable created by `add_state()` to store the sum of the metric values till this batch."""
-
-        self.add_state("num", default=torch.tensor(0), dist_reduce_fx="sum")
-        self.num: Tensor
-        """State variable created by `add_state()` to store the number of the data till this batch."""
-
-    def update(self, val: torch.Tensor, batch_size: int) -> None:
-        """Update and accumulate the sum of metric value and num of the data till this batch from the batch.
-
-        **Args:**
-        - **val** (`torch.Tensor`): the metric value of the batch to update the sum.
-        - **batch_size** (`int`): the value to update the num, which is the batch size.
-        """
-        self.sum += val * batch_size
-        self.num += batch_size
-
-    def compute(self) -> None:
-        """Compute the mean of the metric value till this batch."""
-        return self.sum.float() / self.num
+            plot.plot_ave_loss_cls_from_csv(csv_path=self.loss_cls_csv_path, task_id=self.task_id, plot_path=self.ave_loss_cls_plot_path)
+            plot.plot_loss_cls_matrix_from_csv(csv_path=self.loss_cls_csv_path, task_id=self.task_id, plot_path=self.loss_cls_matrix_plot_path)

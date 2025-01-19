@@ -185,8 +185,8 @@ class HAT(CLAlgorithm):
 
         # backward step (manually) 
         self.manual_backward(loss) # calculate the gradients
-        # HAT hard clip gradients by the cumulative masks. See equation (2) inchapter 2.3 "Network Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
-        self.backbone.clip_grad_by_adjustment(mode="hat") 
+        # HAT hard clip gradients by the cumulative masks. See equation (2) inchapter 2.3 "Network Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a). Network capacity is calculated along with this process. Network capacity is defined as the average adjustment rate over all paramaters. See chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9). 
+        capacity = self.backbone.clip_grad_by_adjustment(mode="hat") 
         # compensate the gradients of task embedding. See chapter 2.5 "Embedding Gradient Compensation" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         self.backbone.compensate_task_embedding_gradients(
             clamp_threshold=self.clamp_threshold,
@@ -202,6 +202,7 @@ class HAT(CLAlgorithm):
             "loss_cls": loss_cls,
             "acc": acc,
             "mask": mask,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
+            "capacity": capacity,
         }
 
     def validation_step(self, batch: Any) -> dict[str, Tensor]:

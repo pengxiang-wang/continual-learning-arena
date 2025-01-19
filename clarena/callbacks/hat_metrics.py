@@ -4,20 +4,14 @@ The submodule in `callbacks` for `MetricsCallback`.
 
 __all__ = ["MetricsCallback"]
 
-import csv
 import logging
 import os
-from re import L
 from typing import Any
 
-import pandas as pd
-import torch
 from lightning import Callback, Trainer
-from matplotlib import pyplot as plt
-from torch import Tensor
-from torchmetrics import MeanMetric, Metric
 
 from clarena.cl_algorithms import HAT, AdaHAT, CLAlgorithm
+from clarena.utils import plot
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -31,29 +25,40 @@ class HATMetricsCallback(Callback):
 
     def __init__(
         self,
-        if_plot_train_mask: bool, 
-        plot_train_mask_every_n_batches: int, 
-        test_results_output_dir: str,
+        test_mask_plot_dir: str,
+        test_cumulative_mask_plot_dir: str,
+        if_plot_train_mask: bool,
+        train_mask_plot_dir: str,
+        plot_train_mask_every_n_steps: int, 
     ) -> None:
         """Initialise the Metrics Callback.
 
         **Args:**
+        - **test_mask_plot_dir** (`str`): the directory to save the test mask figure.
+        - **test_cumulative_mask_plot_dir** (`str`): the directory to save the test cumulative mask figure.
         - **if_plot_train_mask** (`bool`): whether to plot mask figure during training. 
-        - **plot_train_mask_every_n_batches** (`int`): the frequency of plotting mask figure in terms of number of batches during training.
-        - **if_log_network_capacity** (`bool`): whether to log mask 
-        - **test_results_output_dir** (`str`): the directory to save test results related to HAT as files (mask figures, capacity plots, ...). Better same as the output directory of the experiment.
+        - **train_mask_plot_dir** (`str`): the directory to save the train mask figure.
+        - **plot_train_mask_every_n_steps** (`int`): the frequency of plotting mask figure in terms of number of batches during training.
+        - **if_log_network_capacity** (`bool`): whether to log mask.
         """
-
+        if not os.path.exists(test_mask_plot_dir):
+            os.makedirs(test_mask_plot_dir, exist_ok=True)
+        self.test_mask_plot_dir: str = test_mask_plot_dir
+        """Store the directory to save the test mask figure."""
+        if not os.path.exists(test_cumulative_mask_plot_dir):
+            os.makedirs(test_cumulative_mask_plot_dir, exist_ok=True)
+        self.test_cumulative_mask_plot_dir: str = test_cumulative_mask_plot_dir
+        """Store the directory to save the test cumulative mask figure."""
 
         self.if_plot_train_mask: bool = if_plot_train_mask
         """Store whether to plot train mask."""
-        self.plot_train_mask_every_n_batches: int = plot_train_mask_every_n_batches
+                
+        if not os.path.exists(train_mask_plot_dir):
+            os.makedirs(train_mask_plot_dir, exist_ok=True)
+        self.train_mask_plot_dir: str = train_mask_plot_dir
+        """Store the directory to save the train mask figure."""
+        self.plot_train_mask_every_n_steps: int = plot_train_mask_every_n_steps
         """Store the frequency of plotting train mask in terms of number of batches."""
-        
-        if not os.path.exists(test_results_output_dir):
-            os.makedirs(test_results_output_dir, exist_ok=True)
-        self.test_results_output_dir: str = test_results_output_dir
-        """Store the `test_results_output_dir` argument."""
 
         self.task_id: int
         """Task ID counter indicating which task is being processed. Self updated during the task loop."""
@@ -85,14 +90,31 @@ class HATMetricsCallback(Callback):
         **Args:**
         - **outputs** (`dict[str, Any]`): the outputs of the training step, which is the returns of the `training_step()` method in the `CLAlgorithm`.
         - **batch** (`Any`): the training data batch.
+        - **batch_idx** (`int`): the index of the current batch. This is for the file name of mask figures.
         """
         
         # get the mask over the model after training the batch
         mask = outputs["mask"]
+        # get the current network capacity
+        capacity = outputs["capacity"]
         
-        self._plot_mask(mask)
+        # plot the mask
+        if batch_idx % self.plot_train_mask_every_n_steps == 0:
+            plot.plot_hat_mask(mask=mask, plot_dir=self.train_mask_plot_dir, task_id=self.task_id, batch_idx=batch_idx)
+
+        # log the network capacity to Lightning loggers
+        pl_module.log(
+            f"task_{self.task_id}/train/network_capacity", capacity, prog_bar=True
+        )
         
+
+    def on_test_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
+        """Plot mask and log HAT related metrics of testing. """
+
+        # get the test mask
+        mask = pl_module.backbone.get_mask(stage="test")
+        plot.plot_hat_mask(mask=mask, plot_dir=self.test_mask_plot_dir, task_id=self.task_id)
         
-        
-        
-       
+        # get the cumulative mask
+        cumulative_mask = pl_module.backbone.get_cumulative_mask()
+        plot.plot_hat_mask(mask=cumulative_mask, plot_dir=self.test_cumulative_mask_plot_dir, task_id=self.task_id)

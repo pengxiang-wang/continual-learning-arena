@@ -11,6 +11,8 @@ import torch
 from torch import Tensor, nn
 from typing_extensions import override
 
+from clarena.utils import HATNetworkCapacity
+
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
@@ -340,8 +342,12 @@ class HATMaskBackbone(CLBackbone):
         alpha: float | None = None,
         epsilon: float | None = None,
         network_sparsity: dict[str, Tensor] | None = None,
-    ) -> None:
+    ) -> Tensor:
         """Clip the gradients by the adjustment rate.
+        
+        Note that as the task embedding fully covers every layer in the backbone network, no parameters are left out of this system. This applies not only the parameters in between layers with task embedding, but also those before the first layer. We designed it seperately in the codes.
+        
+        Network capacity is measured along with this method. Network capacity is defined as the average adjustment rate over all parameters. See chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
 
         **Args:**
         - **mode** (`str`): the mode of clipping, should be one of the following:
@@ -352,16 +358,20 @@ class HATMaskBackbone(CLBackbone):
             5. 'hat_const_1': set the gradients of parameters linking to masked units to a constant value of 1, which means no gradient constraint on any parameter at all. See the Baselines section in chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
             6. 'adahat_no_sum': set the gradients of parameters linking to masked units to a soft adjustment rate in the original AdaHAT approach, but without considering the information of parameter importance i.e. summative mask. This is the way that one of the AdaHAT ablation study does. See chapter 4.3 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
             7. 'adahat_no_reg': set the gradients of parameters linking to masked units to a soft adjustment rate in the original AdaHAT approach, but without considering the information of network sparsity i.e. mask sparsity regularisation value. This is the way that one of the AdaHAT ablation study does. See chapter 4.3 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
-
         - **network_sparsity** (`dict[str, Tensor]` | `None`): The network sparsity i.e. the mask sparisty loss of each layer for the current task. It applies only to AdaHAT modes, as it is used to calculate the adjustment rate for the gradients.
         - **alpha** (`float` | `None`): the hyperparameter that control the overall intensity of gradient adjustment. It applies only to AdaHAT modes and `hat_const_alpha`.
         - **epsilon** (`float` | `None`): the small value to avoid division by zero appeared in equation (9) in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
 
-        Note that as the task embedding fully covers every layer in the backbone network, no parameters are left out of this system. This applies not only the parameters in between layers with task embedding, but also those before the first layer. We designed it seperately in the codes.
+        **Returns:**
+        - **capacity** (`Tensor`): the calculated network capacity.
+        
         """
         # placeholder for the adjustment rate to avoid the error of using it before assignment
         adjustment_rate_weight = 1
         adjustment_rate_bias = 1
+        
+        # initialise network capacity metric
+        capacity = HATNetworkCapacity()
 
         # Calculate the adjustment rate for gradients of the parameters, both weights and biases (if exists)
         for layer_name in self.masked_layer_order:
@@ -438,6 +448,11 @@ class HATMaskBackbone(CLBackbone):
             layer.weight.grad.data *= adjustment_rate_weight
             if layer.bias:
                 layer.bias.grad.data *= adjustment_rate_bias
+                
+            # update network capacity metric
+            capacity.update(adjustment_rate_weight, adjustment_rate_bias)
+                
+        return capacity.compute()
 
     def compensate_task_embedding_gradients(
         self,
