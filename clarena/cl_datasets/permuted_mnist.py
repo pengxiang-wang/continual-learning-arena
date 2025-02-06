@@ -1,4 +1,4 @@
-"""
+r"""
 The submodule in `cl_datasets` for Permuted MNIST dataset.
 """
 
@@ -19,7 +19,7 @@ pylogger = logging.getLogger(__name__)
 
 
 class PermutedMNIST(CLPermutedDataset):
-    """Permuted MNIST dataset."""
+    r"""Permuted MNIST dataset. The [original MNIST dataset](http://yann.lecun.com/exdb/mnist/) is a collection of handwritten digits. It consists of 70,000 28x28 B&W images in 10 classes (correspond to 10 digits), with 7000 images per class. There are 60,000 training examples and 10,000 test examples."""
 
     num_classes: int = 10
     """The number of classes in MNIST."""
@@ -31,7 +31,7 @@ class PermutedMNIST(CLPermutedDataset):
     """The mean values for normalisation."""
 
     std_original: tuple[float] = (0.3081,)
-    """The standard deviation values for normalisation."""
+    """The standard deviatfion values for normalisation."""
 
     def __init__(
         self,
@@ -45,7 +45,7 @@ class PermutedMNIST(CLPermutedDataset):
         permutation_mode: str = "first_channel_only",
         permutation_seeds: list[int] | None = None,
     ) -> None:
-        """Initialise the Permuted MNIST dataset.
+        r"""Initialise the Permuted MNIST dataset.
 
         **Args:**
         - **root** (`str`): the root directory where the original MNIST data 'MNIST/raw/train-images-idx3-ubyte' and 'MNIST/raw/t10k-images-idx3-ubyte' live.
@@ -75,7 +75,7 @@ class PermutedMNIST(CLPermutedDataset):
         )
 
     def prepare_data(self) -> None:
-        """Download the original MNIST dataset if haven't."""
+        r"""Download the original MNIST dataset if haven't."""
         # just download
         MNIST(root=self.root, train=True, download=True)
         MNIST(root=self.root, train=False, download=True)
@@ -102,7 +102,7 @@ class PermutedMNIST(CLPermutedDataset):
         )
 
     def test_dataset(self) -> Dataset:
-        """Get the test dataset of task `self.task_id`.
+        r"""Get the test dataset of task `self.task_id`.
 
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.

@@ -1,4 +1,4 @@
-"""
+r"""
 
 # Callbacks
 
@@ -13,8 +13,9 @@ Please note that this is an API documantation. Please refer to the main document
 """
 
 from .cl_rich_progress_bar import CLRichProgressBar
+from .hat_metrics import HATMetricsCallback
 from .image_show import ImageShowCallback
 from .metrics import MetricsCallback
 from .pylogger import PyloggerCallback
 
-__all__ = ["cl_rich_progress_bar", "image_show", "metrics", "pylogger"]
+__all__ = ["cl_rich_progress_bar", "image_show", "metrics", "pylogger", "hat_metrics"]

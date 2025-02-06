@@ -1,4 +1,4 @@
-"""
+r"""
 The submodule in `callbacks` for `PyloggerCallback`.
 """
 
@@ -15,24 +15,28 @@ pylogger = logging.getLogger(__name__)
 
 
 class PyloggerCallback(Callback):
-    """Pylogger Callback provides additional logging for during continual learning progress.
+    r"""Pylogger Callback provides additional logging for during continual learning progress.
 
     Put logging messages here if you don't want to mess up the `CLAlgorithm` (`LightningModule`) with a huge amount of logging messages.
     """
 
     def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
+        r"""Log messages for the start of training task."""
         pylogger.info("Start training task %s!", pl_module.task_id)
 
     def on_fit_end(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
+        r"""Log messages for the end of training task."""
         pylogger.info("Finish training task %s!", pl_module.task_id)
 
     def on_test_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
+        r"""Log messages for the start of testing task."""
         pylogger.info(
             "Start testing task %s on all previous and current tasks!",
             pl_module.task_id,
         )
 
     def on_test_end(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
+        r"""Log messages for the end of testing task."""
         pylogger.info(
             "Finish testing task %s on all previous and current tasks!",
             pl_module.task_id,

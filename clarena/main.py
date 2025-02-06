@@ -11,7 +11,7 @@ from clarena.base import CLExperiment
 
 
 def cltrain() -> None:
-    """Cli entrance for training continual learning models."""
+    r"""Cli entrance for training continual learning models."""
 
     parser = argparse.ArgumentParser(description="Run a continual learning experiment.")
     parser.add_argument("experiment", type=str, help="The experiment to run.")

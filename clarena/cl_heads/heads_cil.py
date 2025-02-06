@@ -1,4 +1,4 @@
-"""The submodule in `cl_heads` for CIL heads."""
+r"""The submodule in `cl_heads` for CIL heads."""
 
 __all__ = ["HeadsCIL"]
 
@@ -7,7 +7,7 @@ from torch import Tensor, nn
 
 
 class HeadsCIL(nn.Module):
-    """The output heads for Class-Incremental Learning (CIL). Head of all classes from CIL tasks takes the output from backbone network and forwards it into logits for predicting classes of all tasks."""
+    r"""The output heads for Class-Incremental Learning (CIL). Head of all classes from CIL tasks takes the output from backbone network and forwards it into logits for predicting classes of all tasks."""
 
     def __init__(self, input_dim: int) -> None:
         """Initializes a CIL heads object with no heads.
@@ -17,8 +17,8 @@ class HeadsCIL(nn.Module):
         """
         super().__init__()
 
-        self.heads: nn.ModuleDict = {}  # initially no heads
-        """The TIL output heads are stored independently in a ModuleDict (rather than dict just to make sure the parameters can be recorded in model summaries). Keys are task IDs and values are the corresponding `nn.Linear` heads."""
+        self.heads: nn.ModuleDict = nn.ModuleDict()  # initially no heads
+        """CIL output heads are stored in a `ModuleDict`. Keys are task IDs (string type) and values are the corresponding `nn.Linear` heads. We use `ModuleDict` rather than `dict` to make sure `LightningModule` can track these model parameters for the purpose of, such as automatically to device, recorded in model summaries. """
         self.input_dim: int = input_dim
         """The input dimension of the heads. Used when creating new heads."""
 
@@ -34,10 +34,10 @@ class HeadsCIL(nn.Module):
         """
         self.task_id = task_id
         if self.task_id not in self.heads.keys():
-            self.heads[self.task_id] = nn.Linear(self.input_dim, num_classes_t)
+            self.heads[f"{self.task_id}"] = nn.Linear(self.input_dim, num_classes_t)
 
     def forward(self, feature: Tensor, task_id: int | None = None) -> Tensor:
-        """The forward pass for data. The information of which `task_id` the data are from is not provided. The head for all classes is selected and the feature is passed.
+        r"""The forward pass for data. The information of which `task_id` the data are from is not provided. The head for all classes is selected and the feature is passed.
 
         **Args:**
         - **feature** (`Tensor`): the feature tensor from the backbone network.
@@ -47,7 +47,7 @@ class HeadsCIL(nn.Module):
         - **logits** (`Tensor`): the output logits tensor.
         """
         logits = torch.cat(
-            [self.heads[t](feature) for t in range(1, self.task_id + 1)], dim=-1
+            [self.heads[f"{t}"](feature) for t in range(1, self.task_id + 1)], dim=-1
         )  # concatenate logits of classes from all heads
 
         return logits

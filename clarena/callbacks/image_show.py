@@ -1,4 +1,4 @@
-"""
+r"""
 The submodule in `callbacks` for `ImageShowCallback`.
 """
 
@@ -10,9 +10,7 @@ import os
 
 import torch
 import torchvision
-import torchvision.utils as vutils
 from lightning import Callback, Trainer
-from lightning.pytorch.loggers import TensorBoardLogger
 
 from clarena.cl_algorithms import CLAlgorithm
 
@@ -21,7 +19,7 @@ pylogger = logging.getLogger(__name__)
 
 
 class ImageShowCallback(Callback):
-    """Image Show Callback shows images and labels in the first batch of training data in different ways."""
+    r"""Image Show Callback shows images and labels in the first batch of training data in different ways."""
 
     def __init__(
         self,
@@ -31,7 +29,7 @@ class ImageShowCallback(Callback):
         img_prefix: str = "sample",
         labels_filename: str = "labels.txt",
     ) -> None:
-        """Initialise the Image Show Callback.
+        r"""Initialise the Image Show Callback.
 
         **Args:**
         - **save** (`bool`): whether to save images and labels as documents to output.
@@ -43,21 +41,21 @@ class ImageShowCallback(Callback):
         super().__init__()
 
         self.save: bool = save
-        """Store the `save` argument."""
+        r"""Store the `save` argument."""
         self.save_dir: str = save_dir
-        """Store the `save_dir` argument."""
+        r"""Store the `save_dir` argument."""
         self.log_to_tensorboard: bool = log_to_tensorboard
-        """Store the `log_to_tensorboard` argument."""
+        r"""Store the `log_to_tensorboard` argument."""
         self.img_prefix: str = img_prefix
-        """Store the `img_prefix` argument."""
+        r"""Store the `img_prefix` argument."""
         self.labels_filename: str = labels_filename
-        """Store the `labels_filename` argument."""
+        r"""Store the `labels_filename` argument."""
 
         self.called: bool = False
-        """Flag to avoid calling the callback multiple times."""
+        r"""Flag to avoid calling the callback multiple times."""
 
     def on_train_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
-        """Show images and labels in the first batch of training data of a task in different ways in the beginning of the training of the task."""
+        r"""Show images and labels in the first batch of training data of a task in different ways in the beginning of the training of the task."""
         if self.called:
             return  # flag to avoid calling the callback multiple times
 
@@ -81,23 +79,5 @@ class ImageShowCallback(Callback):
                 )
                 labels_file.write(f"{self.img_prefix}_{i}.png: {label}\n")
             labels_file.close()
-
-        if self.log_to_tensorboard:
-            # log images and labels to TensorBoard
-            log_to_tensorboardger = next(
-                (
-                    logger.experiment
-                    for logger in trainer.loggers
-                    if isinstance(logger, TensorBoardLogger)
-                ),
-                None,
-            )
-            if log_to_tensorboardger is not None:
-                for i, (image, label) in enumerate(zip(image_samples, label_samples)):
-                    grid = vutils.make_grid(image, normalize=True, scale_each=True)
-                    log_to_tensorboardger.add_image(
-                        f"task_{pl_module.task_id} training data/{self.img_prefix}_{i}, label: {label}",
-                        grid,
-                    )
 
         self.called = True  # flag to avoid calling the callback multiple times

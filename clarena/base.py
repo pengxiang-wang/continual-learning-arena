@@ -1,4 +1,4 @@
-"""
+r"""
 The module for general CL bases.
 """
 
@@ -21,50 +21,51 @@ pylogger = logging.getLogger(__name__)
 
 
 class CLExperiment:
-    """The base class for continual learning experiments."""
+    r"""The base class for continual learning experiments."""
 
     def __init__(self, cfg: DictConfig) -> None:
-        """Initializes the CL experiment object with a complete configuration.
+        r"""Initializes the CL experiment object with a complete configuration.
 
         **Args:**
         - **cfg** (`DictConfig`): the complete config dict for the CL experiment.
         """
         self.cfg: DictConfig = cfg
-        """Store the complete config dict for any future reference."""
-        self.sanity_check()
+        r"""Store the complete config dict for any future reference."""
 
         self.cl_paradigm: str = cfg.cl_paradigm
-        """Store the continual learning paradigm, either 'TIL' (Task-Incremental Learning) or 'CIL' (Class-Incremental Learning). Parsed from config and used to instantiate the correct heads object and set up CL dataset."""
+        r"""Store the continual learning paradigm, either 'TIL' (Task-Incremental Learning) or 'CIL' (Class-Incremental Learning). Parsed from config and used to instantiate the correct heads object and set up CL dataset."""
         self.num_tasks: int = cfg.num_tasks
-        """Store the number of tasks to be conducted in this experiment. Parsed from config and used in the tasks loop."""
+        r"""Store the number of tasks to be conducted in this experiment. Parsed from config and used in the tasks loop."""
         self.test: bool = cfg.test
-        """Store whether to test the model after training and validation. Parsed from config and used in the tasks loop."""
+        r"""Store whether to test the model after training and validation. Parsed from config and used in the tasks loop."""
         self.output_dir_name: str = cfg.output_dir_name
-        """Store the name of the output directory to store the logs and checkpoints. Parsed from config and help any output operation to locate the correct directory."""
+        r"""Store the name of the output directory to store the logs and checkpoints. Parsed from config and help any output operation to locate the correct directory."""
 
         self.task_id: int
-        """Task ID counter indicating which task is being processed. Self updated during the task loop."""
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop."""
 
         self.cl_dataset: CLDataset
-        """CL dataset object. Instantiate in `instantiate_cl_dataset()`."""
+        r"""CL dataset object. Instantiate in `instantiate_cl_dataset()`."""
         self.backbone: CLBackbone
-        """Backbone network object. Instantiate in `instantiate_backbone()`."""
+        r"""Backbone network object. Instantiate in `instantiate_backbone()`."""
         self.heads: HeadsTIL | HeadsCIL
-        """CL output heads object. Instantiate in `instantiate_heads()`."""
+        r"""CL output heads object. Instantiate in `instantiate_heads()`."""
         self.model: CLAlgorithm
-        """CL model object. Instantiate in `instantiate_cl_algorithm()`."""
+        r"""CL model object. Instantiate in `instantiate_cl_algorithm()`."""
 
         self.optimizer: Optimizer
-        """Optimizer object for current task `self.task_id`. Instantiate in `instantiate_optimizer()`."""
+        r"""Optimizer object for current task `self.task_id`. Instantiate in `instantiate_optimizer()`."""
         self.trainer: Trainer
-        """Trainer object for current task `self.task_id`. Instantiate in `instantiate_trainer()`."""
+        r"""Trainer object for current task `self.task_id`. Instantiate in `instantiate_trainer()`."""
         self.lightning_loggers: list[Logger]
-        """The list of initialised lightning loggers objects for current task `self.task_id`. Instantiate in `instantiate_lightning_loggers()`."""
+        r"""The list of initialised lightning loggers objects for current task `self.task_id`. Instantiate in `instantiate_lightning_loggers()`."""
         self.callbacks: list[Callback]
-        """The list of initialised callbacks objects for current task `self.task_id`. Instantiate in `instantiate_callbacks()`."""
+        r"""The list of initialised callbacks objects for current task `self.task_id`. Instantiate in `instantiate_callbacks()`."""
 
-    def sanity_check(self) -> None:
-        """Check the sanity of the config dict `self.cfg`.
+        self.sanity_check_CLExperiment()
+
+    def sanity_check_CLExperiment(self) -> None:
+        r"""Check the sanity of the config dict `self.cfg`.
 
         **Raises:**
         - **KeyError**: when required fields in experiment config are missing, including `cl_paradigm`, `num_tasks`, `test`, `output_dir_name`.
@@ -100,7 +101,7 @@ class CLExperiment:
             )
 
     def instantiate_cl_dataset(self, cl_dataset_cfg: DictConfig) -> None:
-        """Instantiate the CL dataset object from cl_dataset config.
+        r"""Instantiate the CL dataset object from cl_dataset config.
 
         **Args:**
         - **cl_dataset_cfg** (`DictConfig`): the cl_dataset config dict.
@@ -116,7 +117,7 @@ class CLExperiment:
         )
 
     def instantiate_backbone(self, backbone_cfg: DictConfig) -> None:
-        """Instantiate the CL backbone network object from backbone config.
+        r"""Instantiate the CL backbone network object from backbone config.
 
         **Args:**
         - **backbone_cfg** (`DictConfig`): the backbone config dict.
@@ -132,7 +133,7 @@ class CLExperiment:
         )
 
     def instantiate_heads(self, cl_paradigm: str, input_dim: int) -> None:
-        """Instantiate the CL output heads object according to field `cl_paradigm` and backbone `output_dim` in the config.
+        r"""Instantiate the CL output heads object according to field `cl_paradigm` and backbone `output_dim` in the config.
 
         **Args:**
         - **cl_paradigm** (`str`): the CL paradigm, either 'TIL' or 'CIL'.
@@ -151,7 +152,7 @@ class CLExperiment:
         pylogger.debug("%s heads (torch.nn.Module) instantiated! ", cl_paradigm)
 
     def instantiate_cl_algorithm(self, cl_algorithm_cfg: DictConfig) -> None:
-        """Instantiate the cl_algorithm object from cl_algorithm config.
+        r"""Instantiate the cl_algorithm object from cl_algorithm config.
 
         **Args:**
         - **cl_algorithm_cfg** (`DictConfig`): the cl_algorithm config dict.
@@ -174,7 +175,7 @@ class CLExperiment:
     def instantiate_optimizer(
         self, optimizer_cfg: DictConfig | ListConfig, task_id: int
     ) -> None:
-        """Instantiate the optimizer object for task `task_id` from optimizer config.
+        r"""Instantiate the optimizer object for task `task_id` from optimizer config.
 
         **Args:**
         - **optimizer_cfg** (`DictConfig` or `ListConfig`): the optimizer config dict. If it's a `ListConfig`, it should contain optimizer config for each task; otherwise, it's an uniform optimizer config for all tasks.
@@ -200,7 +201,7 @@ class CLExperiment:
             )
 
     def instantiate_trainer(self, trainer_cfg: DictConfig, task_id: int) -> None:
-        """Instantiate the trainer object for task `task_id` from trainer config.
+        r"""Instantiate the trainer object for task `task_id` from trainer config.
 
         **Args:**
         - **trainer_cfg** (`DictConfig`): the trainer config dict. All tasks share the same trainer config but different objects.
@@ -223,7 +224,7 @@ class CLExperiment:
     def instantiate_lightning_loggers(
         self, lightning_loggers_cfg: DictConfig, task_id: int
     ) -> None:
-        """Instantiate the list of lightning loggers objects for task `task_id` from lightning_loggers config.
+        r"""Instantiate the list of lightning loggers objects for task `task_id` from lightning_loggers config.
 
         **Args:**
         - **lightning_loggers_cfg** (`DictConfig`): the lightning_loggers config dict. All tasks share the same lightning_loggers config but different objects.
@@ -243,7 +244,7 @@ class CLExperiment:
         )
 
     def instantiate_callbacks(self, callbacks_cfg: DictConfig, task_id: int) -> None:
-        """Instantiate the list of callbacks objects for task `task_id` from callbacks config.
+        r"""Instantiate the list of callbacks objects for task `task_id` from callbacks config.
 
         **Args:**
         - **callbacks_cfg** (`DictConfig`): the callbacks config dict. All tasks share the same callbacks config but different objects.
@@ -260,7 +261,7 @@ class CLExperiment:
         )
 
     def setup_task_id(self, task_id: int) -> None:
-        """Set up current task_id in the beginning of the continual learning process of a new task.
+        r"""Set up current task_id in the beginning of the continual learning process of a new task.
 
         **Args:**
         - **task_id** (`int`): current task_id.
@@ -268,7 +269,7 @@ class CLExperiment:
         self.task_id = task_id
 
     def instantiate_global(self) -> None:
-        """Instantiate global components for the entire CL experiment from `self.cfg`."""
+        r"""Instantiate global components for the entire CL experiment from `self.cfg`."""
 
         self.instantiate_cl_dataset(self.cfg.cl_dataset)
         self.instantiate_backbone(self.cfg.backbone)
@@ -278,11 +279,11 @@ class CLExperiment:
         )  # cl_algorithm should be instantiated after backbone and heads
 
     def setup_global(self) -> None:
-        """Let CL dataset know the CL paradigm to define its CL class map."""
+        r"""Let CL dataset know the CL paradigm to define its CL class map."""
         self.cl_dataset.set_cl_paradigm(cl_paradigm=self.cl_paradigm)
 
     def instantiate_task_specific(self) -> None:
-        """Instantiate task-specific components for the current task `self.task_id` from `self.cfg`."""
+        r"""Instantiate task-specific components for the current task `self.task_id` from `self.cfg`."""
 
         self.instantiate_optimizer(self.cfg.optimizer, self.task_id)
         self.instantiate_callbacks(self.cfg.callbacks, self.task_id)
@@ -292,7 +293,7 @@ class CLExperiment:
         )  # trainer should be instantiated after loggers and callbacks
 
     def setup_task_specific(self) -> None:
-        """Setup task-specific components to get ready for the current task `self.task_id`."""
+        r"""Setup task-specific components to get ready for the current task `self.task_id`."""
 
         self.cl_dataset.setup_task_id(self.task_id)
         self.backbone.setup_task_id(self.task_id)
@@ -308,7 +309,7 @@ class CLExperiment:
         )
 
     def fit_task(self) -> None:
-        """Fit the model on the current task `self.task_id`. Also test the model if `self.test` is set to True."""
+        r"""Fit the model on the current task `self.task_id`. Also test the model if `self.test` is set to True."""
 
         self.trainer.fit(
             model=self.model,
@@ -316,14 +317,14 @@ class CLExperiment:
         )
 
         if self.test:
-            # test after train and validate
+            # test after training and validation
             self.trainer.test(
                 model=self.model,
                 datamodule=self.cl_dataset,
             )
 
     def fit(self) -> None:
-        """The main method to run the continual learning experiment."""
+        r"""The main method to run the continual learning experiment."""
 
         self.instantiate_global()
         self.setup_global()

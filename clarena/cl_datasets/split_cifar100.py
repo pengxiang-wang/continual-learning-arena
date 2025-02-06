@@ -1,5 +1,5 @@
-"""
-The submodule in `cl_datasets` for Split CIFAR100 dataset.
+r"""
+The submodule in `cl_datasets` for Split CIFAR-100 dataset.
 """
 
 __all__ = ["SplitCIFAR100"]
@@ -18,16 +18,16 @@ pylogger = logging.getLogger(__name__)
 
 
 class SplitCIFAR100(CLSplitDataset):
-    """Split CIFAR100 dataset."""
+    r"""Split CIFAR-100 dataset. The [original CIFAR100 dataset](https://www.cs.toronto.edu/~kriz/cifar.html) is a subset of the 80 million tiny images dataset. It consists of 60,000 32x32 colour images in 100 classes, with 600 images per class. There are 50,000 training examples and 10,000 test examples."""
 
     num_classes: int = 100
-    """The number of classes in CIFAR100 dataset."""
+    r"""The number of classes in CIFAR-100 dataset."""
 
-    mean_original: tuple[float] = (0.1307,)
-    """The mean values for normalisation."""
+    mean_original: tuple[float] = (0.5074, 0.4867, 0.4411)
+    r"""The mean values for normalisation."""
 
-    std_original: tuple[float] = (0.3081,)
-    """The standard deviation values for normalisation."""
+    std_original: tuple[float] = (0.2011, 0.1987, 0.2025)
+    r"""The standard deviation values for normalisation."""
 
     def __init__(
         self,
@@ -40,10 +40,10 @@ class SplitCIFAR100(CLSplitDataset):
         custom_transforms: Callable | transforms.Compose | None = None,
         custom_target_transforms: Callable | transforms.Compose | None = None,
     ) -> None:
-        """Initialise the Permuted MNIST dataset.
+        r"""Initialise the Split CIFAR-100 dataset.
 
         **Args:**
-        - **root** (`str`): the root directory where the original MNIST data 'MNIST/raw/train-images-idx3-ubyte' and 'MNIST/raw/t10k-images-idx3-ubyte' live.
+        - **root** (`str`): the root directory where the original CIFAR-100 data 'cifar-100-python/' live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
         - **class_split** (`list[list[int]]`): the class split for each task. Each element in the list is a list of class labels (integers starting from 0) to split for a task.
         - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
@@ -70,17 +70,17 @@ class SplitCIFAR100(CLSplitDataset):
         )
 
     def prepare_data(self) -> None:
-        """Download the original MNIST dataset if haven't."""
+        r"""Download the original CIFAR-100 dataset if haven't."""
         # just download
         CIFAR100(root=self.root, train=True, download=True)
         CIFAR100(root=self.root, train=False, download=True)
 
         pylogger.debug(
-            "The original CIFAR100 dataset has been downloaded to %s.", self.root
+            "The original CIFAR-100 dataset has been downloaded to %s.", self.root
         )
 
     def train_and_val_dataset(self) -> tuple[Dataset, Dataset]:
-        """Get the training and validation dataset of task `self.task_id`.
+        r"""Get the training and validation dataset of task `self.task_id`.
 
         **Returns:**
         - **train_and_val_dataset** (`tuple[Dataset, Dataset]`): the train and validation dataset of task `self.task_id`.
@@ -101,7 +101,7 @@ class SplitCIFAR100(CLSplitDataset):
         )
 
     def test_dataset(self) -> Dataset:
-        """Get the test dataset of task `self.task_id`.
+        r"""Get the test dataset of task `self.task_id`.
 
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.

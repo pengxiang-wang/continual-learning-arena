@@ -1,4 +1,4 @@
-""""""
+r"""The submodule in `regularisers` for HAT mask sparsity regularisation`."""
 
 __all__ = ["HATMaskSparsityReg"]
 
@@ -6,7 +6,7 @@ from torch import Tensor, nn
 
 
 class HATMaskSparsityReg(nn.Module):
-    """Mask Sparsity Regulariser of HAT (Hard Attention to the Task).
+    r"""Mask Sparsity Regulariser of HAT (Hard Attention to the Task).
 
     It promotes the low capacity usage that is reflected by occupation of masks in the parameter space.
 
@@ -18,7 +18,7 @@ class HATMaskSparsityReg(nn.Module):
         factor: float,
         mode: str = "original",
     ) -> None:
-        """Initialise the regulariser.
+        r"""Initialise the regulariser.
 
         **Args:**
         - **factor** (`float`): the regularisation factor.
@@ -37,12 +37,12 @@ class HATMaskSparsityReg(nn.Module):
     def forward(
         self, mask: dict[str, Tensor], previous_cumulative_mask: dict[str, Tensor]
     ) -> Tensor:
-        """Calculate the mask sparsity regularisation loss.
+        r"""Calculate the mask sparsity regularisation loss.
 
         **Args:**
         - **mask** (`dict[str, Tensor]`): the mask for the current task.
         - **previous_cumulative_mask** (`dict[str, Tensor]`): the cumulative mask for the previous tasks.
-        
+
         **Returns:**
         - **reg** (`Tensor`): the mask sparsity regularisation loss.
         """
@@ -55,14 +55,14 @@ class HATMaskSparsityReg(nn.Module):
     def original_reg(
         self, mask: dict[str, Tensor], previous_cumulative_mask: dict[str, Tensor]
     ) -> Tensor:
-        """Calculate the original mask sparsity regularisation loss in HAT paper.
+        r"""Calculate the original mask sparsity regularisation loss in HAT paper.
 
         See chapter 2.6 "Promoting Low Capacity Usage" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
 
         **Args:**
         - **mask** (`dict[str, Tensor]`): the mask for the current task. The $\mathrm{A}^t$ in the paper.
         - **previous_cumulative_mask** (`dict[str, Tensor]`): the cumulative mask for the previous tasks. The $\mathrm{A}^{<t}$ in the paper.
-        
+
         **Returns:**
         - **reg** (`Tensor`): the original mask sparsity regularisation loss.
         """
@@ -72,15 +72,25 @@ class HATMaskSparsityReg(nn.Module):
             0  # number of units occupied by the new task in the available units
         )
 
+        network_sparsity = {}
+
         for layer_name in mask.keys():
             # statistics through all layers
-            count_available += (
+            available = (
                 1 - previous_cumulative_mask[layer_name]
             ).sum()  # count the number of units available for the new task
-            count_new_task_occupation_in_available += (
+
+            new_task_occupation_in_available = (
                 mask[layer_name] * (1 - previous_cumulative_mask[layer_name])
             ).sum()
             # count the number of units occupied by the new task in the available units
+
+            # add to statistics
+            count_available += available
+            count_new_task_occupation_in_available += new_task_occupation_in_available
+            network_sparsity[layer_name] = (
+                (new_task_occupation_in_available / available) if available > 10 else 0
+            )
 
         # the mask sparsity regularisation minimises the ratio of the number of units occupied by the new task to the number of units available for the new task. The regularisizer is to let HAT allocates more units from previous tasks to the new task rather than using available units.
         reg = (
@@ -90,17 +100,17 @@ class HATMaskSparsityReg(nn.Module):
             else 0
         )
 
-        return self.factor * reg
+        return self.factor * reg, network_sparsity
 
     def cross_reg(
         self, mask: dict[str, Tensor], previous_cumulative_mask: dict[str, Tensor]
     ) -> Tensor:
-        """Calculate the cross mask sparsity regularisation loss. This is an attempting improvement by me to the original regularisation, which not only considers the sparsity in available units but also the density in the units occupied by previous tasks.
+        r"""Calculate the cross mask sparsity regularisation loss. This is an attempting improvement by me to the original regularisation, which not only considers the sparsity in available units but also the density in the units occupied by previous tasks.
 
         **Args:**
         - **mask** (`dict[str, Tensor]`): the mask for the current task. The $\mathrm{A}^t$ in the paper.
         - **previous_cumulative_mask** (`dict[str, Tensor]`): the cumulative mask for the previous tasks. The $\mathrm{A}^{<t}$ in the paper.
-        
+
         **Returns:**
         - **reg** (`Tensor`): the cross mask sparsity regularisation loss.
         """
@@ -110,15 +120,23 @@ class HATMaskSparsityReg(nn.Module):
             0  # number of units occupied by the new task in the previous tasks
         )
 
+        network_sparsity_2 = {}
+
         for layer_name in mask.keys():
             # statistics through all layers
-            count_previous += previous_cumulative_mask[
+            previous = previous_cumulative_mask[
                 layer_name
             ].sum()  # count the number of units occupied by the previous tasks
-            count_new_task_occupation_in_previous += (
-                mask[layer_name] * previous_cumulative_mask[layer_name]
-            ).sum()
-            # count the number of units occupied by the new task in the previous tasks
+            new_task_occupation_in_previous = (
+                mask[layer_name] * previous_cumulative_mask[layer_name].sum()
+            )  # count the number of units occupied by the new task in the previous tasks
+
+            # add to statistics
+            count_previous += previous
+            count_new_task_occupation_in_previous += new_task_occupation_in_previous
+            network_sparsity_2[layer_name] = (
+                (new_task_occupation_in_previous / previous) if previous > 10 else 0
+            )
 
         # the mask sparsity regularisation maximises the ratio of the number of units occupied by the new task to the number of units occupied by the previous tasks. The regularisizer is to let HAT allocates more units from previous tasks to the new task rather than using available units.
         reg2 = (
@@ -128,10 +146,17 @@ class HATMaskSparsityReg(nn.Module):
             else 0
         )
 
-        reg1 = self.original_reg(mask, previous_cumulative_mask)
+        reg1, network_sparsity_1 = self.original_reg(mask, previous_cumulative_mask)
 
         reg = (
             reg1 + reg2
         ) / 2  # our cross regularisation is the average of the original and the regularisation proposed above
 
-        return self.factor * reg
+        network_sparsity = {}
+        for layer_name in mask.keys():
+            # merge the two network sparsity statistics
+            network_sparsity[layer_name] = (
+                network_sparsity_1[layer_name] + network_sparsity_2[layer_name]
+            ) / 2
+
+        return self.factor * reg, network_sparsity
