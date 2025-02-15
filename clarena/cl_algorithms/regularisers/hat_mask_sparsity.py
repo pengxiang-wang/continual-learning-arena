@@ -1,4 +1,4 @@
-r"""The submodule in `regularisers` for HAT mask sparsity regularisation`."""
+r"""The submodule in `regularisers` for HAT mask sparsity regularisation."""
 
 __all__ = ["HATMaskSparsityReg"]
 
@@ -6,7 +6,11 @@ from torch import Tensor, nn
 
 
 class HATMaskSparsityReg(nn.Module):
-    r"""Mask Sparsity Regulariser of HAT (Hard Attention to the Task).
+    r"""Mask sparsity regulariser of HAT (Hard Attention to the Task).
+
+    $$
+    R\left(\textsf{M}^t,\textsf{M}^{<t}\right)=\text{factor} * \frac{\sum_{l=1}^{L-1}\sum_{i=1}^{N_l}m_{l,i}^t\left(1-m_{l,i}^{<t}\right)}{\sum_{l=1}^{L-1}\sum_{i=1}^{N_l}\left(1-m_{l,i}^{<t}\right)}
+    $$
 
     It promotes the low capacity usage that is reflected by occupation of masks in the parameter space.
 
@@ -44,7 +48,7 @@ class HATMaskSparsityReg(nn.Module):
         - **previous_cumulative_mask** (`dict[str, Tensor]`): the cumulative mask for the previous tasks.
 
         **Returns:**
-        - **reg** (`Tensor`): the mask sparsity regularisation loss.
+        - **reg** (`Tensor`): the mask sparsity regularisation value.
         """
 
         if self.mode == "original":

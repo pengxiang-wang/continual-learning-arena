@@ -13,7 +13,12 @@ Please note that this is an API documantation. Please refer to the main document
 """
 
 from .base import CLAlgorithm
-from .finetuning import Finetuning
-from .hat import HAT
 
-__all__ = ["CLAlgorithm", "finetuning", "hat"]
+# finetuning first
+from .finetuning import Finetuning
+from .ewc import EWC
+from .fix import Fix
+from .hat import HAT
+from .lwf import LwF
+
+__all__ = ["CLAlgorithm", "finetuning", "fix", "lwf", "ewc", "hat"]

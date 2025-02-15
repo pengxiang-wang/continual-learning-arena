@@ -11,9 +11,10 @@ import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 
-from clarena.backbones.base import HATMaskBackbone
+from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import CLAlgorithm
 from clarena.cl_algorithms.regularisers import HATMaskSparsityReg
+from clarena.cl_heads import HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -29,13 +30,13 @@ class HAT(CLAlgorithm):
 
     def __init__(
         self,
-        backbone: torch.nn.Module,
-        heads: torch.nn.Module,
+        backbone: HATMaskBackbone,
+        heads: HeadsTIL | HeadsCIL,
         adjustment_mode: str,
         s_max: float,
         clamp_threshold: float,
-        mask_sparsity_factor: float,
-        mask_sparsity_mode: str = "original",
+        mask_sparsity_reg_factor: float,
+        mask_sparsity_reg_mode: str = "original",
         task_embedding_init: str = "N01",
         adjustment_intensity: float | None = None,
         epsilon: float = 0.1,
@@ -43,7 +44,7 @@ class HAT(CLAlgorithm):
         r"""Initialise the HAT algorithm with the network.
 
         **Args:**
-        - **backbone** (`CLBackbone`): backbone network.
+        - **backbone** (`HATMaskBackbone`): must be a backbone network with HAT mask mechanism.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
         - **adjustment_mode** (`str`): the strategy of adjustment i.e. the mode of gradient clipping, should be one of the following:
             1. 'hat': set the gradients of parameters linking to masked units to zero. This is the way that HAT does, which fixes the part of network for previous tasks completely. See equation (2) in chapter 2.3 "Network Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
@@ -55,8 +56,8 @@ class HAT(CLAlgorithm):
             7. 'adahat_no_reg': set the gradients of parameters linking to masked units to a soft adjustment rate in the original AdaHAT approach, but without considering the information of network sparsity i.e. mask sparsity regularisation value. This is the way that one of the AdaHAT ablation study does. See chapter 4.3 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
         - **s_max** (`float`): hyperparameter, the maximum scaling factor in the gate function. See chapter 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **clamp_threshold** (`float`): the threshold for task embedding gradient compensation. See chapter 2.5 "Embedding Gradient Compensation" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
-        - **mask_sparsity_factor** (`float`): hyperparameter, the regularisation factor for mask sparsity.
-        - **mask_sparsity_mode** (`str`): the mode of mask sparsity regularisation, should be one of the following:
+        - **mask_sparsity_reg_factor** (`float`): hyperparameter, the regularisation factor for mask sparsity.
+        - **mask_sparsity_reg_mode** (`str`): the mode of mask sparsity regularisation, should be one of the following:
             1. 'original' (default): the original mask sparsity regularisation in HAT paper.
             2. 'cross': the cross version mask sparsity regularisation.
         - task_embedding_init (`str`): the initialisation method for task embeddings, should be one of the following:
@@ -65,7 +66,7 @@ class HAT(CLAlgorithm):
             3. 'U01': uniform distribution $U(0, 1)$.
             4. 'U-10': uniform distribution $U(-1, 0)$.
             5. 'last': inherit inherit task embedding from last task.
-        - **adjustment_intensity** (`float` | `None`): the hyperparameter that control the overall intensity of gradient adjustment. It applies only to AdaHAT modes and `hat_const_alpha`. It's the `alpha` in equation (9) and the `alpha` in the "HAT-const-alpha" equation in chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
+        - **adjustment_intensity** (`float` | `None`): hyperparameter, control the overall intensity of gradient adjustment. It applies only to AdaHAT modes and `hat_const_alpha`. It's the `alpha` in equation (9) and the `alpha` in the "HAT-const-alpha" equation in chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
         - **epsilon** (`float`): the small value to avoid division by zero appeared in equation (9) in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9). It applies only to AdaHAT modes.
         """
         super().__init__(backbone=backbone, heads=heads)
@@ -76,12 +77,12 @@ class HAT(CLAlgorithm):
         r"""Store s_max. """
         self.clamp_threshold = clamp_threshold
         r"""Store the clamp threshold for task embedding gradient compensation."""
-        self.mask_sparsity_factor = mask_sparsity_factor
+        self.mask_sparsity_reg_factor = mask_sparsity_reg_factor
         r"""Store the mask sparsity regularisation factor."""
-        self.mask_sparsity_mode = mask_sparsity_mode
+        self.mask_sparsity_reg_mode = mask_sparsity_reg_mode
         r"""Store the mask sparsity regularisation mode."""
         self.mark_sparsity_reg = HATMaskSparsityReg(
-            factor=mask_sparsity_factor, mode=mask_sparsity_mode
+            factor=mask_sparsity_reg_factor, mode=mask_sparsity_reg_mode
         )
         r"""Initialise and store the mask sparsity regulariser."""
         self.task_embedding_init = task_embedding_init
@@ -91,7 +92,7 @@ class HAT(CLAlgorithm):
         self.epsilon = epsilon
         """Store the small value to avoid division by zero appeared in equation (9) in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9)."""
 
-        # Set manual optimisation
+        # set manual optimisation
         self.automatic_optimization = False
 
         self.sanity_check_HAT()
@@ -100,14 +101,14 @@ class HAT(CLAlgorithm):
         r"""Check the sanity of the arguments.
 
         **Raises:**
-        - **ValueError**: when backbone is not designed for HAT, or the `mask_sparsity_mode` or `task_embedding_init` is one of the valid options.
+        - **ValueError**: when backbone is not designed for HAT, or the `mask_sparsity_reg_mode` or `task_embedding_init` is one of the valid options.
         """
         if not isinstance(self.backbone, HATMaskBackbone):
             raise ValueError("The backbone should be an instance of HATMaskBackbone.")
 
-        if self.mask_sparsity_mode not in ["original", "cross"]:
+        if self.mask_sparsity_reg_mode not in ["original", "cross"]:
             raise ValueError(
-                "The mask_sparsity_mode should be one of 'original', 'cross'."
+                "The mask_sparsity_reg_mode should be one of 'original', 'cross'."
             )
         if self.task_embedding_init not in ["N01", "U01", "U-10", "masked", "unmasked"]:
             raise ValueError(
@@ -179,7 +180,7 @@ class HAT(CLAlgorithm):
         - **batch_idx** (`int`): the index of the batch. Used for calculating annealed scalar in HAT. See chapter 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
 
         **Returns:**
-        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this training step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs.
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this training step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs. For HAT, it includes 'mask' and 'capacity' for logging.
         """
         x, y = batch
 
@@ -233,6 +234,7 @@ class HAT(CLAlgorithm):
         return {
             "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
+            "loss_reg": loss_reg,
             "acc": acc,
             "mask": mask,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
             "capacity": capacity,

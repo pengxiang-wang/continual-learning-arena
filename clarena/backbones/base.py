@@ -116,13 +116,13 @@ class HATMaskBackbone(CLBackbone):
         """
 
         self.masks: dict[str, dict[str, Tensor]] = {}
-        r"""Store the binary attention mask of each task gated from the task embedding. Keys are task IDs (string type) and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor is the same size as the task embedding weight tensor with size (1, number of units). """
+        r"""Store the binary attention mask of each previous task gated from the task embedding. Keys are task IDs (string type) and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor is the same size as the task embedding weight tensor with size (1, number of units). """
 
         self.cumulative_mask_t: dict[str, Tensor]
-        r"""Store the cumulative binary attention mask of each task $\mathrm{M}^{<t}$, gated from the task embedding. Keys are task IDs and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor is the same shape as the task embedding weight tensor with size (1, number of units). """
+        r"""Store the cumulative binary attention mask of each task $\mathrm{M}^{<t}$, gated from the task embedding. Keys are task IDs and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has the same shape as the task embedding weight tensor with size (1, number of units). """
 
         self.summative_mask_t: dict[str, Tensor]
-        r"""Store the summative binary attention mask of each task $\mathrm{M}^{<t,\text{sum}}$ gated from the task embedding. Keys are task IDs and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor is the same shape as the task embedding weight tensor with size (1, number of units). """
+        r"""Store the summative binary attention mask of each task $\mathrm{M}^{<t,\text{sum}}$ gated from the task embedding. Keys are task IDs and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has the same shape as the task embedding weight tensor with size (1, number of units). """
 
         self.sanity_check_HATMaskBackbone()
 

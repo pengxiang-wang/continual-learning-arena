@@ -11,6 +11,8 @@ Please note that this is an API documantation. Please refer to the main document
 
 """
 
+from .distillation import DistillationReg
 from .hat_mask_sparsity import HATMaskSparsityReg
+from .parameter_change import ParameterChangeReg
 
-__all__ = ["hat_mask_sparsity"]
+__all__ = ["distillation", "hat_mask_sparsity", "parameter_change"]

@@ -11,7 +11,9 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
+from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import CLAlgorithm
+from clarena.cl_heads import HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -25,8 +27,8 @@ class Finetuning(CLAlgorithm):
 
     def __init__(
         self,
-        backbone: torch.nn.Module,
-        heads: torch.nn.Module,
+        backbone: CLBackbone,
+        heads: HeadsTIL | HeadsCIL,
     ) -> None:
         r"""Initialise the Finetuning algorithm with the network. It has no additional hyperparamaters.
 
