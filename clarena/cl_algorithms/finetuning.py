@@ -36,7 +36,7 @@ class Finetuning(CLAlgorithm):
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
         """
-        super().__init__(backbone=backbone, heads=heads)
+        CLAlgorithm.__init__(self, backbone=backbone, heads=heads)
 
     def forward(self, input: Tensor, stage: str, task_id: int | None = None) -> Tensor:
         r"""The forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`.
@@ -51,10 +51,11 @@ class Finetuning(CLAlgorithm):
 
         **Returns:**
         - **logits** (`Tensor`): the output logits tensor.
+        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although Finetuning algorithm does not need this, it is still provided for API consistence for other algorithms inherited this `forward()` method of `Finetuning` class.
         """
-        feature = self.backbone(input, stage=stage, task_id=task_id)
+        feature, hidden_features = self.backbone(input, stage=stage, task_id=task_id)
         logits = self.heads(feature, task_id)
-        return logits
+        return logits, hidden_features
 
     def training_step(self, batch: Any) -> dict[str, Tensor]:
         """Training step for current task `self.task_id`.
@@ -68,7 +69,7 @@ class Finetuning(CLAlgorithm):
         x, y = batch
 
         # classification loss
-        logits = self.forward(x, stage="train", task_id=self.task_id)
+        logits, hidden_features = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
         # total loss
@@ -81,6 +82,7 @@ class Finetuning(CLAlgorithm):
             "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
+            "hidden_features": hidden_features,
         }
 
     def validation_step(self, batch: Any) -> dict[str, Tensor]:
@@ -93,7 +95,7 @@ class Finetuning(CLAlgorithm):
         - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this validation step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
         """
         x, y = batch
-        logits = self.forward(
+        logits, hidden_features = self.forward(
             x,
             stage="validation",
             task_id=self.task_id,
@@ -122,7 +124,7 @@ class Finetuning(CLAlgorithm):
         test_task_id = dataloader_idx + 1
 
         x, y = batch
-        logits = self.forward(
+        logits, hidden_features = self.forward(
             x, stage="test", task_id=test_task_id
         )  # use the corresponding head to test (instead of the current task `self.task_id`)
         loss_cls = self.criterion(logits, y)

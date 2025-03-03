@@ -32,7 +32,7 @@ class DistillationReg(nn.Module):
         - **distance** (`str`): the type of distance function used in the distillation, should be one of the following:
             1. "lwf_cross_entropy": the modified cross entropy loss from LwF. See equation (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
         """
-        super().__init__()
+        nn.Module.__init__(self)
 
         self.factor = factor
         """Store the regularisation factor for distillation."""

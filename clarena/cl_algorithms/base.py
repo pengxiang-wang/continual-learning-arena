@@ -31,7 +31,7 @@ class CLAlgorithm(LightningModule):
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
         """
-        super().__init__()
+        LightningModule.__init__(self)
 
         self.backbone: CLBackbone = backbone
         r"""Store the backbone network."""
@@ -45,9 +45,9 @@ class CLAlgorithm(LightningModule):
         self.task_id: int
         r"""Task ID counter indicating which task is being processed. Self updated during the task loop."""
 
-        self.sanity_check_CLAlgorithm()
+        CLAlgorithm.sanity_check(self)
 
-    def sanity_check_CLAlgorithm(self) -> None:
+    def sanity_check(self) -> None:
         r"""Check the sanity of the arguments.
 
         **Raises:**

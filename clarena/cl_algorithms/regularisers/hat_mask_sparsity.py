@@ -30,8 +30,7 @@ class HATMaskSparsityReg(nn.Module):
             1. 'original' (default): the original mask sparsity regularisation in HAT paper.
             2. 'cross': the cross version mask sparsity regularisation.
         """
-
-        super().__init__()
+        nn.Module.__init__(self)
 
         self.factor = factor
         """Store the regularisation factor for mask sparsity."""
@@ -53,7 +52,8 @@ class HATMaskSparsityReg(nn.Module):
 
         if self.mode == "original":
             return self.original_reg(mask, previous_cumulative_mask)
-        elif self.mode == "cross":
+        
+        if self.mode == "cross":
             return self.cross_reg(mask, previous_cumulative_mask)
 
     def original_reg(

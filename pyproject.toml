@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clarena"
-version = "0.1.1"
+version = "1.0.0"
 #dynamic = ["version"]
 description = "An open-source machine learning package for continual learning research"
 readme = "README.md"
@@ -81,10 +81,10 @@ dependencies = [
 "Say Thanks!" = "https://github.com/pengxiang-wang/continual-learning-arena/discussions"
 "Source" = "https://github.com/pengxiang-wang/continual-learning-arena/"
 
-# The following would provide a command line executable called `cltrain`
-# which executes the function `clarena.main.cltrain` from this package when invoked.
+# The following would provide a command line executable called `clrun`
+# which executes the function `clarena.main.clrun` from this package when invoked.
 [project.scripts]
-cltrain = "clarena.main:cltrain"
+clrun = "clarena.main:clrun"
 
 [tool.setuptools]
-packages = ["clarena", "clarena.cl_datasets", "clarena.backbones", "clarena.cl_heads", "clarena.cl_algorithms", "clarena.optimizers", "clarena.callbacks"]
+packages = ["clarena", "clarena.cl_datasets", "clarena.backbones", "clarena.cl_heads", "clarena.cl_algorithms", "clarena.optimizers", "clarena.callbacks", "clarena.utils"]

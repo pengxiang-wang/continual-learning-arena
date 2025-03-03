@@ -4,11 +4,14 @@ r"""
 
 This submodule provides the **continual learning algorithms** in CLArena. 
 
-Please note that this is an API documantation. Please refer to the main documentation page for more information about the backbone networks and how to use and customize them:
+Please note that this is an API documantation. Please refer to the main documentation pages for more information about the backbone networks and how to configure and implement them:
 
-- **Configure your CL algorithm:** [https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiments/cl-algorithm](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiments/cl-algorithm)
-- **Implement your CL algorithm:** [https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/cl-algorithm](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/cl-algorithm)
-- **A beginners' guide to continual learning (CL algorithm):** [https://pengxiang-wang.com/posts/continual-learning-beginners-guide#methodology](https://pengxiang-wang.com/posts/continual-learning-beginners-guide#methodology)
+- [**Configure CL Algorithm**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiment/cl-algorithm)
+- [**Implement Your CL Algorithm Class**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/cl-algorithm)
+- [**A Beginners' Guide to Continual Learning (Methodology Overview)**](https://pengxiang-wang.com/posts/continual-learning-beginners-guide#sec-methodology)
+
+
+The algorithms are implemented as subclasses of `CLAlgorithm`.
 
 """
 
@@ -16,9 +19,26 @@ from .base import CLAlgorithm
 
 # finetuning first
 from .finetuning import Finetuning
-from .ewc import EWC
 from .fix import Fix
-from .hat import HAT
-from .lwf import LwF
 
-__all__ = ["CLAlgorithm", "finetuning", "fix", "lwf", "ewc", "hat"]
+from .lwf import LwF
+from .ewc import EWC
+from .cbp import CBP
+
+from .hat import HAT
+from .adahat import AdaHAT
+from .cbphat import CBPHAT
+
+
+__all__ = [
+    "CLAlgorithm",
+    "regularisers",
+    "finetuning",
+    "fix",
+    "lwf",
+    "ewc",
+    "hat",
+    "cbp",
+    "adahat",
+    "cbphat",
+]

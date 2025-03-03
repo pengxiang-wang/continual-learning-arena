@@ -14,7 +14,7 @@ class HeadsTIL(nn.Module):
         **Args:**
         - **input_dim** (`int`): the input dimension of the heads. Must be equal to the `output_dim` of the connected backbone.
         """
-        super().__init__()
+        nn.Module.__init__(self)
 
         self.heads: nn.ModuleDict = nn.ModuleDict()  # initially no heads
         r"""TIL output heads are stored independently in a `ModuleDict`. Keys are task IDs (string type) and values are the corresponding `nn.Linear` heads. We use `ModuleDict` rather than `dict` to make sure `LightningModule` can track these model parameters for the purpose of, such as automatically to device, recorded in model summaries.

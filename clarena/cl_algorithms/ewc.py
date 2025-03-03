@@ -10,7 +10,6 @@ from typing import Any
 
 import torch
 from torch import Tensor, nn
-from torch.utils.data import DataLoader
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning
@@ -45,7 +44,7 @@ class EWC(Finetuning):
         - **parameter_change_reg_p_norm** (`float`): the norm of the distance of parameters between previous tasks and current task in the parameter change regularisation.
 
         """
-        super().__init__(backbone=backbone, heads=heads)
+        Finetuning.__init__(self, backbone=backbone, heads=heads)
 
         self.parameter_importance: dict[str, dict[str, Tensor]] = {}
         r"""Store the parameter importance of each previous task. Keys are task IDs (string type) and values are the corresponding importance. Each importance entity is a dict where keys are parameter names (named by `named_parameters()` of the `nn.Module`) and values are the importance tensor for the layer. It has the same shape as the parameters of the layer.
@@ -66,9 +65,9 @@ class EWC(Finetuning):
         )
         r"""Initialise and store the parameter change regulariser."""
 
-        self.sanity_check_EWC()
+        EWC.sanity_check(self)
 
-    def sanity_check_EWC(self) -> None:
+    def sanity_check(self) -> None:
         r"""Check the sanity of the arguments.
 
         **Raises:**
@@ -113,7 +112,7 @@ class EWC(Finetuning):
 
             # compute the gradients within a batch
             self.backbone.zero_grad()  # reset gradients
-            logits = self.forward(x, stage="train", task_id=self.task_id)
+            logits, _ = self.forward(x, stage="train", task_id=self.task_id)
             loss_cls = self.criterion(logits, y)
             loss_cls.backward()  # compute gradients
 
@@ -142,7 +141,7 @@ class EWC(Finetuning):
         x, y = batch
 
         # classification loss
-        logits = self.forward(x, stage="train", task_id=self.task_id)
+        logits, hidden_features = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
         # regularisation loss. See equation (3) in the [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114).
@@ -171,6 +170,7 @@ class EWC(Finetuning):
             "loss_cls": loss_cls,
             "loss_reg": loss_reg,
             "acc": acc,
+            "hidden_features": hidden_features,
         }
 
     def on_train_end(self) -> None:

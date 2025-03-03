@@ -4,11 +4,11 @@ r"""
 
 This submodule provides the **continual learning datasets** that can be used in CLArena. 
 
-Please note that this is an API documantation. Please refer to the main documentation page for more information about the CL datasets and how to use and customize them:
+Please note that this is an API documantation. Please refer to the main documentation pages for more information about the CL datasets and how to configure and implement them:
 
-- **Configure your CL dataset:** [https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiments/cl-dataset](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiments/cl-dataset)
-- **Implement your CL dataset:** [https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/cl-dataset](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/cl-dataset)
-- **A beginners' guide to continual learning (CL dataset):** [https://pengxiang-wang.com/posts/continual-learning-beginners-guide#CL-dataset](https://pengxiang-wang.com/posts/continual-learning-beginners-guide#CL-dataset)
+- [**Configure CL Dataset**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiment/cl-dataset)
+- [**Implement Your CL Dataset Class**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/cl-dataset)
+- [**A Beginners' Guide to Continual Learning (CL Dataset)**](https://pengxiang-wang.com/posts/continual-learning-beginners-guide#sec-CL-dataset)
 
 The datasets are implemented as subclasses of `CLDataset` classes, which are the base class for all continual learning datasets in CLArena.
 

@@ -18,66 +18,72 @@ pylogger = logging.getLogger(__name__)
 
 
 class HATMetricsCallback(Callback):
-    r"""HAT Metrics Callback provides class for logging monitored metrics to Lightning loggers, saving metrics to files, plotting metrics to figures and so on. The metrics are particularly related to [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a)) algorithm.
+    r"""Provides all actions that are related to metrics used for [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a) algorithm, which include:
 
-    Put `self.log()` here if you don't want to mess up the `CLAlgorithm` (`LightningModule`) with a huge amount of logging.
+    - Visualising mask and cumulative mask figures during training and testing as figures.
+    - Logging network capacity during training. See the "Evaluation Metrics" section in chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9) for more details about network capacity.
+
+    Lightning provides `self.log()` to log metrics in `LightningModule` where our `CLAlgorithm` based. You can put `self.log()` here if you don't want to mess up the `CLAlgorithm` with a huge amount of logging codes.
+
+    The callback is able to produce the following outputs:
+
+    - **Mask Figures**: both training and test, masks and cumulative masks.
+
+
     """
 
     def __init__(
         self,
-        test_mask_plot_dir: str,
-        test_cumulative_mask_plot_dir: str,
-        if_plot_train_mask: bool,
-        train_mask_plot_dir: str,
-        plot_train_mask_every_n_steps: int,
+        test_masks_plot_dir: str | None,
+        test_cumulative_masks_plot_dir: str | None,
+        training_masks_plot_dir: str | None,
+        plot_training_mask_every_n_steps: int | None,
     ) -> None:
-        r"""Initialise the Metrics Callback.
+        r"""Initialise the `HATMetricsCallback`.
 
         **Args:**
-        - **test_mask_plot_dir** (`str`): the directory to save the test mask figure.
-        - **test_cumulative_mask_plot_dir** (`str`): the directory to save the test cumulative mask figure.
-        - **if_plot_train_mask** (`bool`): whether to plot mask figure during training.
-        - **train_mask_plot_dir** (`str`): the directory to save the train mask figure.
-        - **plot_train_mask_every_n_steps** (`int`): the frequency of plotting mask figure in terms of number of batches during training.
-        - **if_log_network_capacity** (`bool`): whether to log mask.
+        - **test_masks_plot_dir** (`str` | `None`): the directory to save the test mask figures. If `None`, no file will be saved.
+        - **test_cumulative_masks_plot_dir** (`str` | `None`): the directory to save the test cumulative mask figures. If `None`, no file will be saved.
+        - **training_masks_plot_dir** (`str` | `None`): the directory to save the training mask figures. If `None`, no file will be saved.
+        - **plot_training_mask_every_n_steps** (`int`): the frequency of plotting training mask figures in terms of number of batches during training. Only applies when `training_masks_plot_dir` is not `None`.
         """
-        if not os.path.exists(test_mask_plot_dir):
-            os.makedirs(test_mask_plot_dir, exist_ok=True)
-        self.test_mask_plot_dir: str = test_mask_plot_dir
-        r"""Store the directory to save the test mask figure."""
+        Callback.__init__(self)
 
-        if not os.path.exists(test_cumulative_mask_plot_dir):
-            os.makedirs(test_cumulative_mask_plot_dir, exist_ok=True)
-        self.test_cumulative_mask_plot_dir: str = test_cumulative_mask_plot_dir
-        r"""Store the directory to save the test cumulative mask figure."""
+        # paths
+        if not os.path.exists(test_masks_plot_dir):
+            os.makedirs(test_masks_plot_dir, exist_ok=True)
+        self.test_masks_plot_dir: str = test_masks_plot_dir
+        r"""Store the directory to save the test mask figures."""
+        if not os.path.exists(test_cumulative_masks_plot_dir):
+            os.makedirs(test_cumulative_masks_plot_dir, exist_ok=True)
+        self.test_cumulative_masks_plot_dir: str = test_cumulative_masks_plot_dir
+        r"""Store the directory to save the test cumulative mask figures."""
+        if not os.path.exists(training_masks_plot_dir):
+            os.makedirs(training_masks_plot_dir, exist_ok=True)
+        self.training_masks_plot_dir: str = training_masks_plot_dir
+        r"""Store the directory to save the training mask figures."""
 
-        self.if_plot_train_mask: bool = if_plot_train_mask
-        r"""Store whether to plot train mask."""
-
-        if not os.path.exists(train_mask_plot_dir):
-            os.makedirs(train_mask_plot_dir, exist_ok=True)
-        self.train_mask_plot_dir: str = train_mask_plot_dir
-        r"""Store the directory to save the train mask figure."""
-
-        self.plot_train_mask_every_n_steps: int = plot_train_mask_every_n_steps
-        r"""Store the frequency of plotting train mask in terms of number of batches."""
+        # other settings
+        self.plot_training_mask_every_n_steps: int = plot_training_mask_every_n_steps
+        r"""Store the frequency of plotting training masks in terms of number of batches."""
 
         self.task_id: int
         r"""Task ID counter indicating which task is being processed. Self updated during the task loop."""
 
     def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
-        r"""Get the current task ID in the beginning of a task's fitting (training and validation).
+        r"""Get the current task ID in the beginning of a task's fitting (training and validation). Sanity check the `pl_module` to be `HAT` or `AdaHAT`.
 
         **Raises:**
-        -**TypeError**: when the `pl_module` is not HAT or AdaHAT.
+        -**TypeError**: when the `pl_module` is not `HAT` or `AdaHAT`.
         """
 
         # get the current task_id from the `CLAlgorithm` object
         self.task_id = pl_module.task_id
 
+        # sanity check
         if not isinstance(pl_module, HAT):
             raise TypeError(
-                "The CLAlgorithm should be HAT or AdaHAT to apply HATMetricsCallback!"
+                "The `CLAlgorithm` should be `HAT` or `AdaHAT` to apply `HATMetricsCallback`!"
             )
 
     def on_train_batch_end(
@@ -88,7 +94,7 @@ class HATMetricsCallback(Callback):
         batch: Any,
         batch_idx: int,
     ) -> None:
-        r"""Plot mask and log HAT related metrics from training batch.
+        r"""Plot training mask and log network capacity after training batch.
 
         **Args:**
         - **outputs** (`dict[str, Any]`): the outputs of the training step, which is the returns of the `training_step()` method in the `CLAlgorithm`.
@@ -102,10 +108,10 @@ class HATMetricsCallback(Callback):
         capacity = outputs["capacity"]
 
         # plot the mask
-        if batch_idx % self.plot_train_mask_every_n_steps == 0:
+        if batch_idx % self.plot_training_mask_every_n_steps == 0:
             plot.plot_hat_mask(
                 mask=mask,
-                plot_dir=self.train_mask_plot_dir,
+                plot_dir=self.training_masks_plot_dir,
                 task_id=self.task_id,
                 step=batch_idx,
             )
@@ -116,18 +122,18 @@ class HATMetricsCallback(Callback):
         )
 
     def on_test_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
-        r"""Plot mask and log HAT related metrics of testing."""
+        r"""Plot test mask and cumulative mask figures."""
 
-        # the test mask
-        mask = pl_module.backbone.get_mask(stage="test", task_id=self.task_id)
+        # test mask
+        mask = pl_module.masks[f"{self.task_id}"]
         plot.plot_hat_mask(
-            mask=mask, plot_dir=self.test_mask_plot_dir, task_id=self.task_id
+            mask=mask, plot_dir=self.test_masks_plot_dir, task_id=self.task_id
         )
 
-        # the cumulative mask
-        cumulative_mask = pl_module.backbone.get_cumulative_mask()
+        # cumulative mask
+        cumulative_mask = pl_module.cumulative_mask_for_previous_tasks
         plot.plot_hat_mask(
             mask=cumulative_mask,
-            plot_dir=self.test_cumulative_mask_plot_dir,
+            plot_dir=self.test_cumulative_masks_plot_dir,
             task_id=self.task_id,
         )

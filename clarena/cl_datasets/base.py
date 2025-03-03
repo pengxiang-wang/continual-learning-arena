@@ -41,7 +41,7 @@ class CLDataset(LightningDataModule):
         - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included.
         - **custom_target_transforms** (`transform` or `transforms.Compose` or `None`): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included.
         """
-        super().__init__()
+        LightningDataModule.__init__(self)
 
         self.root: str = root
         r"""Store the root directory of the original data files. Used when constructing the dataset."""
@@ -77,9 +77,9 @@ class CLDataset(LightningDataModule):
         self.dataset_test: dict[str, object] = {}
         r"""The dictionary to store test dataset object. Keys are task IDs (string type) and values are the dataset objects. Can be PyTorch Dataset objects or any other dataset objects."""
 
-        self.sanity_check_CLDataset()
+        CLDataset.sanity_check(self)
 
-    def sanity_check_CLDataset(self) -> None:
+    def sanity_check(self) -> None:
         r"""Check the sanity of the arguments.
 
         **Raises:**
@@ -358,7 +358,8 @@ class CLPermutedDataset(CLDataset):
             3. 'first_channel_only': permute only the first channel.
         - **permutation_seeds** (`list[int]` or `None`): the seeds for permutation operations used to construct tasks. Make sure it has the same number of seeds as `num_tasks`. Default is None, which creates a list of seeds from 1 to `num_tasks`.
         """
-        super().__init__(
+        CLDataset.__init__(
+            self,
             root=root,
             num_tasks=num_tasks,
             validation_percentage=validation_percentage,
@@ -381,9 +382,9 @@ class CLPermutedDataset(CLDataset):
         self.permute_t: Permute
         r"""Store the permutation transform for the current task `self.task_id`. """
 
-        self.sanity_check_CLPermutedDataset()
+        CLPermutedDataset.sanity_check(self)
 
-    def sanity_check_CLPermutedDataset(self) -> None:
+    def sanity_check(self) -> None:
         r"""Check the sanity of the arguments.
 
         **Raises:**
@@ -534,7 +535,8 @@ class CLSplitDataset(CLDataset):
         - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included.
         - **custom_target_transforms** (`transform` or `transforms.Compose` or `None`): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included.
         """
-        super().__init__(
+        CLDataset.__init__(
+            self,
             root=root,
             num_tasks=num_tasks,
             validation_percentage=validation_percentage,
@@ -547,9 +549,9 @@ class CLSplitDataset(CLDataset):
         self.class_split = class_split
         r"""Store the class split for each task. Used when constructing the split dataset."""
 
-        self.sanity_check_CLSplitDataset()
+        CLSplitDataset.sanity_check(self)
 
-    def sanity_check_CLSplitDataset(self) -> None:
+    def sanity_check(self) -> None:
         r"""Check the sanity of the arguments.
 
         **Raises:**

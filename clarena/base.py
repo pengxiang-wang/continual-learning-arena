@@ -5,6 +5,7 @@ The module for general CL bases.
 import logging
 
 import hydra
+import lightning as L
 from lightning import Callback, LightningDataModule, LightningModule, Trainer
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, ListConfig
@@ -36,6 +37,8 @@ class CLExperiment:
         r"""Store the continual learning paradigm, either 'TIL' (Task-Incremental Learning) or 'CIL' (Class-Incremental Learning). Parsed from config and used to instantiate the correct heads object and set up CL dataset."""
         self.num_tasks: int = cfg.num_tasks
         r"""Store the number of tasks to be conducted in this experiment. Parsed from config and used in the tasks loop."""
+        self.global_seed: int = cfg.global_seed if cfg.get("global_seed") else None
+        r"""Store the global seed for the entire experiment. Parsed from config and used to seed all random number generators."""
         self.test: bool = cfg.test
         r"""Store whether to test the model after training and validation. Parsed from config and used in the tasks loop."""
         self.output_dir_name: str = cfg.output_dir_name
@@ -62,9 +65,9 @@ class CLExperiment:
         self.callbacks: list[Callback]
         r"""The list of initialised callbacks objects for current task `self.task_id`. Instantiate in `instantiate_callbacks()`."""
 
-        self.sanity_check_CLExperiment()
+        CLExperiment.sanity_check(self)
 
-    def sanity_check_CLExperiment(self) -> None:
+    def sanity_check(self) -> None:
         r"""Check the sanity of the config dict `self.cfg`.
 
         **Raises:**
@@ -260,6 +263,11 @@ class CLExperiment:
             "Callbacks (lightning.Callback) for task %d instantiated!", task_id
         )
 
+    def set_global_seed(self) -> None:
+        r"""Set the global seed for the entire experiment."""
+        L.seed_everything(self.global_seed, workers=True)
+        pylogger.debug("Global seed is set as %d.", self.global_seed)
+
     def setup_task_id(self, task_id: int) -> None:
         r"""Set up current task_id in the beginning of the continual learning process of a new task.
 
@@ -280,6 +288,7 @@ class CLExperiment:
 
     def setup_global(self) -> None:
         r"""Let CL dataset know the CL paradigm to define its CL class map."""
+        self.set_global_seed()
         self.cl_dataset.set_cl_paradigm(cl_paradigm=self.cl_paradigm)
 
     def instantiate_task_specific(self) -> None:
@@ -308,7 +317,7 @@ class CLExperiment:
             self.task_id,
         )
 
-    def fit_task(self) -> None:
+    def run_task(self) -> None:
         r"""Fit the model on the current task `self.task_id`. Also test the model if `self.test` is set to True."""
 
         self.trainer.fit(
@@ -323,7 +332,7 @@ class CLExperiment:
                 datamodule=self.cl_dataset,
             )
 
-    def fit(self) -> None:
+    def run(self) -> None:
         r"""The main method to run the continual learning experiment."""
 
         self.instantiate_global()
@@ -336,4 +345,4 @@ class CLExperiment:
             self.instantiate_task_specific()
             self.setup_task_specific()
 
-            self.fit_task()
+            self.run_task()

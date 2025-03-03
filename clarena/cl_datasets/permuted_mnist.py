@@ -39,7 +39,7 @@ class PermutedMNIST(CLPermutedDataset):
         num_tasks: int,
         validation_percentage: float,
         batch_size: int = 1,
-        num_workers: int = 10,
+        num_workers: int = 8,
         custom_transforms: Callable | transforms.Compose | None = None,
         custom_target_transforms: Callable | transforms.Compose | None = None,
         permutation_mode: str = "first_channel_only",
@@ -62,7 +62,8 @@ class PermutedMNIST(CLPermutedDataset):
             3. 'first_channel_only': permute only the first channel.
         - **permutation_seeds** (`list[int]` or `None`): the seeds for permutation operations used to construct tasks. Make sure it has the same number of seeds as `num_tasks`. Default is None, which creates a list of seeds from 1 to `num_tasks`.
         """
-        super().__init__(
+        CLPermutedDataset.__init__(
+            self,
             root=root,
             num_tasks=num_tasks,
             validation_percentage=validation_percentage,

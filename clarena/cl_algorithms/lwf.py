@@ -43,7 +43,7 @@ class LwF(Finetuning):
         - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularisation factor. It controls the strength of preventing forgetting.
         - **distillation_reg_temparture** (`float`): hyperparameter, the temperature in the distillation regularisation. It controls the softness of the labels that the student model (here is the current model) learns from the teacher models (here are the previous models), thereby controlling the strength of the distillation. It controls the strength of preventing forgetting.
         """
-        super().__init__(backbone=backbone, heads=heads)
+        Finetuning.__init__(self, backbone=backbone, heads=heads)
 
         self.previous_task_backbones: dict[str, nn.Module] = {}
         r"""Store the backbone models of the previous tasks. Keys are task IDs (string type) and values are the corresponding models. Each model is a `nn.Module` backbone after the corresponding previous task was trained.
@@ -62,9 +62,9 @@ class LwF(Finetuning):
         )
         r"""Initialise and store the distillation regulariser."""
 
-        self.sanity_check_LwF()
+        LwF.sanity_check(self)
 
-    def sanity_check_LwF(self) -> None:
+    def sanity_check(self) -> None:
         r"""Check the sanity of the arguments.
 
         **Raises:**
@@ -93,7 +93,7 @@ class LwF(Finetuning):
         x, y = batch
 
         # classification loss. See equation (1) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
-        logits = self.forward(x, stage="train", task_id=self.task_id)
+        logits, hidden_features = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
         # regularisation loss. See equation (2) (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
@@ -102,14 +102,16 @@ class LwF(Finetuning):
             # sum over all previous models, because [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520) says: "If there are multiple old tasks, or if an old task is multi-label classification, we take the sum of the loss for each old task and label."
 
             # get the teacher logits for this batch, which is from the current model (to previous output head)
-            student_feature = self.backbone(x, stage="train", task_id=previous_task_id)
+            student_feature, _ = self.backbone(
+                x, stage="train", task_id=previous_task_id
+            )
             with torch.no_grad():  # stop updating the previous heads
                 student_logits = self.heads(student_feature, task_id=previous_task_id)
 
             # get the teacher logits for this batch, which is from the previous model
             previous_backbone = self.previous_task_backbones[previous_task_id]
             with torch.no_grad():  # stop updating the previous backbones and heads
-                teacher_feature = previous_backbone(
+                teacher_feature, _ = previous_backbone(
                     x, stage="test", task_id=previous_task_id
                 )
 
@@ -136,6 +138,7 @@ class LwF(Finetuning):
             "loss_cls": loss_cls,
             "loss_reg": loss_reg,
             "acc": acc,
+            "hidden_features": hidden_features,
         }
 
     def on_train_end(self) -> None:

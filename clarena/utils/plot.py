@@ -1,10 +1,10 @@
 """The submodule in `utils` for plotting utils."""
 
 __all__ = [
-    "plot_ave_acc_from_csv",
-    "plot_acc_metrix_from_csv",
-    "plot_ave_loss_cls_from_csv",
-    "plot_loss_cls_metrix_from_csv",
+    "plot_test_ave_acc_curve_from_csv",
+    "plot_test_acc_matrix_from_csv",
+    "plot_test_ave_loss_cls_curve_from_csv",
+    "plot_test_loss_cls_matrix_from_csv",
     "plot_hat_mask",
 ]
 
@@ -16,17 +16,19 @@ from matplotlib import pyplot as plt
 from torch import Tensor
 
 
-def plot_ave_acc_from_csv(csv_path: str, task_id: int, plot_path: str) -> None:
-    """Plot the test average accuracy line chart over different training tasks from saved csv file and save the plot to the designated directory.
+def plot_test_ave_acc_curve_from_csv(
+    csv_path: str, task_id: int, plot_path: str
+) -> None:
+    """Plot the test average accuracy curve over different training tasks from saved csv file and save the plot to the designated directory.
 
     **Args:**
-    - **csv_path** (`str`): the path to the csv file where the `utils.save_acc_to_csv()` saved the test accuracy metric.
+    - **csv_path** (`str`): the path to the csv file where the `utils.update_test_acc_to_csv()` saved the test accuracy metric.
     - **task_id** (`int`): plot the test average accuracy metric from task 1 to `task_id`.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/ave_acc.png'.
     """
     data = pd.read_csv(csv_path)
 
-    # plot the average accuracy line chart over different training tasks
+    # plot the average accuracy curve over different training tasks
     fig, ax = plt.subplots(figsize=(16, 9))
     ax.plot(
         data["after_training_task"],
@@ -47,11 +49,11 @@ def plot_ave_acc_from_csv(csv_path: str, task_id: int, plot_path: str) -> None:
     plt.close(fig)
 
 
-def plot_acc_matrix_from_csv(csv_path: str, task_id: int, plot_path: str) -> None:
+def plot_test_acc_matrix_from_csv(csv_path: str, task_id: int, plot_path: str) -> None:
     """Plot the test accuracy matrix from saved csv file and save the plot to the designated directory.
 
     **Args:**
-    - **csv_path** (`str`): the path to the csv file where the `utils.save_acc_to_csv()` saved the test accuracy metric.
+    - **csv_path** (`str`): the path to the csv file where the `utils.update_test_acc_to_csv()` saved the test accuracy metric.
     - **task_id** (`int`): plot the test accuracy metric from task 1 to `task_id`.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/acc_matrix.png'.
     """
@@ -101,17 +103,19 @@ def plot_acc_matrix_from_csv(csv_path: str, task_id: int, plot_path: str) -> Non
     plt.close(fig)
 
 
-def plot_ave_loss_cls_from_csv(csv_path: str, task_id: int, plot_path: str) -> None:
-    """Plot the test average classification loss line chart over different training tasks from saved csv file and save the plot to the designated directory.
+def plot_test_ave_loss_cls_curve_from_csv(
+    csv_path: str, task_id: int, plot_path: str
+) -> None:
+    """Plot the test average classification loss curve over different training tasks from saved csv file and save the plot to the designated directory.
 
     **Args:**
-    - **csv_path** (`str`): the path to the csv file where the `utils.save_acc_to_csv()` saved the test classification loss metric.
+    - **csv_path** (`str`): the path to the csv file where the `utils.update_loss_cls_to_csv()` saved the test classification loss metric.
     - **task_id** (`int`): plot the test average accuracy metric from task 1 to `task_id`.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/ave_loss_cls.png'.
     """
     data = pd.read_csv(csv_path)
 
-    # plot the average accuracy line chart over different training tasks
+    # plot the average accuracy curve over different training tasks
     fig, ax = plt.subplots(figsize=(16, 9))
     ax.plot(
         data["after_training_task"],
@@ -135,11 +139,13 @@ def plot_ave_loss_cls_from_csv(csv_path: str, task_id: int, plot_path: str) -> N
     plt.close(fig)
 
 
-def plot_loss_cls_matrix_from_csv(csv_path: str, task_id: int, plot_path: str) -> None:
+def plot_test_loss_cls_matrix_from_csv(
+    csv_path: str, task_id: int, plot_path: str
+) -> None:
     """Plot the test classification loss matrix from saved csv file and save the plot to the designated directory.
 
     **Args:**
-    - **csv_path** (`str`): the path to the csv file where the `utils.save_acc_to_csv()` saved the test classification loss metric.
+    - **csv_path** (`str`): the path to the csv file where the `utils.update_loss_cls_to_csv()` saved the test classification loss metric.
     - **task_id** (`int`): plot the test classification loss metric from task 1 to `task_id`.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/loss_cls_matrix.png'.
     """
@@ -192,20 +198,21 @@ def plot_loss_cls_matrix_from_csv(csv_path: str, task_id: int, plot_path: str) -
 def plot_hat_mask(
     mask: dict[str, Tensor], plot_dir: str, task_id: int, step: int | None = None
 ) -> None:
-    """Plot mask in [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a)) algorithm.
+    """Plot mask in [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a)) algorithm. This includes the mask and cumulative mask.
 
     **Args:**
-    - **mask** (`dict[str, Tensor]`): the hard attention (whose values are 0 or 1) mask. Key (`str`) is layer name, value (`Tensor`) is the mask tensor.
-    - **plot_dir** (`str`): the directory to save plot. Better same as the output directory of the experiment. We recommend:
-        - For masks during training: './outputs/expr_name/1970-01-01_00-00-00/mask/train/'.
-        - For masks during testing: './outputs/expr_name/1970-01-01_00-00-00/mask/test/'.
+    - **mask** (`dict[str, Tensor]`): the hard attention (whose values are 0 or 1) mask. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
+    - **plot_dir** (`str`): the directory to save plot. Better same as the output directory of the experiment.
     - **task_id** (`int`): the task ID of the mask to be plotted. This is to form the plot name.
-    - **step** (`int`): the training step (batch index) of the mask to be plotted. Apply to the train mask only. This is to form the plot name. Keep `None` for not showing the step in the plot name.
+    - **step** (`int`): the training step (batch index) of the mask to be plotted. Apply to the training mask only. This is to form the plot name. Keep `None` for not showing the step in the plot name.
     """
+
     for layer_name, m in mask.items():
         layer_name = layer_name.replace(
             "/", "."
-        )  # the layer name contains '/', which is not allowed in the file name. We replace it with '.'.
+        )  # the layer name contains '/', which is not allowed in the file name. We replace it back with '.'.
+
+        m = m.view(1, -1)  # reshape the 1D mask to 2D so can be plotted by image show
 
         fig = plt.figure()
         plt.imshow(

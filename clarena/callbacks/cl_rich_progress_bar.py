@@ -13,7 +13,7 @@ pylogger = logging.getLogger(__name__)
 
 
 class CLRichProgressBar(RichProgressBar):
-    r"""Customised Rich Progress Bar for continual learning."""
+    r"""Customised `RichProgressBar` for continual learning."""
 
     def get_metrics(
         self, *args, **kwargs

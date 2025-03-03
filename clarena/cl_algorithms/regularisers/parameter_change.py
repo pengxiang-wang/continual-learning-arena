@@ -29,8 +29,7 @@ class ParameterChangeReg(nn.Module):
         - **factor** (`float`): the regularisation factor. Note that it is $\frac{\lambda}{2}$ rather than $\lambda$ in the [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114).
         - **p_norm** (`float`): the norm of the distance, should be a positive float.
         """
-
-        super().__init__()
+        nn.Module.__init__(self)
 
         self.factor = factor
         """Store the regularisation factor for parameter change."""

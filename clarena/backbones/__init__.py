@@ -2,12 +2,21 @@ r"""
 
 # Backbone Networks for Continual Learning
 
-This submodule provides the **neural network architectures** for continual learning** that can be used in CLArena. 
+This submodule provides the **backbone neural network architectures for continual learning**. 
 
-Please note that this is an API documentation. Please refer to the main documentation page for more information about the backbone networks and how to use and customize them:
+Please note that this is an API documentation. Please refer to the main documentation pages for more information about the backbone networks and how to 
+configure and implement them:
 
-- **Configure your backbone network:** [https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiments/backbone-network](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiments/backbone-network)
-- **Implement your backbone network:** [https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/backbone-network](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/backbone-network)
+- [**Configure Backbone Network**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiment/backbone-network)
+- [**Implement Your CL Backbone Class**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-CL-modules/backbone-network)
+
+
+
+The backbones are implemented as subclasses of `CLBackbone` classes, which are the base class for all continual learning backbones in CLArena.
+
+- `CLBackbone`: The base class for continual learning backbones.
+- `HATMaskBackbone`: The base class for backbones used in [HAT (Hard Attention to the Task) algorithm](http://proceedings.mlr.press/v80/serra18a). A child class of `CLBackbone`.
+
 
 """
 

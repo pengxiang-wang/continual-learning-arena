@@ -5,10 +5,8 @@ The submodule in `cl_algorithms` for Fix algorithm.
 __all__ = ["Fix"]
 
 import logging
-from math import nan
 from typing import Any
 
-import torch
 from torch import Tensor
 
 from clarena.backbones import CLBackbone
@@ -38,7 +36,7 @@ class Fix(Finetuning):
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
         """
-        super().__init__(backbone=backbone, heads=heads)
+        Finetuning.__init__(self, backbone=backbone, heads=heads)
 
     def training_step(self, batch: Any) -> dict[str, Tensor]:
         """Training step for current task `self.task_id`.
@@ -57,7 +55,7 @@ class Fix(Finetuning):
                 param.requires_grad = False
 
         # classification loss
-        logits = self.forward(x, stage="train", task_id=self.task_id)
+        logits, hidden_features = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
         # total loss
@@ -70,4 +68,5 @@ class Fix(Finetuning):
             "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,
+            "hidden_features": hidden_features,
         }
