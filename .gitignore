@@ -3,7 +3,7 @@
 
 /data/
 /outputs/
-/API-docs-by-pdoc/
+/API-documentation/
 
 # general things to ignore
 build/

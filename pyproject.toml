@@ -87,4 +87,4 @@ dependencies = [
 clrun = "clarena.main:clrun"
 
 [tool.setuptools]
-packages = ["clarena", "clarena.cl_datasets", "clarena.backbones", "clarena.cl_heads", "clarena.cl_algorithms", "clarena.optimizers", "clarena.callbacks", "clarena.utils"]
+packages = ["clarena", "clarena.cl_datasets", "clarena.backbones", "clarena.cl_heads", "clarena.cl_algorithms", "clarena.callbacks", "clarena.utils"]
