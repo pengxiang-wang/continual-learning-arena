@@ -274,7 +274,6 @@ class CLDataset(LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True,  # shuffle train batch to prevent overfitting
             num_workers=self.num_workers,
-            persistent_workers=True,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -291,7 +290,6 @@ class CLDataset(LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,  # don't have to shuffle val or test batch
             num_workers=self.num_workers,
-            persistent_workers=True,
         )
 
     def test_dataloader(self) -> dict[int, DataLoader]:
@@ -309,7 +307,6 @@ class CLDataset(LightningDataModule):
                 batch_size=self.batch_size,
                 shuffle=False,  # don't have to shuffle val or test batch
                 num_workers=self.num_workers,
-                persistent_workers=True,  # speed up the dataloader worker initialization
             )
             for task_id, dataset_test in self.dataset_test.items()
         }

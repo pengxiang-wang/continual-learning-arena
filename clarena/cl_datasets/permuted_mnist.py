@@ -39,7 +39,7 @@ class PermutedMNIST(CLPermutedDataset):
         num_tasks: int,
         validation_percentage: float,
         batch_size: int = 1,
-        num_workers: int = 8,
+        num_workers: int = 0,
         custom_transforms: Callable | transforms.Compose | None = None,
         custom_target_transforms: Callable | transforms.Compose | None = None,
         permutation_mode: str = "first_channel_only",

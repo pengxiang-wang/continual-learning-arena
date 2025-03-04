@@ -358,10 +358,10 @@ class HAT(CLAlgorithm):
         r"""Store the mask and update cumulative mask after training the task."""
 
         # store the mask for the current task
+
         mask_t = {
-            layer_name: self.backbone.gate_fn(
-                self.backbone.task_embedding_t[layer_name].weight * self.s_max
-            )
+            layer_name: (self.backbone.task_embedding_t[layer_name].weight > 0)
+            .float()
             .squeeze()
             .detach()
             for layer_name in self.backbone.weighted_layer_names

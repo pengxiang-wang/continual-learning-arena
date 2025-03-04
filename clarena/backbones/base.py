@@ -247,22 +247,6 @@ class HATMaskBackbone(CLBackbone):
 
         return mask
 
-    def get_cumulative_mask(self) -> dict[str, Tensor]:
-        r"""Get the cumulative mask till current task.
-
-        **Returns:**
-        - **cumulative_mask** (`dict[str, Tensor]`): the cumulative mask. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
-        """
-        return self.cumulative_mask_for_previous_tasks
-
-    def get_summative_mask(self) -> dict[str, Tensor]:
-        r"""Get the summative mask till current task.
-
-        **Returns:**
-        - **summative_mask** (`dict[str, Tensor]`): the summative mask tensor. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
-        """
-        return self.summative_mask_for_previous_tasks
-
     def get_layer_measure_parameter_wise(
         self,
         unit_wise_measure: dict[str, Tensor],
