@@ -319,21 +319,17 @@ class CLMetricsCallback(Callback):
         # plot the test metrics
         plot.plot_test_acc_matrix_from_csv(
             csv_path=self.test_acc_csv_path,
-            task_id=self.task_id,
             plot_path=self.test_acc_matrix_plot_path,
         )
         plot.plot_test_loss_cls_matrix_from_csv(
             csv_path=self.test_loss_cls_csv_path,
-            task_id=self.task_id,
             plot_path=self.test_loss_cls_matrix_plot_path,
         )
         plot.plot_test_ave_acc_curve_from_csv(
             csv_path=self.test_acc_csv_path,
-            task_id=self.task_id,
             plot_path=self.test_ave_acc_plot_path,
         )
         plot.plot_test_ave_loss_cls_curve_from_csv(
             csv_path=self.test_loss_cls_csv_path,
-            task_id=self.task_id,
             plot_path=self.test_ave_loss_cls_plot_path,
         )

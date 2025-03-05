@@ -16,17 +16,15 @@ from matplotlib import pyplot as plt
 from torch import Tensor
 
 
-def plot_test_ave_acc_curve_from_csv(
-    csv_path: str, task_id: int, plot_path: str
-) -> None:
+def plot_test_ave_acc_curve_from_csv(csv_path: str, plot_path: str) -> None:
     """Plot the test average accuracy curve over different training tasks from saved csv file and save the plot to the designated directory.
 
     **Args:**
     - **csv_path** (`str`): the path to the csv file where the `utils.update_test_acc_to_csv()` saved the test accuracy metric.
-    - **task_id** (`int`): plot the test average accuracy metric from task 1 to `task_id`.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/ave_acc.png'.
     """
     data = pd.read_csv(csv_path)
+    task_id = len(data)
 
     # plot the average accuracy curve over different training tasks
     fig, ax = plt.subplots(figsize=(16, 9))
@@ -37,7 +35,7 @@ def plot_test_ave_acc_curve_from_csv(
         linewidth=2,
     )
     ax.set_xlabel("After training task $t$", fontsize=16)
-    ax.set_xlabel("Average Accuracy (AA)", fontsize=16)
+    ax.set_ylabel("Average Accuracy (AA)", fontsize=16)
     ax.grid(True)
     xticks = [int(i) for i in range(1, task_id + 1)]
     yticks = [i * 0.05 for i in range(21)]
@@ -49,15 +47,15 @@ def plot_test_ave_acc_curve_from_csv(
     plt.close(fig)
 
 
-def plot_test_acc_matrix_from_csv(csv_path: str, task_id: int, plot_path: str) -> None:
+def plot_test_acc_matrix_from_csv(csv_path: str, plot_path: str) -> None:
     """Plot the test accuracy matrix from saved csv file and save the plot to the designated directory.
 
     **Args:**
     - **csv_path** (`str`): the path to the csv file where the `utils.update_test_acc_to_csv()` saved the test accuracy metric.
-    - **task_id** (`int`): plot the test accuracy metric from task 1 to `task_id`.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/acc_matrix.png'.
     """
     data = pd.read_csv(csv_path)
+    task_id = len(data)
 
     # plot the accuracy matrix
     fig, ax = plt.subplots(
@@ -103,17 +101,15 @@ def plot_test_acc_matrix_from_csv(csv_path: str, task_id: int, plot_path: str) -
     plt.close(fig)
 
 
-def plot_test_ave_loss_cls_curve_from_csv(
-    csv_path: str, task_id: int, plot_path: str
-) -> None:
+def plot_test_ave_loss_cls_curve_from_csv(csv_path: str, plot_path: str) -> None:
     """Plot the test average classification loss curve over different training tasks from saved csv file and save the plot to the designated directory.
 
     **Args:**
     - **csv_path** (`str`): the path to the csv file where the `utils.update_loss_cls_to_csv()` saved the test classification loss metric.
-    - **task_id** (`int`): plot the test average accuracy metric from task 1 to `task_id`.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/ave_loss_cls.png'.
     """
     data = pd.read_csv(csv_path)
+    task_id = len(data)
 
     # plot the average accuracy curve over different training tasks
     fig, ax = plt.subplots(figsize=(16, 9))
@@ -124,7 +120,7 @@ def plot_test_ave_loss_cls_curve_from_csv(
         linewidth=2,
     )
     ax.set_xlabel("After training task $t$", fontsize=16)
-    ax.set_xlabel("Average Classification Loss", fontsize=16)
+    ax.set_ylabel("Average Classification Loss", fontsize=16)
     ax.grid(True)
 
     xticks = [int(i) for i in range(1, task_id + 1)]
@@ -139,17 +135,15 @@ def plot_test_ave_loss_cls_curve_from_csv(
     plt.close(fig)
 
 
-def plot_test_loss_cls_matrix_from_csv(
-    csv_path: str, task_id: int, plot_path: str
-) -> None:
+def plot_test_loss_cls_matrix_from_csv(csv_path: str, plot_path: str) -> None:
     """Plot the test classification loss matrix from saved csv file and save the plot to the designated directory.
 
     **Args:**
     - **csv_path** (`str`): the path to the csv file where the `utils.update_loss_cls_to_csv()` saved the test classification loss metric.
-    - **task_id** (`int`): plot the test classification loss metric from task 1 to `task_id`.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/loss_cls_matrix.png'.
     """
     data = pd.read_csv(csv_path)
+    task_id = len(data)
 
     # plot the accuracy matrix
     fig, ax = plt.subplots(

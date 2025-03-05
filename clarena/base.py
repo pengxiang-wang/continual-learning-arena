@@ -11,6 +11,7 @@ from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, ListConfig
 from torch import nn
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import CLAlgorithm
@@ -57,7 +58,9 @@ class CLExperiment:
         r"""CL model object. Instantiate in `instantiate_cl_algorithm()`."""
 
         self.optimizer: Optimizer
-        r"""Optimizer object for current task `self.task_id`. Instantiate in `instantiate_optimizer()`."""
+        r"""Optimizer object for current task `self.task_id`. Instantiate in `instantiate_optimizer_and_lr_scheduler()`."""
+        self.lr_scheduler: LRScheduler
+        r"""Learning rate scheduler object for current task `self.task_id`. Instantiate in `instantiate_optimizer_and_lr_scheduler()`."""
         self.trainer: Trainer
         r"""Trainer object for current task `self.task_id`. Instantiate in `instantiate_trainer()`."""
         self.lightning_loggers: list[Logger]
@@ -175,13 +178,17 @@ class CLExperiment:
             cl_algorithm_cfg.get("_target_"),
         )
 
-    def instantiate_optimizer(
-        self, optimizer_cfg: DictConfig | ListConfig, task_id: int
+    def instantiate_optimizer_and_lr_scheduler(
+        self,
+        optimizer_cfg: DictConfig | ListConfig,
+        lr_scheduler_cfg: DictConfig | ListConfig | None,
+        task_id: int,
     ) -> None:
-        r"""Instantiate the optimizer object for task `task_id` from optimizer config.
+        r"""Instantiate the optimizer object for task `task_id` from optimizer config. If `lr_scheduler_cfg` is not `None`, instantiate the learning rate scheduler object as well.
 
         **Args:**
         - **optimizer_cfg** (`DictConfig` or `ListConfig`): the optimizer config dict. If it's a `ListConfig`, it should contain optimizer config for each task; otherwise, it's an uniform optimizer config for all tasks.
+        - **lr_scheduler_cfg** (`DictConfig` or `ListConfig` or `None`): the learning rate scheduler config dict. If it's a `ListConfig`, it should contain learning rate scheduler config for each task; otherwise, it's an uniform learning rate scheduler config for all tasks. If `None`, no learning rate scheduler is used.
         - **task_id** (`int`): the target task ID.
         """
         if isinstance(optimizer_cfg, ListConfig):
@@ -202,6 +209,32 @@ class CLExperiment:
                 optimizer_cfg.get("_target_"),
                 task_id,
             )
+
+        if lr_scheduler_cfg:
+            if isinstance(lr_scheduler_cfg, ListConfig):
+                pylogger.debug(
+                    "Distinct learning rate scheduler config is applied to each task."
+                )
+                lr_scheduler_cfg = lr_scheduler_cfg[task_id - 1]
+            elif isinstance(lr_scheduler_cfg, DictConfig):
+                pylogger.debug(
+                    "Uniform learning rate scheduler config is applied to all tasks."
+                )
+
+                # partially instantiate learning rate scheduler as the 'optimizer' argument is from Lightning Modules cannot be passed for now.
+                pylogger.debug(
+                    "Partially instantiating learning rate scheduler <%s> (torch.optim.lr_scheduler.LRScheduler) for task %d...",
+                    lr_scheduler_cfg.get("_target_"),
+                    task_id,
+                )
+                self.lr_scheduler: LRScheduler = hydra.utils.instantiate(
+                    lr_scheduler_cfg
+                )
+                pylogger.debug(
+                    "Learning rate scheduler <%s> (torch.optim.lr_scheduler.LRScheduler) partially for task %d instantiated!",
+                    lr_scheduler_cfg.get("_target_"),
+                    task_id,
+                )
 
     def instantiate_trainer(self, trainer_cfg: DictConfig, task_id: int) -> None:
         r"""Instantiate the trainer object for task `task_id` from trainer config.
@@ -294,7 +327,14 @@ class CLExperiment:
     def instantiate_task_specific(self) -> None:
         r"""Instantiate task-specific components for the current task `self.task_id` from `self.cfg`."""
 
-        self.instantiate_optimizer(self.cfg.optimizer, self.task_id)
+        if self.cfg.get("lr_scheduler"):
+            self.instantiate_optimizer_and_lr_scheduler(
+                self.cfg.optimizer, self.cfg.lr_scheduler, self.task_id
+            )
+        else:
+            self.instantiate_optimizer_and_lr_scheduler(
+                self.cfg.optimizer, None, self.task_id
+            )
         self.instantiate_callbacks(self.cfg.callbacks, self.task_id)
         self.instantiate_lightning_loggers(self.cfg.lightning_loggers, self.task_id)
         self.instantiate_trainer(
@@ -306,11 +346,20 @@ class CLExperiment:
 
         self.cl_dataset.setup_task_id(self.task_id)
         self.backbone.setup_task_id(self.task_id)
-        self.model.setup_task_id(
-            self.task_id,
-            len(self.cl_dataset.cl_class_map(self.task_id)),
-            self.optimizer,
-        )
+        if self.cfg.get("lr_scheduler"):
+            self.model.setup_task_id(
+                self.task_id,
+                len(self.cl_dataset.cl_class_map(self.task_id)),
+                self.optimizer,
+                self.lr_scheduler,
+            )
+        else:
+            self.model.setup_task_id(
+                self.task_id,
+                len(self.cl_dataset.cl_class_map(self.task_id)),
+                self.optimizer,
+                lr_scheduler=None,
+            )
 
         pylogger.debug(
             "Datamodule, model and loggers are all set up ready for task %d!",

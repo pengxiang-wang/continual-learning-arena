@@ -9,6 +9,7 @@ import logging
 from lightning import LightningModule
 from torch import nn
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 
 from clarena.backbones import CLBackbone
 from clarena.cl_heads import HeadsCIL, HeadsTIL
@@ -39,6 +40,8 @@ class CLAlgorithm(LightningModule):
         r"""Store the output heads."""
         self.optimizer: Optimizer
         r"""Store the optimizer object (partially initialised) for the backpropagation of task `self.task_id`. Will be equipped with parameters in `configure_optimizers()`."""
+        self.lr_scheduler: LRScheduler | None
+        r"""Store the learning rate scheduler for the optimizer. If `None`, no scheduler is used."""
         self.criterion = nn.CrossEntropyLoss()
         r"""The loss function bewteen the output logits and the target labels. Default is cross-entropy loss."""
 
@@ -59,7 +62,11 @@ class CLAlgorithm(LightningModule):
             )
 
     def setup_task_id(
-        self, task_id: int, num_classes_t: int, optimizer: Optimizer
+        self,
+        task_id: int,
+        num_classes_t: int,
+        optimizer: Optimizer,
+        lr_scheduler: LRScheduler | None,
     ) -> None:
         r"""Set up which task's dataset the CL experiment is on. This must be done before `forward()` method is called.
 
@@ -67,10 +74,12 @@ class CLAlgorithm(LightningModule):
         - **task_id** (`int`): the target task ID.
         - **num_classes_t** (`int`): the number of classes in the task.
         - **optimizer** (`Optimizer`): the optimizer object (partially initialised) for the task `self.task_id`.
+        - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.
         """
         self.task_id = task_id
         self.heads.setup_task_id(task_id, num_classes_t)
         self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
 
     def configure_optimizers(self) -> Optimizer:
         r"""
@@ -78,4 +87,21 @@ class CLAlgorithm(LightningModule):
         See [Lightning docs](https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#configure-optimizers) for more details.
         """
         # finish partially initialised optimizer by specifying model parameters. The `parameters()` method of this `CLAlrogithm` (inherited from `LightningModule`) returns both backbone and heads parameters
-        return self.optimizer(params=self.parameters())
+        fully_initialised_optimizer = self.optimizer(params=self.parameters())
+
+        if self.lr_scheduler:
+            fully_initialised_lr_scheduler = self.lr_scheduler(
+                optimizer=fully_initialised_optimizer
+            )
+
+            return {
+                "optimizer": fully_initialised_optimizer,
+                "lr_scheduler": {
+                    "scheduler": fully_initialised_lr_scheduler,
+                    "monitor": f"task_{self.task_id}/learning_curve/val/loss_cls",
+                    "interval": "epoch",
+                    "frequency": 1,
+                },
+            }
+
+        return {"optimizer": fully_initialised_optimizer}
