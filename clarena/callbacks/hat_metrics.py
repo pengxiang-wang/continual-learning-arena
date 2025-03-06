@@ -58,11 +58,11 @@ class HATMetricsCallback(Callback):
             os.makedirs(test_cumulative_masks_plot_dir, exist_ok=True)
         self.test_cumulative_masks_plot_dir: str = test_cumulative_masks_plot_dir
         r"""Store the directory to save the test cumulative mask figures."""
-        if not os.path.exists(training_masks_plot_dir):
-            os.makedirs(training_masks_plot_dir, exist_ok=True)
+        if training_masks_plot_dir is not None:
+            if not os.path.exists(training_masks_plot_dir):
+                os.makedirs(training_masks_plot_dir, exist_ok=True)
         self.training_masks_plot_dir: str = training_masks_plot_dir
         r"""Store the directory to save the training mask figures."""
-
         # other settings
         self.plot_training_mask_every_n_steps: int = plot_training_mask_every_n_steps
         r"""Store the frequency of plotting training masks in terms of number of batches."""
@@ -108,13 +108,14 @@ class HATMetricsCallback(Callback):
         capacity = outputs["capacity"]
 
         # plot the mask
-        if batch_idx % self.plot_training_mask_every_n_steps == 0:
-            plot.plot_hat_mask(
-                mask=mask,
-                plot_dir=self.training_masks_plot_dir,
-                task_id=self.task_id,
-                step=batch_idx,
-            )
+        if self.training_masks_plot_dir is not None:
+            if batch_idx % self.plot_training_mask_every_n_steps == 0:
+                plot.plot_hat_mask(
+                    mask=mask,
+                    plot_dir=self.training_masks_plot_dir,
+                    task_id=self.task_id,
+                    step=batch_idx,
+                )
 
         # log the network capacity to Lightning loggers
         pl_module.log(
