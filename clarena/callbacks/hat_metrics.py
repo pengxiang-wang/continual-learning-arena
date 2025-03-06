@@ -36,8 +36,8 @@ class HATMetricsCallback(Callback):
         self,
         test_masks_plot_dir: str | None,
         test_cumulative_masks_plot_dir: str | None,
-        training_masks_plot_dir: str | None,
-        plot_training_mask_every_n_steps: int | None,
+        training_masks_plot_dir: str | None = None,
+        plot_training_mask_every_n_steps: int | None = None,
     ) -> None:
         r"""Initialise the `HATMetricsCallback`.
 
