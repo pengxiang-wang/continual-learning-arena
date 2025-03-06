@@ -8,7 +8,14 @@ import logging
 from typing import Any
 
 import torch
-from torch import Tensor
+from captum.attr import (
+    LayerActivation,
+    LayerConductance,
+    LayerDeepLift,
+    LayerGradCam,
+    LayerIntegratedGradients,
+)
+from torch import Tensor, nn
 
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import AdaHAT
@@ -23,7 +30,9 @@ pylogger = logging.getLogger(__name__)
 class CBPHAT(AdaHAT):
     r"""CBPHAT algorithm.
 
-    CBPHAT is what I am working on, trying combining HAT (Hard Attention to the Task) algorithm with Continual Backpropagation (CBP) by leveraging the contribution utility as the parameter importance like in AdaHAT (Adaptive Hard Attention to the Task) algorithm.
+    CBPHAT is what I am working on. It introduces a more subtle unit importance in addition to the AdaHAT importance.
+
+    CBPHAT is just a temporary name inspired by the combination of Continual Backpropagation (CBP) and Hard Attention to the Task (HAT) algorithms.
 
     We implement CBPHAT as a subclass of AdaHAT algorithm because CBPHAT adopt the similar idea as AdaHAT.
     """
@@ -48,7 +57,9 @@ class CBPHAT(AdaHAT):
         - **backbone** (`HATMaskBackbone`): must be a backbone network with HAT mask mechanism.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
         - **adjustment_mode** (`str`): the strategy of adjustment i.e. the mode of gradient clipping, should be one of the following:
-            1. 'cbphat': our original CBP mode.
+            1. 'cbphat': using the contribution utility in CBP as the subtle unit importance in addition to the AdaHAT importance.
+            2. 'layer_activation': using the [Layer Activation](https://captum.ai/api/layer.html#layer-activation) as the unit importance in addition to the AdaHAT importance.
+            3. 'layer_ig': using the [Layer Integrated Gradients](https://captum.ai/api/layer.html#layer-integrated-gradients) as the unit importance in addition to the AdaHAT importance.
         - **adjustment_intensity** (`float`): hyperparameter, control the overall intensity of gradient adjustment. It's the $\alpha$ in equation (9) in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
         - **utility_decay_rate** (`float`): the utility decay rate of units. It is the rate at which the utility of a unit decays over time.
         - **s_max** (`float`): hyperparameter, the maximum scaling factor in the gate function. See chapter 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
@@ -82,12 +93,13 @@ class CBPHAT(AdaHAT):
         self.utility_decay_rate: float = utility_decay_rate
         r"""Store the utility decay rate of units. """
 
-        self.contribution_utility_t: dict[str, Tensor] = {}
-        r"""Store the summative min-max scaled contribution utility of units. See $U$ in the paper draft. Keys are layer names and values are the utility tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units). """
-        self.unit_importance_for_previous_tasks: dict[str, Tensor] = {}
-        r"""Store the unit importance values of units for previous tasks (1, \cdots, self.task_id - 1). See the "screenshot" $I^{(t-1)}$ in the paper draft. Keys are layer names and values are the importance tensor for the layer. The importance tensor is the same size as the feature tensor with size (number of units). """
+        self.unit_importance_t: dict[str, Tensor] = {}
+        r"""Store the min-max scaled ($[0, 1]$) accumulated unit importance of units. See $U_{l,i}$ in the paper draft. Keys are layer names and values are the utility tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units). """
         self.age_t: dict[str, Tensor] = {}
         r"""Store the age of units. Keys are layer names and values are the age tensor for the layer for current task. The age tensor is the same size as the feature tensor with size (number of units). """
+
+        self.unit_importance_for_previous_tasks: dict[str, Tensor] = {}
+        r"""Store the unit importance values of units for previous tasks (1, \cdots, self.task_id - 1). See $I^{(<t)}$ in the paper draft. Keys are layer names and values are the importance tensor for the layer. The importance tensor is the same size as the feature tensor with size (number of units). """
 
         # set manual optimisation
         self.automatic_optimization = False
@@ -116,9 +128,7 @@ class CBPHAT(AdaHAT):
             num_units = layer.weight.shape[0]
 
             # initialise the utility and age at the beginning of first task
-            self.contribution_utility_t[layer_name] = torch.zeros(num_units).to(
-                self.device
-            )
+            self.unit_importance_t[layer_name] = torch.zeros(num_units).to(self.device)
             self.age_t[layer_name] = torch.zeros(num_units).to(self.device)
 
             # initialise the unit importance at the beginning of first task. This should not be called in `__init__()` method as the `self.device` is not available at that time.
@@ -179,7 +189,7 @@ class CBPHAT(AdaHAT):
 
             network_sparsity_layer = network_sparsity[layer_name]
 
-            if self.adjustment_mode == "cbphat":
+            if self.adjustment_mode == "cbphat" or "layer_activation" or "layer_ig":
 
                 r_layer = self.adjustment_intensity / (
                     self.epsilon + network_sparsity_layer
@@ -215,44 +225,53 @@ class CBPHAT(AdaHAT):
 
         hidden_features = outputs["hidden_features"]
         mask = outputs["mask"]
+        forward_func = outputs["forward_func"]
+        input = outputs["input"]
+        target = outputs["target"]
 
         for layer_name in self.backbone.weighted_layer_names:
             # layer-wise operation
             layer = self.backbone.get_layer_by_name(
                 layer_name
             )  # get the layer by its name
+            feature = hidden_features[layer_name]
+            m = mask[layer_name]
+            num_units = feature.shape[1]
 
             # update age
             self.age_t[layer_name] += 1
 
-            # calculate current contribution utility
-            current_contribution_utility = (
-                (
-                    torch.mean(
-                        torch.abs(hidden_features[layer_name]),
-                        dim=[
-                            i
-                            for i in range(hidden_features[layer_name].dim())
-                            if i != 1
-                        ],  # average the features over batch samples
-                    )
-                    * torch.sum(
-                        torch.abs(layer.weight),
-                        dim=[
-                            i for i in range(layer.weight.dim()) if i != 0
-                        ],  # sum over the output dimension
+            # calculate unit importance of the training step. See $v_{l,i}$ in the paper draft.
+            if self.adjustment_mode == "cbphat":
+                unit_importance_step = self.get_unit_importance_step_layer_cbp(
+                    feature=feature,
+                    weight=layer.weight.data,
+                    mask=m,
+                )
+            elif self.adjustment_mode == "layer_activation":
+                unit_importance_step = self.get_unit_importance_step_layer_activation(
+                    forward_func=forward_func,
+                    layer=layer,
+                    input=input,
+                )
+            elif self.adjustment_mode == "layer_ig":
+                unit_importance_step = (
+                    self.get_unit_importance_step_layer_integrated_gradients(
+                        forward_func=forward_func,
+                        layer=layer,
+                        input=input,
+                        target=target,
                     )
                 )
-                * mask[layer_name]
-            ).detach()
-            current_contribution_utility = min_max_normalise(
-                current_contribution_utility
-            )  # normalise the utility to [0,1] to avoid linearly increasing utility
+
+            unit_importance_step = min_max_normalise(
+                unit_importance_step
+            )  # min-max scaling the utility to [0,1]. See in the paper draft.
 
             # update utility
-            self.contribution_utility_t[layer_name] = (
-                self.utility_decay_rate * self.contribution_utility_t[layer_name]
-                + current_contribution_utility
+            self.unit_importance_t[layer_name] = (
+                self.utility_decay_rate * self.unit_importance_t[layer_name]
+                + unit_importance_step
             )
 
     def on_train_end(self) -> None:
@@ -263,5 +282,125 @@ class CBPHAT(AdaHAT):
 
         for layer_name in self.backbone.weighted_layer_names:
             self.unit_importance_for_previous_tasks[layer_name] += (
-                self.contribution_utility_t[layer_name]
+                self.unit_importance_t[layer_name]
             ) / self.age_t[layer_name]
+
+    def get_unit_importance_step_layer_cbp(
+        self: str,
+        feature: Tensor,
+        weight: Tensor,
+        mask: Tensor,
+    ) -> Tensor:
+        r"""Get the raw unit importance of a layer of a training step for CBPHAT (before scaling). It is the contribution utility in CBP. See $v_l$ in the paper draft.
+
+        **Args:**
+
+        We need 3 tensors to calculate this unit importance of a layer of a training step:
+
+        - **feature** (`Tensor`): the feature tensor of the layer. It has the same size of (number of units).
+        - **weight** (`Tensor`): the weight tensor of the layer.
+        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
+
+        **Returns:**
+        - **unit_importance_step** (`Tensor`): the unit importance of the layer of the training step.
+        """
+
+        # calculate current contribution utility
+        contribution_utility_step = (
+            (
+                torch.mean(
+                    torch.abs(feature),
+                    dim=[
+                        i for i in range(feature.dim()) if i != 1
+                    ],  # average the features over batch samples
+                )
+                * torch.sum(
+                    torch.abs(weight),
+                    dim=[
+                        i for i in range(weight.dim()) if i != 0
+                    ],  # sum over the output dimension
+                )
+            )
+            * mask
+        ).detach()
+
+        return contribution_utility_step
+
+    def get_unit_importance_step_layer_activation(
+        self: str,
+        forward_func: Tensor,
+        layer: nn.Module,
+        input: Tensor,
+    ) -> Tensor:
+        r"""Get the raw unit importance of a layer of a training step for [Layer Activation](https://captum.ai/api/layer.html#layer-activation) mode (before scaling). See $v_l$ in the paper draft.
+
+        **Args:**
+
+        We need 3 things to calculate this unit importance of a layer of a training step:
+
+        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
+        - **layer** (`nn.Module`): the layer to get unit importance.
+        - **input** (`Tensor`): the input batch of the training step.
+
+        **Returns:**
+        - **layer_attribution_step** (`Tensor`): the unit importance of the layer of the training step.
+        """
+
+        # initialise the Layer Activation object
+        layer_activation = LayerActivation(forward_func=forward_func, layer=layer)
+
+        # calculate current neuron attribution
+        layer_attribution_step = layer_activation.attribute(inputs=input)
+
+        layer_attribution_step = torch.mean(
+            torch.abs(layer_attribution_step),
+            dim=[
+                i for i in range(layer_attribution_step.dim()) if i != 1
+            ],  # average the features over batch samples
+        )
+
+        # print(layer_attribution_step, layer_attribution_step.shape)
+
+        return layer_attribution_step
+
+    def get_unit_importance_step_layer_integrated_gradients(
+        self: str,
+        forward_func: Tensor,
+        layer: nn.Module,
+        input: Tensor,
+        target: Tensor,
+    ) -> Tensor:
+        r"""Get the raw unit importance of a layer of a training step for [Layer Integrated Gradients](https://captum.ai/api/layer.html#layer-integrated-gradients) mode (before scaling). See $v_l$ in the paper draft.
+
+        **Args:**
+
+        We need 4 things to calculate this unit importance of a layer of a training step:
+
+        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
+        - **layer** (`nn.Module`): the layer to get unit importance.
+        - **input** (`Tensor`): the input batch of the training step.
+        - **num_units** (`int`): the number of units in the layer.
+
+        **Returns:**
+        - **layer_attribution_step** (`Tensor`): the unit importance of the layer of the training step.
+        """
+
+        # initialise the Layer Integrated Gradients object
+        layer_ig = LayerIntegratedGradients(forward_func=forward_func, layer=layer)
+
+        input = (
+            input.requires_grad_()
+        )  # set the input to require gradient so that the gradient-based attribution methods can work
+
+        # calculate current neuron attribution
+        layer_attribution_step = layer_ig.attribute(inputs=input, target=target)
+
+        layer_attribution_step = torch.mean(
+            torch.abs(layer_attribution_step),
+            dim=[
+                i for i in range(layer_attribution_step.dim()) if i != 1
+            ],  # average the features over batch samples
+        )
+
+        print(layer_attribution_step, layer_attribution_step.shape)
+        return layer_attribution_step

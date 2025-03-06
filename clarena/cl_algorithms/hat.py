@@ -344,6 +344,17 @@ class HAT(CLAlgorithm):
         # accuracy of the batch
         acc = (logits.argmax(dim=1) == y).float().mean()
 
+        # retrieve the pure forward function
+        def forward_func(input: Tensor) -> Tensor:
+            logits, _, _ = self.forward(
+                x,
+                stage="train",
+                batch_idx=batch_idx,
+                num_batches=num_batches,
+                task_id=self.task_id,
+            )
+            return logits
+
         return {
             "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
@@ -351,6 +362,9 @@ class HAT(CLAlgorithm):
             "acc": acc,
             "hidden_features": hidden_features,
             "mask": mask,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
+            "forward_func": forward_func,  # Return the forward function for Captum to use
+            "input": x,  # Return the input batch for Captum to use
+            "target": y,  # Return the target batch for Captum to use
             "capacity": capacity,
         }
 
