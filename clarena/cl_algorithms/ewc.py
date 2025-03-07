@@ -23,7 +23,7 @@ pylogger = logging.getLogger(__name__)
 class EWC(Finetuning):
     r"""EWC (Elastic Weight Consolidation) algorithm.
 
-    [EWC (Elastic Weight Consolidation, 2017)](https://www.pnas.org/doi/10.1073/pnas.1611835114) is a regularisation-based continual learning approach that calculates parameter importance for the previous tasks and penalises the current task loss with the importance of the parameters.
+    [EWC (Elastic Weight Consolidation, 2017)](https://www.pnas.org/doi/10.1073/pnas.1611835114) is a regularisation-based continual learning approach that calculates the fisher information as parameter importance for the previous tasks and penalises the current task loss with the importance of the parameters.
 
     We implement EWC as a subclass of Finetuning algorithm, as EWC has the same `forward()`, `validation_step()` and `test_step()` method as `Finetuning` class.
     """
@@ -79,16 +79,19 @@ class EWC(Finetuning):
                 f"The parameter change regularisation factor should be positive, but got {self.parameter_change_reg_factor}."
             )
 
-    def calculate_parameter_importance(self) -> None:
-        r"""Calculate the parameter importance for the learned task. This is only called after the training of a task, which is the last previous task $t-1$. The calculated importance is stored in `self.parameter_importance[self.task_id]` for constructing the regularisation loss in the future tasks.
+    def calculate_fisher_information(self) -> None:
+        r"""Calculate the fisher information as the parameter importance for the learned task `self.task_id` at the end of its training. This is only called after the training of a task, which is the last previous task $t-1$. The calculated importance is stored in `self.parameter_importance[self.task_id]` for constructing the regularisation loss in the future tasks.
 
         According to [the EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114), the importance tensor is a Laplace approximation to Fisher information matrix by taking the digonal, i.e. $F_i$, where $i$ is the index of a parameter. The calculation is not following that theory but the derived formula below:
 
         $$\omega_i = F_i  =\frac{1}{N_{t-1}} \sum_{(\mathbf{x}, y)\in \mathcal{D}^{(t-1)}_{\text{train}}} \left[\frac{\partial l(f^{(t-1)}\left(\mathbf{x}, \theta), y\right)}{\partial \theta_i}\right]^2$$
 
-        For a parameter $i$, its importance is the magnitude (square here) of gradient of the loss of model just trained over the training data just used. The $l$ is the classification loss. It shows the sensitivity of the loss to the parameter. The larger it is, the more it changed the performance (which is the loss) of the model, which indicates the importance of the parameter.
+        For a parameter $i$, its fisher information is the magnitude (square here) of gradient of the loss of model just trained over the training data just used. The $l$ is the classification loss. It shows the sensitivity of the loss to the parameter. The larger it is, the more it changed the performance (which is the loss) of the model, which indicates the importance of the parameter.
+
+        **Returns:**
+        - **fisher_information_t** (`dict[str, Tensor]`): the fisher information for the learned task. Keys are parameter names (named by `named_parameters()` of the `nn.Module`) and values are the importance tensor for the layer. It has the same shape as the parameters of the layer.
         """
-        parameter_importance_t = {}
+        fisher_information_t = {}
 
         # set model to evaluation mode to prevent updating the model parameters
         self.eval()
@@ -99,7 +102,7 @@ class EWC(Finetuning):
         # initialise the accumulation of the squared gradients
         num_data = 0
         for param_name, param in self.backbone.named_parameters():
-            parameter_importance_t[param_name] = torch.zeros_like(param)
+            fisher_information_t[param_name] = torch.zeros_like(param)
 
         for x, y in last_task_train_dataloaders:
 
@@ -116,18 +119,18 @@ class EWC(Finetuning):
             loss_cls = self.criterion(logits, y)
             loss_cls.backward()  # compute gradients
 
-            # collect and accumulate the squared gradients into parameter importance
+            # collect and accumulate the squared gradients into fisher information
             for param_name, param in self.backbone.named_parameters():
-                parameter_importance_t[param_name] += batch_size * param.grad**2
+                fisher_information_t[param_name] += batch_size * param.grad**2
 
         num_params = sum(p.numel() for p in self.backbone.parameters())
 
         for param_name, param in self.backbone.named_parameters():
-            parameter_importance_t[param_name] /= (
+            fisher_information_t[param_name] /= (
                 num_data * num_params
             )  # average over data and parameters
 
-        self.parameter_importance[self.task_id] = parameter_importance_t
+        return fisher_information_t
 
     def training_step(self, batch: Any) -> dict[str, Tensor]:
         r"""Training step for current task `self.task_id`.
@@ -174,11 +177,11 @@ class EWC(Finetuning):
         }
 
     def on_train_end(self) -> None:
-        r"""Calculate the parameter importance and store the backbone model after the training of a task.
+        r"""Calculate the fisher information as parameter importance and store the backbone model after the training of a task.
 
         The calculated importance and model are stored in `self.parameter_importance[self.task_id]` and `self.previous_task_backbones[self.task_id]` respectively for constructing the regularisation loss in the future tasks.
         """
-        self.calculate_parameter_importance()
+        self.parameter_importance[self.task_id] = self.calculate_fisher_information()
 
         previous_backbone = deepcopy(self.backbone)
         previous_backbone.eval()  # set the store model to evaluation mode to prevent updating

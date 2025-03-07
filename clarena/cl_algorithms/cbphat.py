@@ -5,7 +5,7 @@ The submodule in `cl_algorithms` for CBPHAT algorithm.
 __all__ = ["CBPHAT"]
 
 import logging
-from typing import Any
+from typing import Any, Callable
 
 import torch
 from captum.attr import (
@@ -13,6 +13,7 @@ from captum.attr import (
     LayerConductance,
     LayerDeepLift,
     LayerGradCam,
+    LayerGradientXActivation,
     LayerIntegratedGradients,
 )
 from torch import Tensor, nn
@@ -59,7 +60,9 @@ class CBPHAT(AdaHAT):
         - **adjustment_mode** (`str`): the strategy of adjustment i.e. the mode of gradient clipping, should be one of the following:
             1. 'cbphat': using the contribution utility in CBP as the subtle unit importance in addition to the AdaHAT importance.
             2. 'layer_activation': using the [Layer Activation](https://captum.ai/api/layer.html#layer-activation) as the unit importance in addition to the AdaHAT importance.
-            3. 'layer_ig': using the [Layer Integrated Gradients](https://captum.ai/api/layer.html#layer-integrated-gradients) as the unit importance in addition to the AdaHAT importance.
+            3. 'ewc_fi_hat': using the Fisher Information of [EWC](https://www.pnas.org/doi/10.1073/pnas.1611835114) rather than the weight itself to calculate the contribution utility in CBP as the unit importance in addition to the AdaHAT importance.
+            3. 'layer_gradient_x_activation': using the [Layer Gradient X Activation](https://captum.ai/api/layer.html#layer-gradient-x-activation) as the unit importance in addition to the AdaHAT importance.
+            4. 'layer_ig': using the [Layer Integrated Gradients](https://captum.ai/api/layer.html#layer-integrated-gradients) as the unit importance in addition to the AdaHAT importance.
         - **adjustment_intensity** (`float`): hyperparameter, control the overall intensity of gradient adjustment. It's the $\alpha$ in equation (9) in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
         - **utility_decay_rate** (`float`): the utility decay rate of units. It is the rate at which the utility of a unit decays over time.
         - **s_max** (`float`): hyperparameter, the maximum scaling factor in the gate function. See chapter 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
@@ -189,18 +192,16 @@ class CBPHAT(AdaHAT):
 
             network_sparsity_layer = network_sparsity[layer_name]
 
-            if self.adjustment_mode == "cbphat" or "layer_activation" or "layer_ig":
+            r_layer = self.adjustment_intensity / (
+                self.epsilon + network_sparsity_layer
+            )
+            adjustment_rate_weight = torch.div(
+                r_layer, (weight_importance + weight_summative_mask + r_layer)
+            )
 
-                r_layer = self.adjustment_intensity / (
-                    self.epsilon + network_sparsity_layer
-                )
-                adjustment_rate_weight = torch.div(
-                    r_layer, (weight_importance + weight_summative_mask + r_layer)
-                )
-
-                adjustment_rate_bias = torch.div(
-                    r_layer, (bias_importance + bias_summative_mask + r_layer)
-                )
+            adjustment_rate_bias = torch.div(
+                r_layer, (bias_importance + bias_summative_mask + r_layer)
+            )
 
             # apply the adjustment rate to the gradients
             layer.weight.grad.data *= adjustment_rate_weight
@@ -253,6 +254,24 @@ class CBPHAT(AdaHAT):
                     forward_func=forward_func,
                     layer=layer,
                     input=input,
+                )
+            elif self.adjustment_mode == "ewc_fi_hat":
+                unit_importance_step = self.get_unit_importance_step_layer_ewc_fi(
+                    forward_func=forward_func,
+                    layer=layer,
+                    input=input,
+                    target=target,
+                    feature=feature,
+                    mask=m,
+                )
+            elif self.adjustment_mode == "layer_gradient_x_activation":
+                unit_importance_step = (
+                    self.get_unit_importance_step_layer_gradient_x_activation(
+                        forward_func=forward_func,
+                        layer=layer,
+                        input=input,
+                        target=target,
+                    )
                 )
             elif self.adjustment_mode == "layer_ig":
                 unit_importance_step = (
@@ -328,7 +347,7 @@ class CBPHAT(AdaHAT):
 
     def get_unit_importance_step_layer_activation(
         self: str,
-        forward_func: Tensor,
+        forward_func: Callable,
         layer: nn.Module,
         input: Tensor,
     ) -> Tensor:
@@ -350,7 +369,113 @@ class CBPHAT(AdaHAT):
         layer_activation = LayerActivation(forward_func=forward_func, layer=layer)
 
         # calculate current neuron attribution
-        layer_attribution_step = layer_activation.attribute(inputs=input)
+        layer_attribution_step = layer_activation.attribute(
+            inputs=input, attribute_to_layer_input=True
+        )
+
+        layer_attribution_step = torch.mean(
+            torch.abs(layer_attribution_step),
+            dim=[
+                i for i in range(layer_attribution_step.dim()) if i != 1
+            ],  # average the features over batch samples
+        )
+
+        # print(layer_attribution_step, layer_attribution_step.shape)
+
+        return layer_attribution_step
+
+    def get_unit_importance_step_layer_ewc_fi(
+        self: str,
+        forward_func: Callable,
+        layer: nn.Module,
+        input: Tensor,
+        target: Tensor,
+        feature: Tensor,
+        mask: Tensor,
+    ) -> Tensor:
+        r"""Get the raw unit importance of a layer of a training step for EWC fisher information powered HAT (before scaling). It is the contribution utility in CBP substituting weight to ewc fisher information. See $v_l$ in the paper draft.
+
+        **Args:**
+
+        We need 3 tensors to calculate this unit importance of a layer of a training step:
+
+        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
+        - **layer** (`nn.Module`): the layer to get unit importance.
+        - **input** (`Tensor`): the input batch of the training step.
+        - **target** (`Tensor`): the target batch of the training step.
+        - **feature** (`Tensor`): the feature tensor of the layer. It has the same size of (number of units).
+        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
+
+        **Returns:**
+        - **unit_importance_step** (`Tensor`): the unit importance of the layer of the training step.
+        """
+        fisher_information_t = {}
+
+        # set model to evaluation mode to prevent updating the model parameters
+        self.eval()
+
+        # compute the gradients within a batch
+        self.backbone.zero_grad()  # reset gradients
+        logits = forward_func(input)
+        loss_cls = self.criterion(logits, target)
+        loss_cls.backward()  # compute gradients
+
+        # collect and accumulate the squared gradients into fisher information
+        fisher_information_t = layer.weight.grad**2
+
+        # calculate current contribution utility
+        contribution_utility_step = (
+            (
+                torch.mean(
+                    torch.abs(feature),
+                    dim=[
+                        i for i in range(feature.dim()) if i != 1
+                    ],  # average the features over batch samples
+                )
+                * torch.sum(
+                    torch.abs(fisher_information_t),
+                    dim=[
+                        i for i in range(fisher_information_t.dim()) if i != 0
+                    ],  # sum over the output dimension
+                )
+            )
+            * mask
+        ).detach()
+
+        return contribution_utility_step
+
+    def get_unit_importance_step_layer_gradient_x_activation(
+        self: str,
+        forward_func: Callable,
+        layer: nn.Module,
+        input: Tensor,
+        target: Tensor,
+    ) -> Tensor:
+        r"""Get the raw unit importance of a layer of a training step for  [Layer Gradient X Activation](https://captum.ai/api/layer.html#layer-gradient-x-activation) mode (before scaling). See $v_l$ in the paper draft.
+
+        **Args:**
+
+        We need 4 things to calculate this unit importance of a layer of a training step:
+
+        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
+        - **layer** (`nn.Module`): the layer to get unit importance.
+        - **input** (`Tensor`): the input batch of the training step.
+        - **target** (`Tensor`): the target batch of the training step.
+
+        **Returns:**
+        - **layer_attribution_step** (`Tensor`): the unit importance of the layer of the training step.
+        """
+
+        # initialise the Layer Activation object
+        layer_activation = LayerGradientXActivation(
+            forward_func=forward_func, layer=layer
+        )
+
+        # calculate current neuron attribution
+        layer_attribution_step = layer_activation.attribute(
+            inputs=input,
+            target=target,
+        )
 
         layer_attribution_step = torch.mean(
             torch.abs(layer_attribution_step),
@@ -365,7 +490,7 @@ class CBPHAT(AdaHAT):
 
     def get_unit_importance_step_layer_integrated_gradients(
         self: str,
-        forward_func: Tensor,
+        forward_func: Callable,
         layer: nn.Module,
         input: Tensor,
         target: Tensor,
@@ -379,7 +504,7 @@ class CBPHAT(AdaHAT):
         - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
         - **layer** (`nn.Module`): the layer to get unit importance.
         - **input** (`Tensor`): the input batch of the training step.
-        - **num_units** (`int`): the number of units in the layer.
+        - **target** (`Tensor`): the target batch of the training step.
 
         **Returns:**
         - **layer_attribution_step** (`Tensor`): the unit importance of the layer of the training step.
