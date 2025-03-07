@@ -369,9 +369,7 @@ class CBPHAT(AdaHAT):
         layer_activation = LayerActivation(forward_func=forward_func, layer=layer)
 
         # calculate current neuron attribution
-        layer_attribution_step = layer_activation.attribute(
-            inputs=input, attribute_to_layer_input=True
-        )
+        layer_attribution_step = layer_activation.attribute(inputs=input)
 
         layer_attribution_step = torch.mean(
             torch.abs(layer_attribution_step),
@@ -379,8 +377,6 @@ class CBPHAT(AdaHAT):
                 i for i in range(layer_attribution_step.dim()) if i != 1
             ],  # average the features over batch samples
         )
-
-        # print(layer_attribution_step, layer_attribution_step.shape)
 
         return layer_attribution_step
 
