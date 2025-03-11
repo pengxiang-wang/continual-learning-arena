@@ -364,6 +364,7 @@ class CBPHAT(AdaHAT):
         **Returns:**
         - **layer_attribution_step** (`Tensor`): the unit importance of the layer of the training step.
         """
+        input = input.requires_grad_()
 
         # initialise the Layer Activation object
         layer_activation = LayerActivation(forward_func=forward_func, layer=layer)
@@ -461,17 +462,20 @@ class CBPHAT(AdaHAT):
         **Returns:**
         - **layer_attribution_step** (`Tensor`): the unit importance of the layer of the training step.
         """
+        input = input.requires_grad_()
 
         # initialise the Layer Activation object
-        layer_activation = LayerGradientXActivation(
+        layer_gradient_x_activation = LayerGradientXActivation(
             forward_func=forward_func, layer=layer
         )
 
         # calculate current neuron attribution
-        layer_attribution_step = layer_activation.attribute(
+        layer_attribution_step = layer_gradient_x_activation.attribute(
             inputs=input,
             target=target,
         )
+
+        print(input.grad)
 
         layer_attribution_step = torch.mean(
             torch.abs(layer_attribution_step),
@@ -480,7 +484,7 @@ class CBPHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        # print(layer_attribution_step, layer_attribution_step.shape)
+        print(layer_attribution_step, layer_attribution_step.shape)
 
         return layer_attribution_step
 
@@ -505,16 +509,21 @@ class CBPHAT(AdaHAT):
         **Returns:**
         - **layer_attribution_step** (`Tensor`): the unit importance of the layer of the training step.
         """
+        input = input.requires_grad_()
 
         # initialise the Layer Integrated Gradients object
         layer_ig = LayerIntegratedGradients(forward_func=forward_func, layer=layer)
 
-        input = (
-            input.requires_grad_()
-        )  # set the input to require gradient so that the gradient-based attribution methods can work
+        baselines = torch.zeros_like(input)
 
         # calculate current neuron attribution
-        layer_attribution_step = layer_ig.attribute(inputs=input, target=target)
+        layer_attribution_step = layer_ig.attribute(
+            inputs=input,
+            target=target,
+            baselines=baselines,
+        )
+
+        print(layer_attribution_step, layer_attribution_step.shape)
 
         layer_attribution_step = torch.mean(
             torch.abs(layer_attribution_step),
@@ -523,5 +532,4 @@ class CBPHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        print(layer_attribution_step, layer_attribution_step.shape)
         return layer_attribution_step
