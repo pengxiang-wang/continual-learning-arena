@@ -1,10 +1,10 @@
 """The submodule in `utils` for plotting utils."""
 
 __all__ = [
-    "plot_test_ave_acc_curve_from_csv",
     "plot_test_acc_matrix_from_csv",
-    "plot_test_ave_loss_cls_curve_from_csv",
     "plot_test_loss_cls_matrix_from_csv",
+    "plot_test_ave_acc_curve_from_csv",
+    "plot_test_ave_loss_cls_curve_from_csv",
     "plot_hat_mask",
 ]
 
@@ -16,6 +16,125 @@ from matplotlib import pyplot as plt
 from torch import Tensor
 
 
+def plot_test_acc_matrix_from_csv(csv_path: str, plot_path: str) -> None:
+    """Plot the test accuracy matrix from saved csv file and save the plot to the designated directory.
+
+    **Args:**
+    - **csv_path** (`str`): the path to the csv file where the `utils.update_test_acc_to_csv()` saved the test accuracy metric.
+    - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/acc_matrix.png'.
+    """
+    data = pd.read_csv(csv_path)
+    seen_task_ids = [
+        int(col.replace("test_on_task_", ""))
+        for col in data.columns
+        if col.startswith("test_on_task_")
+    ]
+    num_tasks = len(seen_task_ids)
+
+    # plot the accuracy matrix
+    fig, ax = plt.subplots(
+        figsize=(2 * (num_tasks + 1), 2 * (num_tasks + 1))
+    )  # adaptive figure size
+    cax = ax.imshow(
+        data.drop(["after_training_task", "average_accuracy"], axis=1),
+        interpolation="nearest",
+        cmap="Greens",
+        vmin=0,
+        vmax=1,
+    )
+
+    colorbar = fig.colorbar(cax)
+    yticks = colorbar.ax.get_yticks()
+    colorbar.ax.set_yticks(yticks)
+    colorbar.ax.set_yticklabels(
+        [f"{tick:.2f}" for tick in yticks], fontsize=10 + num_tasks
+    )  # adaptive font size
+
+    for r in range(num_tasks):
+        for c in range(r + 1):
+            j = seen_task_ids[c]
+            ax.text(
+                c,
+                r,
+                f"{data.loc[r, f"test_on_task_{j}"]:.3f}",
+                ha="center",
+                va="center",
+                color="black",
+                fontsize=10 + num_tasks,  # adaptive font size
+            )
+
+    ax.set_xticks(range(num_tasks))
+    ax.set_yticks(range(num_tasks))
+    ax.set_xticklabels(seen_task_ids, fontsize=10 + num_tasks)  # adaptive font size
+    ax.set_yticklabels(seen_task_ids, fontsize=10 + num_tasks)  # adaptive font size
+
+    # Labeling the axes
+    ax.set_xlabel("Testing on task τ", fontsize=10 + num_tasks)  # adaptive font size
+    ax.set_ylabel(
+        "After training task t", fontsize=10 + num_tasks
+    )  # adaptive font size
+    fig.savefig(plot_path)
+    plt.close(fig)
+
+
+def plot_test_loss_cls_matrix_from_csv(csv_path: str, plot_path: str) -> None:
+    """Plot the test classification loss matrix from saved csv file and save the plot to the designated directory.
+
+    **Args:**
+    - **csv_path** (`str`): the path to the csv file where the `utils.update_loss_cls_to_csv()` saved the test classification loss metric.
+    - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/loss_cls_matrix.png'.
+    """
+    data = pd.read_csv(csv_path)
+    seen_task_ids = [
+        int(col.replace("test_on_task_", ""))
+        for col in data.columns
+        if col.startswith("test_on_task_")
+    ]
+    num_tasks = len(seen_task_ids)
+
+    # plot the accuracy matrix
+    fig, ax = plt.subplots(
+        figsize=(2 * (num_tasks + 1), 2 * (num_tasks + 1))
+    )  # adaptive figure size
+    cax = ax.imshow(
+        data.drop(["after_training_task", "average_classification_loss"], axis=1),
+        interpolation="nearest",
+        cmap="Greens",
+    )
+    colorbar = fig.colorbar(cax)
+    yticks = colorbar.ax.get_yticks()
+    colorbar.ax.set_yticks(yticks)
+    colorbar.ax.set_yticklabels(
+        [f"{tick:.2f}" for tick in yticks], fontsize=10 + num_tasks
+    )  # adaptive font size
+
+    for r in range(num_tasks):
+        for c in range(r + 1):
+            j = seen_task_ids[c]
+            ax.text(
+                c,
+                r,
+                f"{data.loc[r, f"test_on_task_{j}"]:.3f}",
+                ha="center",
+                va="center",
+                color="black",
+                fontsize=10 + num_tasks,  # adaptive font size
+            )
+    ax.set_xticks(range(num_tasks))
+    ax.set_yticks(range(num_tasks))
+
+    ax.set_xticklabels(seen_task_ids, fontsize=10 + num_tasks)  # adaptive font size
+    ax.set_yticklabels(seen_task_ids, fontsize=10 + num_tasks)  # adaptive font size
+
+    # Labeling the axes
+    ax.set_xlabel("Testing on task τ", fontsize=10 + num_tasks)  # adaptive font size
+    ax.set_ylabel(
+        "After training task t", fontsize=10 + num_tasks
+    )  # adaptive font size
+    fig.savefig(plot_path)
+    plt.close(fig)
+
+
 def plot_test_ave_acc_curve_from_csv(csv_path: str, plot_path: str) -> None:
     """Plot the test average accuracy curve over different training tasks from saved csv file and save the plot to the designated directory.
 
@@ -24,7 +143,7 @@ def plot_test_ave_acc_curve_from_csv(csv_path: str, plot_path: str) -> None:
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/ave_acc.png'.
     """
     data = pd.read_csv(csv_path)
-    task_id = len(data)
+    num_tasks = len(data)
 
     # plot the average accuracy curve over different training tasks
     fig, ax = plt.subplots(figsize=(16, 9))
@@ -37,66 +156,12 @@ def plot_test_ave_acc_curve_from_csv(csv_path: str, plot_path: str) -> None:
     ax.set_xlabel("After training task $t$", fontsize=16)
     ax.set_ylabel("Average Accuracy (AA)", fontsize=16)
     ax.grid(True)
-    xticks = [int(i) for i in range(1, task_id + 1)]
+    xticks = [int(i) for i in range(1, num_tasks + 1)]
     yticks = [i * 0.05 for i in range(21)]
     ax.set_xticks(xticks)
     ax.set_yticks(yticks)
     ax.set_xticklabels(xticks, fontsize=16)
     ax.set_yticklabels([f"{tick:.2f}" for tick in yticks], fontsize=16)
-    fig.savefig(plot_path)
-    plt.close(fig)
-
-
-def plot_test_acc_matrix_from_csv(csv_path: str, plot_path: str) -> None:
-    """Plot the test accuracy matrix from saved csv file and save the plot to the designated directory.
-
-    **Args:**
-    - **csv_path** (`str`): the path to the csv file where the `utils.update_test_acc_to_csv()` saved the test accuracy metric.
-    - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/acc_matrix.png'.
-    """
-    data = pd.read_csv(csv_path)
-    task_id = len(data)
-
-    # plot the accuracy matrix
-    fig, ax = plt.subplots(
-        figsize=(2 * (task_id + 1), 2 * (task_id + 1))
-    )  # adaptive figure size
-    cax = ax.imshow(
-        data.drop(["after_training_task", "average_accuracy"], axis=1),
-        interpolation="nearest",
-        cmap="Greens",
-    )
-    colorbar = fig.colorbar(cax)
-    yticks = colorbar.ax.get_yticks()
-    colorbar.ax.set_yticks(yticks)
-    colorbar.ax.set_yticklabels(
-        [f"{tick:.2f}" for tick in yticks], fontsize=10 + task_id
-    )  # adaptive font size
-
-    for i in range(task_id + 1):
-        for j in range(1, i + 1):
-            ax.text(
-                j - 1,
-                i - 1,
-                f'{data.loc[i - 1,f"test_on_task_{j}"]:.3f}',
-                ha="center",
-                va="center",
-                color="black",
-                fontsize=10 + task_id,  # adaptive font size
-            )
-
-    ax.set_xticks(range(task_id))
-    ax.set_yticks(range(task_id))
-    ax.set_xticklabels(
-        range(1, task_id + 1), fontsize=10 + task_id
-    )  # adaptive font size
-    ax.set_yticklabels(
-        range(1, task_id + 1), fontsize=10 + task_id
-    )  # adaptive font size
-
-    # Labeling the axes
-    ax.set_xlabel("Testing on task τ", fontsize=10 + task_id)  # adaptive font size
-    ax.set_ylabel("After training task t", fontsize=10 + task_id)  # adaptive font size
     fig.savefig(plot_path)
     plt.close(fig)
 
@@ -109,7 +174,7 @@ def plot_test_ave_loss_cls_curve_from_csv(csv_path: str, plot_path: str) -> None
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/ave_loss_cls.png'.
     """
     data = pd.read_csv(csv_path)
-    task_id = len(data)
+    num_tasks = len(data)
 
     # plot the average accuracy curve over different training tasks
     fig, ax = plt.subplots(figsize=(16, 9))
@@ -123,7 +188,7 @@ def plot_test_ave_loss_cls_curve_from_csv(csv_path: str, plot_path: str) -> None
     ax.set_ylabel("Average Classification Loss", fontsize=16)
     ax.grid(True)
 
-    xticks = [int(i) for i in range(1, task_id + 1)]
+    xticks = [int(i) for i in range(1, num_tasks + 1)]
     yticks = [
         i * 0.5 for i in range(int(data["average_classification_loss"].max() / 0.5) + 1)
     ]
@@ -131,60 +196,6 @@ def plot_test_ave_loss_cls_curve_from_csv(csv_path: str, plot_path: str) -> None
     ax.set_yticks(yticks)
     ax.set_xticklabels(xticks, fontsize=16)
     ax.set_yticklabels([f"{tick:.1f}" for tick in yticks], fontsize=16)
-    fig.savefig(plot_path)
-    plt.close(fig)
-
-
-def plot_test_loss_cls_matrix_from_csv(csv_path: str, plot_path: str) -> None:
-    """Plot the test classification loss matrix from saved csv file and save the plot to the designated directory.
-
-    **Args:**
-    - **csv_path** (`str`): the path to the csv file where the `utils.update_loss_cls_to_csv()` saved the test classification loss metric.
-    - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/loss_cls_matrix.png'.
-    """
-    data = pd.read_csv(csv_path)
-    task_id = len(data)
-
-    # plot the accuracy matrix
-    fig, ax = plt.subplots(
-        figsize=(2 * (task_id + 1), 2 * (task_id + 1))
-    )  # adaptive figure size
-    cax = ax.imshow(
-        data.drop(["after_training_task", "average_classification_loss"], axis=1),
-        interpolation="nearest",
-        cmap="Greens",
-    )
-    colorbar = fig.colorbar(cax)
-    yticks = colorbar.ax.get_yticks()
-    colorbar.ax.set_yticks(yticks)
-    colorbar.ax.set_yticklabels(
-        [f"{tick:.2f}" for tick in yticks], fontsize=10 + task_id
-    )  # adaptive font size
-
-    for i in range(task_id + 1):
-        for j in range(1, i + 1):
-            ax.text(
-                j - 1,
-                i - 1,
-                f'{data.loc[i - 1,f"test_on_task_{j}"]:.3f}',
-                ha="center",
-                va="center",
-                color="black",
-                fontsize=10 + task_id,  # adaptive font size
-            )
-    ax.set_xticks(range(task_id))
-    ax.set_yticks(range(task_id))
-
-    ax.set_xticklabels(
-        range(1, task_id + 1), fontsize=10 + task_id
-    )  # adaptive font size
-    ax.set_yticklabels(
-        range(1, task_id + 1), fontsize=10 + task_id
-    )  # adaptive font size
-
-    # Labeling the axes
-    ax.set_xlabel("Testing on task τ", fontsize=10 + task_id)  # adaptive font size
-    ax.set_ylabel("After training task t", fontsize=10 + task_id)  # adaptive font size
     fig.savefig(plot_path)
     plt.close(fig)
 

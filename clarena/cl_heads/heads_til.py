@@ -24,7 +24,7 @@ class HeadsTIL(nn.Module):
         r"""Store the input dimension of the heads. Used when creating new heads."""
 
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop."""
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
 
     def setup_task_id(self, task_id: int, num_classes_t: int) -> None:
         r"""Create the output head when task `task_id` arrives if there's no. This must be done before `forward()` is called.

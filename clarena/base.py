@@ -3,12 +3,13 @@ The module for general CL bases.
 """
 
 import logging
+from copy import deepcopy
 
 import hydra
 import lightning as L
 from lightning import Callback, LightningDataModule, LightningModule, Trainer
 from lightning.pytorch.loggers import Logger
-from omegaconf import DictConfig, ListConfig
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
@@ -17,13 +18,14 @@ from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import CLAlgorithm
 from clarena.cl_datasets import CLDataset
 from clarena.cl_heads import HeadsCIL, HeadsTIL
+from clarena.unlearning_algorithms import UnlearningAlgorithm
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 class CLExperiment:
-    r"""The base class for continual learning experiments."""
+    r"""The base class for continual learning (CL) experiments."""
 
     def __init__(self, cfg: DictConfig) -> None:
         r"""Initializes the CL experiment object with a complete configuration.
@@ -31,8 +33,19 @@ class CLExperiment:
         **Args:**
         - **cfg** (`DictConfig`): the complete config dict for the CL experiment.
         """
+
+        self.original_cfg: DictConfig = deepcopy(cfg)
+        r"""Store the original config dict for any future reference."""
+
+        if cfg.callbacks.get("cul_metrics") and not isinstance(self, CULExperiment):
+            OmegaConf.set_struct(cfg, False)
+            cfg.callbacks.pop("cul_metrics")
+            OmegaConf.set_struct(cfg, True)
+
         self.cfg: DictConfig = cfg
         r"""Store the complete config dict for any future reference."""
+
+        CLExperiment.sanity_check(self)
 
         self.cl_paradigm: str = cfg.cl_paradigm
         r"""Store the continual learning paradigm, either 'TIL' (Task-Incremental Learning) or 'CIL' (Class-Incremental Learning). Parsed from config and used to instantiate the correct heads object and set up CL dataset."""
@@ -42,11 +55,13 @@ class CLExperiment:
         r"""Store the global seed for the entire experiment. Parsed from config and used to seed all random number generators."""
         self.test: bool = cfg.test
         r"""Store whether to test the model after training and validation. Parsed from config and used in the tasks loop."""
-        self.output_dir_name: str = cfg.output_dir_name
-        r"""Store the name of the output directory to store the logs and checkpoints. Parsed from config and help any output operation to locate the correct directory."""
+        self.output_dir: str = cfg.output_dir
+        r"""Store the output directory to store the logs and checkpoints. Parsed from config and help any output operation to locate the correct directory."""
 
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop."""
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
+        self.seen_task_ids: list[int] = []
+        r"""The list of task IDs that have been seen in the experiment."""
 
         self.cl_dataset: CLDataset
         r"""CL dataset object. Instantiate in `instantiate_cl_dataset()`."""
@@ -68,13 +83,11 @@ class CLExperiment:
         self.callbacks: list[Callback]
         r"""The list of initialised callbacks objects for current task `self.task_id`. Instantiate in `instantiate_callbacks()`."""
 
-        CLExperiment.sanity_check(self)
-
     def sanity_check(self) -> None:
         r"""Check the sanity of the config dict `self.cfg`.
 
         **Raises:**
-        - **KeyError**: when required fields in experiment config are missing, including `cl_paradigm`, `num_tasks`, `test`, `output_dir_name`.
+        - **KeyError**: when required fields in experiment config are missing, including `cl_paradigm`, `num_tasks`, `test`, `output_dir`.
         - **ValueError**: when the value of `cl_paradigm` is not 'TIL' or 'CIL', or when the number of tasks is larger than the number of tasks in the CL dataset.
         """
         if not self.cfg.get("cl_paradigm"):
@@ -101,10 +114,8 @@ class CLExperiment:
         if not self.cfg.get("test"):
             raise KeyError("Field test should be specified in experiment config!")
 
-        if not self.cfg.get("output_dir_name"):
-            raise KeyError(
-                "Field output_dir_name should be specified in experiment config!"
-            )
+        if not self.cfg.get("output_dir"):
+            raise KeyError("Field output_dir should be specified in experiment config!")
 
     def instantiate_cl_dataset(self, cl_dataset_cfg: DictConfig) -> None:
         r"""Instantiate the CL dataset object from cl_dataset config.
@@ -308,6 +319,7 @@ class CLExperiment:
         - **task_id** (`int`): current task_id.
         """
         self.task_id = task_id
+        self.seen_task_ids.append(task_id)
 
     def instantiate_global(self) -> None:
         r"""Instantiate global components for the entire CL experiment from `self.cfg`."""
@@ -321,6 +333,7 @@ class CLExperiment:
 
     def setup_global(self) -> None:
         r"""Let CL dataset know the CL paradigm to define its CL class map."""
+
         self.set_global_seed()
         self.cl_dataset.set_cl_paradigm(cl_paradigm=self.cl_paradigm)
 
@@ -346,20 +359,12 @@ class CLExperiment:
 
         self.cl_dataset.setup_task_id(self.task_id)
         self.backbone.setup_task_id(self.task_id)
-        if self.cfg.get("lr_scheduler"):
-            self.model.setup_task_id(
-                self.task_id,
-                len(self.cl_dataset.cl_class_map(self.task_id)),
-                self.optimizer,
-                self.lr_scheduler,
-            )
-        else:
-            self.model.setup_task_id(
-                self.task_id,
-                len(self.cl_dataset.cl_class_map(self.task_id)),
-                self.optimizer,
-                lr_scheduler=None,
-            )
+        self.model.setup_task_id(
+            self.task_id,
+            len(self.cl_dataset.cl_class_map(self.task_id)),
+            self.optimizer,
+            lr_scheduler=self.lr_scheduler if self.cfg.get("lr_scheduler") else None,
+        )
 
         pylogger.debug(
             "Datamodule, model and loggers are all set up ready for task %d!",
@@ -381,17 +386,166 @@ class CLExperiment:
                 datamodule=self.cl_dataset,
             )
 
-    def run(self) -> None:
-        r"""The main method to run the continual learning experiment."""
+    def run(self, task_ids: list[int] | None = None) -> None:
+        r"""The main method to run the continual learning experiment.
+
+        **Args:**
+        - **run_task_ids** (`list[int]` | `None`): the list of task IDs to be conducted in the experiment. If `None`, all tasks will be conducted.
+        """
 
         self.instantiate_global()
         self.setup_global()
 
+        run_task_ids = (
+            task_ids if task_ids is not None else list(range(1, self.num_tasks + 1))
+        )  # task ID counts from 1
         # task loop
-        for task_id in range(1, self.num_tasks + 1):  # task ID counts from 1
-
+        for task_id in run_task_ids:
             self.setup_task_id(task_id)
             self.instantiate_task_specific()
             self.setup_task_specific()
 
             self.run_task()
+
+
+class CULExperiment(CLExperiment):
+    r"""The base class for continual unlearning (CUL) experiments."""
+
+    def __init__(self, cfg: DictConfig) -> None:
+        r"""Initializes the CUL experiment object with a complete configuration.
+
+        **Args:**
+        - **cfg** (`DictConfig`): the complete config dict for the CUL experiment.
+        """
+
+        CLExperiment.__init__(self, cfg)
+
+        if cfg.callbacks.get("cl_metrics") and isinstance(self, CULExperiment):
+            OmegaConf.set_struct(cfg, False)
+            cfg.callbacks.pop("cl_metrics")
+            OmegaConf.set_struct(cfg, True)
+
+        CULExperiment.sanity_check(self)
+
+        self.unlearning_requests: dict[int, list[int]] = cfg.unlearning_requests
+        r"""Store the unlearning requests for each task in the experiment. Keys are IDs of the tasks that request unlearning after their learning, and values are the list of the previous tasks to be unlearned. Parsed from config and used in the tasks loop."""
+
+        self.unlearned_task_ids: set[int] = set()
+        r"""Store the list of task IDs that have been unlearned in the experiment. Updated in the tasks loop when unlearning requests are made."""
+
+        self.unlearning_algorithm: UnlearningAlgorithm
+        r"""Continual unlearning algorithm object. Instantiate in `instantiate_unlearning_algorithm()`."""
+
+        self.permanent_mark: dict[int, bool] = (
+            cfg.permanent_mark
+            if cfg.get("permanent_mark")
+            else {t: True for t in range(1, self.num_tasks + 1)}
+        )
+        r"""Store whether a task is permanent for each task in the experiment. If a task is permanent, it will not be unlearned i.e. not shown in future unlearning requests. This applies to some unlearning algorithms that need to know whether a task is permanent. """
+
+    def sanity_check(self) -> None:
+        r"""Check the sanity of the config dict `self.cfg`.
+
+        **Raises:**
+        - **KeyError**: when required fields in experiment config are missing, including `unlearning_requests`, `unlearning_algorithm`.
+        - **ValueError**: when the unlearning requests are not within the range of reasonable values.
+        """
+
+        if not self.cfg.get("unlearning_requests"):
+            raise KeyError(
+                "Field unlearning_requests should be specified in experiment config because this is a continual unlearning experiment!"
+            )
+
+        for task_id, unlearning_task_ids in self.cfg.unlearning_requests.items():
+            if task_id not in range(1, self.num_tasks + 1):
+                raise ValueError(
+                    f"Task ID {task_id} in unlearning_requests is not within the range of the number of tasks in the experiment!"
+                )
+        if any(
+            unlearning_task_id not in range(1, task_id + 1)
+            for unlearning_task_id in unlearning_task_ids
+        ):
+            raise ValueError(
+                f"Unlearning task IDs {unlearning_task_ids} for task {task_id} in unlearning_requests are not within the range till the current task!"
+            )
+
+        if not self.cfg.get("unlearning_algorithm"):
+            raise KeyError(
+                "Field unlearn.num_tasks should be specified in experiment config!"
+            )
+
+    def instantiate_unlearning_algorithm(
+        self, unlearning_algorithm_cfg: DictConfig
+    ) -> None:
+        r"""Instantiate the unlearning_algorithm object from unlearning_algorithm config.
+
+        **Args:**
+        - **unlearning_algorithm_cfg** (`DictConfig`): the unlearning_algorithm config dict.
+        """
+        pylogger.debug(
+            "Unlearning algorithm is set as <%s>. Instantiating <%s> (clarena.unlearning_algorithms.UnlearningAlgorithm)...",
+            unlearning_algorithm_cfg.get("_target_"),
+            unlearning_algorithm_cfg.get("_target_"),
+        )
+        self.unlearning_algorithm: UnlearningAlgorithm = hydra.utils.instantiate(
+            unlearning_algorithm_cfg,
+            model=self.model,
+        )
+        pylogger.debug(
+            "<%s> (clarena.unlearning_algorithms.UnlearningAlgorithm) instantiated!",
+            unlearning_algorithm_cfg.get("_target_"),
+        )
+
+    def instantiate_global(self) -> None:
+        r"""Instantiate global components for the entire CUL experiment from `self.cfg`."""
+        CLExperiment.instantiate_global(self)
+        self.instantiate_unlearning_algorithm(
+            self.cfg.unlearning_algorithm
+        )  # unlearning_algorithm should be instantiated after model
+
+    def setup_task_specific(self):
+        r"""Setup task-specific components to get ready for the current task `self.task_id`."""
+        CLExperiment.setup_task_specific(self)
+
+        cfg_unlearning_test_reference = deepcopy(self.original_cfg)
+        cfg_unlearning_test_reference.output_dir += (
+            "/unlearning_test_reference_experiment"
+        )
+
+        self.unlearning_algorithm.setup_task_id(
+            task_id=self.task_id,
+            unlearning_requests=self.unlearning_requests,
+            cfg_unlearning_test_reference=cfg_unlearning_test_reference,
+            if_permanent=self.permanent_mark[self.task_id],
+        )
+
+        pylogger.debug(
+            "Unlearning algorithm is set up ready for task %d!",
+            self.task_id,
+        )
+
+    def run_task(self) -> None:
+        r"""Fit the model on the current task `self.task_id`. Also test the model if `self.test` is set to True. Unlearn the previous tasks if unlearning requests are made."""
+
+        self.trainer.fit(
+            model=self.model,
+            datamodule=self.cl_dataset,
+        )
+
+        # unlearn
+        self.unlearning_algorithm.unlearn()
+
+        self.unlearning_algorithm.setup_test_task_id()
+
+        if self.test:
+            # test after training and validation
+            self.trainer.test(
+                model=self.model,
+                datamodule=self.cl_dataset,
+            )
+
+        pylogger.debug(
+            "Task %d is completed with unlearning requests %s!",
+            self.task_id,
+            self.unlearning_requests.get(self.task_id),
+        )

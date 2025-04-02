@@ -21,13 +21,15 @@ We provide various components of continual learning system in the submodules:
 As well as the base class in the outmost directory of the package:
 
 - `CLExperiment`: The base class for continual learning experiments.
+- `CULExperiment`: The base class for continual unlearning experiments.
 
 """
 
-from .base import CLExperiment
+from .base import CLExperiment, CULExperiment
 
 __all__ = [
     "CLExperiment",
+    "CULExperiment",
     "cl_datasets",
     "backbones",
     "cl_heads",

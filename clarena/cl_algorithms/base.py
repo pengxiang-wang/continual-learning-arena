@@ -7,6 +7,7 @@ __all__ = ["CLAlgorithm"]
 import logging
 
 from lightning import LightningModule
+from omegaconf import DictConfig
 from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
@@ -46,7 +47,16 @@ class CLAlgorithm(LightningModule):
         r"""The loss function bewteen the output logits and the target labels. Default is cross-entropy loss."""
 
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop."""
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
+        self.seen_task_ids: list[int] = []
+        r"""The list of task IDs that have been seen in the experiment."""
+        self.unlearning_task_ids: list[int]
+        r"""The list of task IDs to be unlearned after `self.task_id`. Only used for unlearning algorithms. """
+
+        self.unlearned_task_ids: set[int] = set()
+        r"""Store the list of task IDs that have been unlearned in the experiment."""
+        self.cfg_unlearning_test_reference: DictConfig
+        r"""The reference experiment configuration for unlearning test. Only used for unlearning algorithms. """
 
         CLAlgorithm.sanity_check(self)
 
@@ -68,7 +78,7 @@ class CLAlgorithm(LightningModule):
         optimizer: Optimizer,
         lr_scheduler: LRScheduler | None,
     ) -> None:
-        r"""Set up which task's dataset the CL experiment is on. This must be done before `forward()` method is called.
+        r"""Set up which task the CL experiment is on. This must be done before `forward()` method is called.
 
         **Args:**
         - **task_id** (`int`): the target task ID.
@@ -77,9 +87,23 @@ class CLAlgorithm(LightningModule):
         - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.
         """
         self.task_id = task_id
+        self.seen_task_ids.append(task_id)
         self.heads.setup_task_id(task_id, num_classes_t)
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
+
+    def get_test_task_id_from_dataloader_idx(self, dataloader_idx: int) -> int:
+        r"""Get the test task ID from the dataloader index.
+
+        **Args:**
+        - **dataloader_idx** (`int`): the dataloader index.
+
+        **Returns:**
+        - **test_task_id** (`str`): the test task ID.
+        """
+        dataset_test = self.trainer.datamodule.dataset_test
+        test_task_id = list(dataset_test.keys())[dataloader_idx]
+        return test_task_id
 
     def configure_optimizers(self) -> Optimizer:
         r"""

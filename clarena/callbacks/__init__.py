@@ -2,7 +2,7 @@ r"""
 
 # Callbacks
 
-This submodule provides **callbacks** that can be used in CLArena. 
+This submodule provides **callbacks** that can be used in CLArena.
 
 Please note that this is an API documantation. Please refer to the main documentation pages for more information about the callbacks and how to configure and implement them:
 
@@ -14,6 +14,7 @@ The callbacks are implemented as subclasses of `lightning.Callback`.
 """
 
 from .cl_metrics import CLMetricsCallback
+from .cul_metrics import CULMetricsCallback
 from .cl_rich_progress_bar import CLRichProgressBar
 from .hat_metrics import HATMetricsCallback
 from .pylogger import PyloggerCallback
@@ -23,6 +24,7 @@ __all__ = [
     "cl_rich_progress_bar",
     "save_first_batch_images",
     "cl_metrics",
+    "cul_metrics",
     "pylogger",
     "hat_metrics",
 ]

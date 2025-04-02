@@ -23,7 +23,9 @@ class HeadsCIL(nn.Module):
         """The input dimension of the heads. Used when creating new heads."""
 
         self.task_id: int
-        """Task ID counter indicating which task is being processed. Self updated during the task loop."""
+        """Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
+        self.seen_task_ids: list[int] = []
+        r"""The list of task IDs that have been seen in the experiment."""
 
     def setup_task_id(self, task_id: int, num_classes_t: int) -> None:
         """Create the output head when task `task_id` arrives if there's no. This must be done before `forward()` is called.
@@ -33,6 +35,7 @@ class HeadsCIL(nn.Module):
         - **num_classes_t** (`int`): the number of classes in the task.
         """
         self.task_id = task_id
+        self.seen_task_ids.append(task_id)
         if self.task_id not in self.heads.keys():
             self.heads[f"{self.task_id}"] = nn.Linear(self.input_dim, num_classes_t)
 
@@ -47,7 +50,7 @@ class HeadsCIL(nn.Module):
         - **logits** (`Tensor`): the output logits tensor.
         """
         logits = torch.cat(
-            [self.heads[f"{t}"](feature) for t in range(1, self.task_id + 1)], dim=-1
+            [self.heads[f"{t}"](feature) for t in self.seen_task_ids], dim=-1
         )  # concatenate logits of classes from all heads
 
         return logits

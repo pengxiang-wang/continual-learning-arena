@@ -2,7 +2,7 @@ r"""
 
 # Continual Learning Algorithms
 
-This submodule provides the **continual learning algorithms** in CLArena. 
+This submodule provides the **continual learning algorithms** in CLArena.
 
 Please note that this is an API documantation. Please refer to the main documentation pages for more information about the backbone networks and how to configure and implement them:
 
@@ -19,6 +19,7 @@ from .base import CLAlgorithm
 
 # finetuning first
 from .finetuning import Finetuning
+from .independent import Independent
 from .fix import Fix
 
 from .lwf import LwF
@@ -27,18 +28,19 @@ from .cbp import CBP
 
 from .hat import HAT
 from .adahat import AdaHAT
-from .cbphat import CBPHAT
+from .subtle_adahat import SubtleAdaHAT
 
 
 __all__ = [
     "CLAlgorithm",
     "regularisers",
     "finetuning",
+    "independent",
     "fix",
     "lwf",
     "ewc",
     "hat",
     "cbp",
     "adahat",
-    "cbphat",
+    "subtle_adahat",
 ]

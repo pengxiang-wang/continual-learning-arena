@@ -68,7 +68,7 @@ class HATMetricsCallback(Callback):
         r"""Store the frequency of plotting training masks in terms of number of batches."""
 
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop."""
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
 
     def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
         r"""Get the current task ID in the beginning of a task's fitting (training and validation). Sanity check the `pl_module` to be `HAT` or `AdaHAT`.

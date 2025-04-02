@@ -7,7 +7,6 @@ __all__ = ["Finetuning"]
 import logging
 from typing import Any
 
-import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
@@ -121,7 +120,7 @@ class Finetuning(CLAlgorithm):
         **Returns:**
         - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this test step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
         """
-        test_task_id = dataloader_idx + 1
+        test_task_id = self.get_test_task_id_from_dataloader_idx(dataloader_idx)
 
         x, y = batch
         logits, hidden_features = self.forward(

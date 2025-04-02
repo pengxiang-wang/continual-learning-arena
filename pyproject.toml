@@ -86,9 +86,10 @@ dependencies = [
 "Source" = "https://github.com/pengxiang-wang/continual-learning-arena/"
 
 # The following would provide a command line executable called `clrun`
-# which executes the function `clarena.main.clrun` from this package when invoked.
+# which executes the function `clarena.clrun.clrun` from this package when invoked.
 [project.scripts]
-clrun = "clarena.main:clrun"
+clrun = "clarena.clrun:clrun"
+culrun = "clarena.culrun:culrun"
 
 [tool.setuptools]
-packages = ["clarena", "clarena.cl_datasets", "clarena.backbones", "clarena.cl_heads", "clarena.cl_algorithms", "clarena.cl_algorithms.regularisers", "clarena.callbacks", "clarena.utils"]
+packages = ["clarena", "clarena.cl_datasets", "clarena.backbones", "clarena.cl_heads", "clarena.cl_algorithms", "clarena.cl_algorithms.regularisers", "clarena.unlearning_algorithms", "clarena.callbacks", "clarena.utils"]

@@ -41,8 +41,8 @@ class CLMetricsCallback(Callback):
     def __init__(
         self,
         save_dir: str,
-        test_acc_csv_name: str | None = None,
-        test_loss_cls_csv_name: str | None = None,
+        test_acc_csv_name: str,
+        test_loss_cls_csv_name: str,
         test_acc_matrix_plot_name: str | None = None,
         test_loss_cls_matrix_plot_name: str | None = None,
         test_ave_acc_plot_name: str | None = None,
@@ -51,9 +51,9 @@ class CLMetricsCallback(Callback):
         r"""Initialise the `CLMetricsCallback`.
 
         **Args:**
-        - **save_dir** (`str` | `None`): the directory to save the test metrics files and plots. Better inside the output folder.
-        - **test_acc_csv_name** (`str` | `None`): file name to save test accuracy matrix and average accuracy as CSV file. If `None`, no file will be saved.
-        - **test_loss_cls_csv_name**(`str` | `None`): file name to save classification loss matrix and average classification loss as CSV file. If `None`, no file will be saved.
+        - **save_dir** (`str`): the directory to save the test metrics files and plots. Better inside the output folder.
+        - **test_acc_csv_name** (`str`): file name to save test accuracy matrix and average accuracy as CSV file.
+        - **test_loss_cls_csv_name**(`str`): file name to save classification loss matrix and average classification loss as CSV file.
         - **test_acc_matrix_plot_name** (`str` | `None`): file name to save accuracy matrix plot. If `None`, no file will be saved.
         - **test_loss_cls_matrix_plot_name** (`str` | `None`): file name to save classification loss matrix plot. If `None`, no file will be saved.
         - **test_ave_acc_plot_name** (`str` | `None`): file name to save average accuracy as curve plot over different training tasks. If `None`, no file will be saved.
@@ -70,22 +70,26 @@ class CLMetricsCallback(Callback):
             save_dir, test_loss_cls_csv_name
         )
         r"""Store the path to save test classification loss and average accuracy CSV file."""
-        self.test_acc_matrix_plot_path: str = os.path.join(
-            save_dir, test_acc_matrix_plot_name
-        )
-        r"""Store the path to save test accuracy matrix plot."""
-        self.test_loss_cls_matrix_plot_path: str = os.path.join(
-            save_dir, test_loss_cls_matrix_plot_name
-        )
-        r"""Store the path to save test classification loss matrix plot."""
-        self.test_ave_acc_plot_path: str = os.path.join(
-            save_dir, test_ave_acc_plot_name
-        )
-        r"""Store the path to save test average accuracy curve plot."""
-        self.test_ave_loss_cls_plot_path: str = os.path.join(
-            save_dir, test_ave_loss_cls_plot_name
-        )
-        r"""Store the path to save test average classification loss curve plot."""
+        if test_loss_cls_matrix_plot_name:
+            self.test_acc_matrix_plot_path: str = os.path.join(
+                save_dir, test_acc_matrix_plot_name
+            )
+            r"""Store the path to save test accuracy matrix plot."""
+        if test_loss_cls_matrix_plot_name:
+            self.test_loss_cls_matrix_plot_path: str = os.path.join(
+                save_dir, test_loss_cls_matrix_plot_name
+            )
+            r"""Store the path to save test classification loss matrix plot."""
+        if test_ave_acc_plot_name:
+            self.test_ave_acc_plot_path: str = os.path.join(
+                save_dir, test_ave_acc_plot_name
+            )
+            r"""Store the path to save test average accuracy curve plot."""
+        if test_ave_loss_cls_plot_name:
+            self.test_ave_loss_cls_plot_path: str = os.path.join(
+                save_dir, test_ave_loss_cls_plot_name
+            )
+            r"""Store the path to save test average classification loss curve plot."""
 
         # training accumulated metrics
         self.acc_training_epoch: MeanMetricBatch
@@ -108,7 +112,7 @@ class CLMetricsCallback(Callback):
         r"""Test classification loss of the current model (`self.task_id`) on current and previous tasks. Accumulated and calculated from the test batches. Keys are task IDs (string type) and values are the corresponding metrics. It is the last row of the lower triangular matrix. See [here](https://pengxiang-wang.com/posts/continual-learning-metrics.html#sec-test-performance-of-previous-tasks) for details. """
 
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop."""
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
 
     def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
         r"""Initialise training and validation metrics."""
@@ -263,10 +267,10 @@ class CLMetricsCallback(Callback):
 
         # initialise test metrics for current and previous tasks
         self.loss_cls_test = {
-            f"{task_id}": MeanMetricBatch() for task_id in range(1, self.task_id + 1)
+            f"{task_id}": MeanMetricBatch() for task_id in pl_module.seen_task_ids
         }
         self.acc_test = {
-            f"{task_id}": MeanMetricBatch() for task_id in range(1, self.task_id + 1)
+            f"{task_id}": MeanMetricBatch() for task_id in pl_module.seen_task_ids
         }
 
     def on_test_batch_end(
@@ -289,15 +293,15 @@ class CLMetricsCallback(Callback):
         # get the batch size
         batch_size = len(batch)
 
-        task_id = dataloader_idx + 1  # our `task_id` system starts from 1
+        test_task_id = pl_module.get_test_task_id_from_dataloader_idx(dataloader_idx)
 
         # get the metrics values of the batch from the outputs
         loss_cls_batch = outputs["loss_cls"]
         acc_batch = outputs["acc"]
 
         # update the accumulated metrics in order to calculate the metrics of the epoch
-        self.loss_cls_test[f"{task_id}"].update(loss_cls_batch, batch_size)
-        self.acc_test[f"{task_id}"].update(acc_batch, batch_size)
+        self.acc_test[f"{test_task_id}"].update(acc_batch, batch_size)
+        self.loss_cls_test[f"{test_task_id}"].update(loss_cls_batch, batch_size)
 
     def on_test_epoch_end(
         self,
@@ -317,19 +321,23 @@ class CLMetricsCallback(Callback):
         )
 
         # plot the test metrics
-        plot.plot_test_acc_matrix_from_csv(
-            csv_path=self.test_acc_csv_path,
-            plot_path=self.test_acc_matrix_plot_path,
-        )
-        plot.plot_test_loss_cls_matrix_from_csv(
-            csv_path=self.test_loss_cls_csv_path,
-            plot_path=self.test_loss_cls_matrix_plot_path,
-        )
-        plot.plot_test_ave_acc_curve_from_csv(
-            csv_path=self.test_acc_csv_path,
-            plot_path=self.test_ave_acc_plot_path,
-        )
-        plot.plot_test_ave_loss_cls_curve_from_csv(
-            csv_path=self.test_loss_cls_csv_path,
-            plot_path=self.test_ave_loss_cls_plot_path,
-        )
+        if self.test_acc_matrix_plot_path:
+            plot.plot_test_acc_matrix_from_csv(
+                csv_path=self.test_acc_csv_path,
+                plot_path=self.test_acc_matrix_plot_path,
+            )
+        if self.test_loss_cls_matrix_plot_path:
+            plot.plot_test_loss_cls_matrix_from_csv(
+                csv_path=self.test_loss_cls_csv_path,
+                plot_path=self.test_loss_cls_matrix_plot_path,
+            )
+        if self.test_ave_acc_plot_path:
+            plot.plot_test_ave_acc_curve_from_csv(
+                csv_path=self.test_acc_csv_path,
+                plot_path=self.test_ave_acc_plot_path,
+            )
+        if self.test_ave_loss_cls_plot_path:
+            plot.plot_test_ave_loss_cls_curve_from_csv(
+                csv_path=self.test_loss_cls_csv_path,
+                plot_path=self.test_ave_loss_cls_plot_path,
+            )

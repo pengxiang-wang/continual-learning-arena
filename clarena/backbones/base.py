@@ -37,7 +37,9 @@ class CLBackbone(nn.Module):
         """
 
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop."""
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
+        self.seen_task_ids: list[int] = []
+        r"""The list of task IDs that have been seen in the experiment."""
 
     def setup_task_id(self, task_id: int) -> None:
         r"""Set up which task's dataset the CL experiment is on. This must be done before `forward()` method is called.
@@ -46,6 +48,7 @@ class CLBackbone(nn.Module):
         - **task_id** (`int`): the target task ID.
         """
         self.task_id = task_id
+        self.seen_task_ids.append(task_id)
 
     def get_layer_by_name(self, layer_name: str) -> nn.Module:
         r"""Get the layer by its name.

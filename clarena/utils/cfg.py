@@ -3,6 +3,7 @@
 __all__ = ["preprocess_config", "cfg_to_tree", "save_tree_to_file"]
 
 import logging
+import os
 
 import rich
 from omegaconf import DictConfig, OmegaConf
@@ -100,5 +101,8 @@ def save_tree_to_file(tree: dict, save_path: str) -> None:
     - **tree** (`dict`): the Rich `Tree` to save.
     - **save_path** (`str`): the path to save the tree.
     """
+    if not os.path.exists(save_path):
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
     with open(save_path, "w") as file:
         rich.print(tree, file=file)

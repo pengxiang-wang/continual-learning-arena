@@ -51,9 +51,9 @@ class LwF(Finetuning):
         Some would argue that since we could store the model of the previous tasks, why don't we test the task directly with the stored model, instead of doing the less easier LwF thing? The thing is, LwF only uses the model of the previous tasks to train current and future tasks, which aggregate them into a single model. Once the training of the task is done, the storage for those parameters can be released. However, this make the future tasks not able to use LwF anymore, which is a disadvantage for LwF.
         """
 
-        self.distillation_reg_factor = distillation_reg_factor
+        self.distillation_reg_factor: float = distillation_reg_factor
         r"""Store distillation regularisation factor."""
-        self.distillation_reg_temperature = distillation_reg_temparture
+        self.distillation_reg_temperature: float = distillation_reg_temparture
         r"""Store distillation regularisation temperature."""
         self.distillation_reg = DistillationReg(
             factor=distillation_reg_factor,

@@ -66,25 +66,25 @@ class HAT(CLAlgorithm):
         """
         CLAlgorithm.__init__(self, backbone=backbone, heads=heads)
 
-        self.adjustment_mode = adjustment_mode
+        self.adjustment_mode: str = adjustment_mode
         r"""Store the adjustment mode for gradient clipping."""
-        self.s_max = s_max
+        self.s_max: float = s_max
         r"""Store s_max. """
-        self.clamp_threshold = clamp_threshold
+        self.clamp_threshold: float = clamp_threshold
         r"""Store the clamp threshold for task embedding gradient compensation."""
-        self.mask_sparsity_reg_factor = mask_sparsity_reg_factor
+        self.mask_sparsity_reg_factor: float = mask_sparsity_reg_factor
         r"""Store the mask sparsity regularisation factor."""
-        self.mask_sparsity_reg_mode = mask_sparsity_reg_mode
+        self.mask_sparsity_reg_mode: str = mask_sparsity_reg_mode
         r"""Store the mask sparsity regularisation mode."""
-        self.mark_sparsity_reg = HATMaskSparsityReg(
+        self.mark_sparsity_reg: HATMaskSparsityReg = HATMaskSparsityReg(
             factor=mask_sparsity_reg_factor, mode=mask_sparsity_reg_mode
         )
         r"""Initialise and store the mask sparsity regulariser."""
-        self.task_embedding_init_mode = task_embedding_init_mode
+        self.task_embedding_init_mode: str = task_embedding_init_mode
         r"""Store the task embedding initialisation mode."""
-        self.alpha = alpha if adjustment_mode == "hat_const_alpha" else None
+        self.alpha: float | None = alpha
         r"""Store the alpha for `hat_const_alpha`."""
-        self.epsilon = None
+        self.epsilon: float | None = None
         r"""HAT doesn't use the epsilon for `hat_const_alpha`. We still set it here to be consistent with the `epsilon` in `clip_grad_by_adjustment()` method in `HATMaskBackbone`."""
 
         self.masks: dict[str, dict[str, Tensor]] = {}
@@ -164,7 +164,7 @@ class HAT(CLAlgorithm):
         # initialise network capacity metric
         capacity = HATNetworkCapacity()
 
-        # Calculate the adjustment rate for gradients of the parameters, both weights and biases (if exists)
+        # calculate the adjustment rate for gradients of the parameters, both weights and biases (if exists)
         for layer_name in self.backbone.weighted_layer_names:
 
             layer = self.backbone.get_layer_by_name(
@@ -361,6 +361,7 @@ class HAT(CLAlgorithm):
             "loss_reg": loss_reg,
             "acc": acc,
             "hidden_features": hidden_features,
+            "logits": logits,
             "mask": mask,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
             "forward_func": forward_func,  # Return the forward function for Captum to use
             "input": x,  # Return the input batch for Captum to use
@@ -424,7 +425,7 @@ class HAT(CLAlgorithm):
         **Returns:**
         - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this test step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
         """
-        test_task_id = dataloader_idx + 1
+        test_task_id = self.get_test_task_id_from_dataloader_idx(dataloader_idx)
 
         x, y = batch
         logits, mask, hidden_features = self.forward(

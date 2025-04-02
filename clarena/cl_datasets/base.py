@@ -61,7 +61,10 @@ class CLDataset(LightningDataModule):
         r"""Store the custom target transforms other than the CL class mapping. Used when constructing the dataset."""
 
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop."""
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
+        self.seen_task_ids: list[int] = []
+        r"""The list of task IDs that have been seen in the experiment."""
+
         self.cl_paradigm: str
         r"""Store the continual learning paradigm, either 'TIL' (Task-Incremental Learning) or 'CIL' (Class-Incremental Learning). Gotten from `set_cl_paradigm` and used to define the CL class map."""
 
@@ -145,6 +148,7 @@ class CLDataset(LightningDataModule):
         - **task_id** (`int`): the target task ID.
         """
         self.task_id = task_id
+        self.seen_task_ids.append(task_id)
 
         self.cl_class_map_t = self.cl_class_map(task_id)
         self.cl_class_mapping_t = CLClassMapping(self.cl_class_map_t)
@@ -292,17 +296,17 @@ class CLDataset(LightningDataModule):
             num_workers=self.num_workers,
         )
 
-    def test_dataloader(self) -> dict[int, DataLoader]:
+    def test_dataloader(self) -> dict[str, DataLoader]:
         r"""DataLoader generator for stage test. It is automatically called before testing.
 
         **Returns:**
-        - **test_dataloader** (`dict[int, DataLoader]`): the test DataLoader dict of `self.task_id` and all tasks before (as the test is conducted on all seen tasks). Keys are task IDs (integer type) and values are the DataLoaders.
+        - **test_dataloader** (`dict[str, DataLoader]`): the test DataLoader dict of `self.task_id` and all tasks before (as the test is conducted on all seen tasks). Keys are task IDs (string type) and values are the DataLoaders.
         """
 
         pylogger.debug("Construct test dataloader for task %d...", self.task_id)
 
         return {
-            task_id: DataLoader(
+            f"{task_id}": DataLoader(
                 dataset=dataset_test,
                 batch_size=self.batch_size,
                 shuffle=False,  # don't have to shuffle val or test batch

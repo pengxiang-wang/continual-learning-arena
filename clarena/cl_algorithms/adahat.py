@@ -38,6 +38,7 @@ class AdaHAT(HAT):
         mask_sparsity_reg_mode: str = "original",
         task_embedding_init_mode: str = "N01",
         epsilon: float = 0.1,
+        adahat_importance_scaling_factor: float | None = None,
     ) -> None:
         r"""Initialise the AdaHAT algorithm with the network.
 
@@ -62,6 +63,7 @@ class AdaHAT(HAT):
             4. 'U-10': uniform distribution $U(-1, 0)$.
             5. 'last': inherit task embedding from last task.
         - **epsilon** (`float`): the value added to network sparsity to avoid division by zero appeared in equation (9) in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
+        - **adahat_importance_scaling_factor** (`float` | `None`): the scaling factor for parameter importance. The parameter importance is multiplied by the scaling factor before applying the adjustment rate. It applies only when adjustment_mode is 'adahat' or 'adahat_no_reg'.
         """
         HAT.__init__(
             self,
@@ -76,10 +78,14 @@ class AdaHAT(HAT):
             alpha=None,
         )
 
-        self.adjustment_intensity = adjustment_intensity
+        self.adjustment_intensity: float = adjustment_intensity
         r"""Store the adjustment intensity in equation (9) in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9)."""
-        self.epsilon = epsilon
+        self.epsilon: float | None = epsilon
         """Store the small value to avoid division by zero appeared in equation (9) in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9)."""
+        self.adahat_importance_scaling_factor: float | None = (
+            adahat_importance_scaling_factor
+        )
+        r"""Store the scaling factor for parameter importance. """
 
         self.summative_mask_for_previous_tasks: dict[str, Tensor] = {}
         r"""Store the summative binary attention mask $\mathrm{M}^{<t,\text{sum}}$ previous tasks $1,\cdots, t-1$, gated from the task embedding. Keys are task IDs and values are the corresponding summative mask. Each cumulative mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has size (number of units). """
@@ -138,7 +144,7 @@ class AdaHAT(HAT):
         # initialise network capacity metric
         capacity = HATNetworkCapacity()
 
-        # Calculate the adjustment rate for gradients of the parameters, both weights and biases (if exists)
+        # calculate the adjustment rate for gradients of the parameters, both weights and biases (if exists)
         for layer_name in self.backbone.weighted_layer_names:
 
             layer = self.backbone.get_layer_by_name(
@@ -156,6 +162,12 @@ class AdaHAT(HAT):
                     aggregation="min",
                 )
             )  # AdaHAT depend on parameter importance instead of parameter mask like HAT
+
+            # apply the scaling factor to the parameter importance
+            weight_importance = (
+                weight_importance * self.adahat_importance_scaling_factor
+            )
+            bias_importance = bias_importance * self.adahat_importance_scaling_factor
 
             network_sparsity_layer = network_sparsity[layer_name]
 

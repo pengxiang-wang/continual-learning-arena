@@ -21,6 +21,6 @@ from .plot import (
     plot_test_loss_cls_matrix_from_csv,
 )
 from .save import update_test_acc_to_csv, update_test_loss_cls_to_csv
-from .transforms import min_max_normalise
+from .transforms import min_max_normalise, js_div
 
 __all__ = ["cfg", "metrics", "save", "plot", "transforms"]

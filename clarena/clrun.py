@@ -1,4 +1,4 @@
-"""Main module containing entrance to run the clarena package."""
+"""Main module containing entrance to run a continual learning experiment."""
 
 import argparse
 import os
@@ -76,3 +76,26 @@ def clrun() -> None:
     )(main)
 
     hydra_decorated_main()
+
+
+def clrun_from_cfg(cfg: DictConfig, task_ids: list[int]) -> CLExperiment:
+    r"""Run a continual learning experiment directly from a configuration object.
+
+    **Args:**
+    - **cfg** (`DictConfig`): the configuration for the experiment.
+    - **task_ids** (`list[int]` | `None`): the list of task IDs to be conducted in the experiment. If `None`, all tasks will be conducted.
+
+    **Returns:**
+    - **expr** (`CLExperiment`): the continual learning experiment object after conducting.
+    """
+
+    # preprocess the configuration before constructing the experiment
+    preprocess_config(cfg)
+
+    # construct the experiment
+    expr = CLExperiment(cfg)
+
+    # execute the experiment
+    expr.run(task_ids=task_ids)
+
+    return expr
