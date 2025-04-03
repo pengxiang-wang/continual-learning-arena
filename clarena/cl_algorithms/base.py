@@ -8,7 +8,7 @@ import logging
 
 from lightning import LightningModule
 from omegaconf import DictConfig
-from torch import nn
+from torch import Tensor, nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
@@ -45,6 +45,9 @@ class CLAlgorithm(LightningModule):
         r"""Store the learning rate scheduler for the optimizer. If `None`, no scheduler is used."""
         self.criterion = nn.CrossEntropyLoss()
         r"""The loss function bewteen the output logits and the target labels. Default is cross-entropy loss."""
+
+        self.if_forward_func_return_logits_only: bool = False
+        r"""Whether the `forward()` method returns logits only. If `False`, it returns a dictionary containing logits and other information. Default is `False`."""
 
         self.task_id: int
         r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
@@ -104,6 +107,39 @@ class CLAlgorithm(LightningModule):
         dataset_test = self.trainer.datamodule.dataset_test
         test_task_id = list(dataset_test.keys())[dataloader_idx]
         return test_task_id
+
+    def set_forward_func_return_logits_only(
+        self, forward_func_return_logits_only: bool
+    ) -> None:
+        r"""Set whether the `forward()` method returns logits only.
+
+        **Args:**
+        - **forward_func_return_logits_only** (`bool`): whether the `forward()` method returns logits only. If `False`, it returns a dictionary containing logits and other information.
+        """
+        self.if_forward_func_return_logits_only = forward_func_return_logits_only
+
+    def forward(self, input: Tensor, stage: str, task_id: int | None = None) -> Tensor:
+        r"""The forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`.
+
+        **Args:**
+        - **input** (`Tensor`): The input tensor from data.
+        - **stage** (`str`): the stage of the forward pass, should be one of the following:
+            1. 'train': training stage.
+            2. 'validation': validation stage.
+            3. 'test': testing stage.
+        - **task_id** (`int`): the task ID where the data are from. If stage is 'train' or `validation`, it is usually from the current task `self.task_id`. If stage is 'test', it could be from any seen task. In TIL, the task IDs of test data are provided thus this argument can be used. In CIL, they are not provided, so it is just a placeholder for API consistence but never used, and best practices are not to provide this argument and leave it as the default value. Finetuning algorithm works both for TIL and CIL.
+
+        **Returns:**
+        - **logits** (`Tensor`): the output logits tensor.
+        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although Finetuning algorithm does not need this, it is still provided for API consistence for other algorithms inherited this `forward()` method of `Finetuning` class.
+        """
+        feature, hidden_features = self.backbone(input, stage=stage, task_id=task_id)
+        logits = self.heads(feature, task_id)
+        return (
+            logits
+            if self.if_forward_func_return_logits_only
+            else (logits, hidden_features)
+        )
 
     def configure_optimizers(self) -> Optimizer:
         r"""

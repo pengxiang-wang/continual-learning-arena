@@ -37,25 +37,6 @@ class Finetuning(CLAlgorithm):
         """
         CLAlgorithm.__init__(self, backbone=backbone, heads=heads)
 
-    def forward(self, input: Tensor, stage: str, task_id: int | None = None) -> Tensor:
-        r"""The forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`.
-
-        **Args:**
-        - **input** (`Tensor`): The input tensor from data.
-        - **stage** (`str`): the stage of the forward pass, should be one of the following:
-            1. 'train': training stage.
-            2. 'validation': validation stage.
-            3. 'test': testing stage.
-        - **task_id** (`int`): the task ID where the data are from. If stage is 'train' or `validation`, it is usually from the current task `self.task_id`. If stage is 'test', it could be from any seen task. In TIL, the task IDs of test data are provided thus this argument can be used. In CIL, they are not provided, so it is just a placeholder for API consistence but never used, and best practices are not to provide this argument and leave it as the default value. Finetuning algorithm works both for TIL and CIL.
-
-        **Returns:**
-        - **logits** (`Tensor`): the output logits tensor.
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although Finetuning algorithm does not need this, it is still provided for API consistence for other algorithms inherited this `forward()` method of `Finetuning` class.
-        """
-        feature, hidden_features = self.backbone(input, stage=stage, task_id=task_id)
-        logits = self.heads(feature, task_id)
-        return logits, hidden_features
-
     def training_step(self, batch: Any) -> dict[str, Tensor]:
         """Training step for current task `self.task_id`.
 

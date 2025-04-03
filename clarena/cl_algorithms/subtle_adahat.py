@@ -277,9 +277,9 @@ class SubtleAdaHAT(AdaHAT):
         hidden_features = outputs["hidden_features"]
         logits = outputs["logits"]
         mask = outputs["mask"]
-        forward_func = outputs["forward_func"]
         input = outputs["input"]
         target = outputs["target"]
+        num_batches = self.trainer.num_training_batches
 
         for layer_name in self.backbone.weighted_layer_names:
             # layer-wise operation
@@ -318,50 +318,55 @@ class SubtleAdaHAT(AdaHAT):
             elif self.subtle_importance_type == "conductance":
                 subtle_importance_step = (
                     self.get_subtle_importance_step_layer_conductance(
-                        forward_func=forward_func,
                         layer=layer,
                         input=input,
                         baselines=None,
                         target=target,
+                        batch_idx=batch_idx,
+                        num_batches=num_batches,
                         mask=m,
                     )
                 )
             elif self.subtle_importance_type == "activation":
                 subtle_importance_step = (
                     self.get_subtle_importance_step_layer_activation(
-                        forward_func=forward_func,
                         layer=layer,
                         input=input,
+                        batch_idx=batch_idx,
+                        num_batches=num_batches,
                         mask=m,
                     )
                 )
             elif self.subtle_importance_type == "internal_influence":
                 subtle_importance_step = (
                     self.get_subtle_importance_step_layer_internal_influence(
-                        forward_func=forward_func,
                         layer=layer,
                         input=input,
                         baselines=None,
                         target=target,
+                        batch_idx=batch_idx,
+                        num_batches=num_batches,
                         mask=m,
                     )
                 )
             elif self.subtle_importance_type == "gradient_x_activation":
                 subtle_importance_step = (
                     self.get_subtle_importance_step_layer_gradient_x_activation(
-                        forward_func=forward_func,
                         layer=layer,
                         input=input,
                         target=target,
+                        batch_idx=batch_idx,
+                        num_batches=num_batches,
                         mask=m,
                     )
                 )
             elif self.subtle_importance_type == "gradcam":
                 subtle_importance_step = self.get_subtle_importance_step_layer_gradcam(
-                    forward_func=forward_func,
                     layer=layer,
                     input=input,
                     target=target,
+                    batch_idx=batch_idx,
+                    num_batches=num_batches,
                     mask=m,
                 )
             elif self.subtle_importance_type == "deeplift":
@@ -370,6 +375,8 @@ class SubtleAdaHAT(AdaHAT):
                     input=input,
                     baselines=None,
                     target=target,
+                    batch_idx=batch_idx,
+                    num_batches=num_batches,
                     mask=m,
                 )
             elif self.subtle_importance_type == "deepliftshap":
@@ -379,39 +386,44 @@ class SubtleAdaHAT(AdaHAT):
                         input=input,
                         baselines=None,
                         target=target,
+                        batch_idx=batch_idx,
+                        num_batches=num_batches,
                         mask=m,
                     )
                 )
             elif self.subtle_importance_type == "gradientshap":
                 subtle_importance_step = (
                     self.get_subtle_importance_step_layer_gradientshap(
-                        forward_func=forward_func,
                         layer=layer,
                         input=input,
                         baselines=None,
                         target=target,
+                        batch_idx=batch_idx,
+                        num_batches=num_batches,
                         mask=m,
                     )
                 )
             elif self.subtle_importance_type == "integrated_gradients":
                 subtle_importance_step = (
                     self.get_subtle_importance_step_layer_integrated_gradients(
-                        forward_func=forward_func,
                         layer=layer,
                         input=input,
                         baselines=None,
                         target=target,
+                        batch_idx=batch_idx,
+                        num_batches=num_batches,
                         mask=m,
                     )
                 )
             elif self.subtle_importance_type == "feature_ablation":
                 subtle_importance_step = (
                     self.get_subtle_importance_step_layer_feature_ablation(
-                        forward_func=forward_func,
                         layer=layer,
                         input=input,
                         layer_baselines=None,
                         target=target,
+                        batch_idx=batch_idx,
+                        num_batches=num_batches,
                         mask=m,
                     )
                 )
@@ -420,12 +432,17 @@ class SubtleAdaHAT(AdaHAT):
                     layer=layer,
                     input=input,
                     target=target,
+                    batch_idx=batch_idx,
+                    num_batches=num_batches,
                     mask=m,
                 )
+            print(subtle_importance_step)
 
             subtle_importance_step = min_max_normalise(
                 subtle_importance_step
             )  # min-max scaling the utility to [0,1]. See in the paper draft.
+
+            print(subtle_importance_step)
 
             # update accumulated subtle importance
             self.accumulated_subtle_importance[layer_name] = (
@@ -566,36 +583,41 @@ class SubtleAdaHAT(AdaHAT):
 
     def get_subtle_importance_step_layer_conductance(
         self: str,
-        forward_func: Callable,
         layer: nn.Module,
         input: Tensor | tuple[Tensor, ...],
         baselines: None | int | float | Tensor | tuple[int | float | Tensor, ...],
         target: Tensor | None,
+        batch_idx: int,
+        num_batches: int,
         mask: Tensor,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the [Layer Conductance](https://captum.ai/api/layer.html#layer-conductance).
 
         **Args:**
-        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
         - **layer** (`nn.Module`): the layer to get unit-wise subtle importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): starting point from which integral is computed in this method. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerConductance.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
+        - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.- **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
         """
 
         # initialise the Layer Conductance object
-        layer_conductance = LayerConductance(forward_func=forward_func, layer=layer)
+        layer_conductance = LayerConductance(forward_func=self.forward, layer=layer)
+
+        self.set_forward_func_return_logits_only(True)
 
         # calculate layer attribution of the step
         layer_attribution_step = layer_conductance.attribute(
             inputs=input,
             baselines=baselines,
             target=target,
+            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
         )
+        self.set_forward_func_return_logits_only(False)
 
         subtle_importance_step_layer = torch.mean(
             torch.abs(layer_attribution_step),
@@ -611,29 +633,35 @@ class SubtleAdaHAT(AdaHAT):
 
     def get_subtle_importance_step_layer_activation(
         self: str,
-        forward_func: Callable,
         layer: nn.Module,
         input: Tensor | tuple[Tensor, ...],
+        batch_idx: int,
+        num_batches: int,
         mask: Tensor,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the [Layer Activation](https://captum.ai/api/layer.html#layer-activation).
 
         **Args:**
-        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
         - **layer** (`nn.Module`): the layer to get unit-wise subtle importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
+        - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
-
 
         **Returns:**
         - **layer_attribution_step** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
         """
 
         # initialise the Layer Activation object
-        layer_activation = LayerActivation(forward_func=forward_func, layer=layer)
+        layer_activation = LayerActivation(forward_func=self.forward, layer=layer)
 
+        self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
-        layer_attribution_step = layer_activation.attribute(inputs=input)
+        layer_attribution_step = layer_activation.attribute(
+            inputs=input,
+            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
+        )
+        self.set_forward_func_return_logits_only(False)
 
         subtle_importance_step_layer = torch.mean(
             torch.abs(layer_attribution_step),
@@ -649,21 +677,23 @@ class SubtleAdaHAT(AdaHAT):
 
     def get_subtle_importance_step_layer_internal_influence(
         self: str,
-        forward_func: Callable,
         layer: nn.Module,
         input: Tensor | tuple[Tensor, ...],
         baselines: None | int | float | Tensor | tuple[int | float | Tensor, ...],
         target: Tensor | None,
+        batch_idx: int,
+        num_batches: int,
         mask: Tensor,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the [Internal Influence](https://captum.ai/api/layer.html#internal-influence).
 
         **Args:**
-        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
         - **layer** (`nn.Module`): the layer to get unit-wise subtle importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): starting point from which integral is computed in this method. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.InternalInfluence.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
+        - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
@@ -671,14 +701,17 @@ class SubtleAdaHAT(AdaHAT):
         """
 
         # initialise the Internal Influence object
-        internal_influence = InternalInfluence(forward_func=forward_func, layer=layer)
+        internal_influence = InternalInfluence(forward_func=self.forward, layer=layer)
 
+        self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         layer_attribution_step = internal_influence.attribute(
             inputs=input,
             baselines=baselines,
             target=target,
+            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
         )
+        self.set_forward_func_return_logits_only(False)
 
         subtle_importance_step_layer = torch.mean(
             torch.abs(layer_attribution_step),
@@ -694,19 +727,21 @@ class SubtleAdaHAT(AdaHAT):
 
     def get_subtle_importance_step_layer_gradient_x_activation(
         self: str,
-        forward_func: Callable,
         layer: nn.Module,
         input: Tensor | tuple[Tensor, ...],
         target: Tensor | None,
+        batch_idx: int,
+        num_batches: int,
         mask: Tensor,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance of a layer of a training step for [Layer Gradient X Activation](https://captum.ai/api/layer.html#layer-gradient-x-activation) mode (before scaling). See $v_l$ in the paper draft.
 
         **Args:**
-        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
         - **layer** (`nn.Module`): the layer to get unit-wise subtle importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **target** (`Tensor` | `None`): the target batch of the training step.
+        - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
@@ -716,14 +751,17 @@ class SubtleAdaHAT(AdaHAT):
 
         # initialise the Layer Gradient X Activation object
         layer_gradient_x_activation = LayerGradientXActivation(
-            forward_func=forward_func, layer=layer
+            forward_func=self.forward, layer=layer
         )
 
+        self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         layer_attribution_step = layer_gradient_x_activation.attribute(
             inputs=input,
             target=target,
+            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
         )
+        self.set_forward_func_return_logits_only(False)
 
         subtle_importance_step_layer = torch.mean(
             torch.abs(layer_attribution_step),
@@ -739,19 +777,21 @@ class SubtleAdaHAT(AdaHAT):
 
     def get_subtle_importance_step_layer_gradcam(
         self: str,
-        forward_func: Callable,
         layer: nn.Module,
         input: Tensor | tuple[Tensor, ...],
         target: Tensor | None,
+        batch_idx: int,
+        num_batches: int,
         mask: Tensor,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the [Layer Grad-CAM](https://captum.ai/api/layer.html#gradcam).
 
         **Args:**
-        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
         - **layer** (`nn.Module`): the layer to get unit-wise subtle importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **target** (`Tensor` | `None`): the target batch of the training step.
+        - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
@@ -761,13 +801,16 @@ class SubtleAdaHAT(AdaHAT):
         input = input.requires_grad_()
 
         # initialise the GradCAM object
-        gradcam = LayerGradCam(forward_func=forward_func, layer=layer)
+        gradcam = LayerGradCam(forward_func=self.forward, layer=layer)
 
+        self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         layer_attribution_step = gradcam.attribute(
             inputs=input,
             target=target,
+            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
         )
+        self.set_forward_func_return_logits_only(False)
 
         subtle_importance_step_layer = torch.mean(
             torch.abs(layer_attribution_step),
@@ -787,6 +830,8 @@ class SubtleAdaHAT(AdaHAT):
         input: Tensor | tuple[Tensor, ...],
         baselines: None | int | float | Tensor | tuple[int | float | Tensor, ...],
         target: Tensor | None,
+        batch_idx: int,
+        num_batches: int,
         mask: Tensor,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the [Layer DeepLift](https://captum.ai/api/layer.html#layer-deeplift).
@@ -796,6 +841,8 @@ class SubtleAdaHAT(AdaHAT):
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): baselines define reference samples that are compared with the inputs. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerDeepLift.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
+        - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
@@ -805,12 +852,15 @@ class SubtleAdaHAT(AdaHAT):
         # initialise the Layer DeepLift object
         layer_deeplift = LayerDeepLift(model=self, layer=layer)
 
+        self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         layer_attribution_step = layer_deeplift.attribute(
             inputs=input,
             baselines=baselines,
             target=target,
+            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
         )
+        self.set_forward_func_return_logits_only(False)
 
         subtle_importance_step_layer = torch.mean(
             torch.abs(layer_attribution_step),
@@ -830,6 +880,8 @@ class SubtleAdaHAT(AdaHAT):
         input: Tensor | tuple[Tensor, ...],
         baselines: None | int | float | Tensor | tuple[int | float | Tensor, ...],
         target: Tensor | None,
+        batch_idx: int,
+        num_batches: int,
         mask: Tensor,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the [Layer DeepLiftShap](https://captum.ai/api/layer.html#layer-deepliftshap).
@@ -839,6 +891,8 @@ class SubtleAdaHAT(AdaHAT):
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): baselines define reference samples that are compared with the inputs. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerDeepLiftShap.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
+        - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
@@ -848,12 +902,15 @@ class SubtleAdaHAT(AdaHAT):
         # initialise the Layer DeepLiftShap object
         layer_deepliftshap = LayerDeepLiftShap(model=self, layer=layer)
 
+        self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         layer_attribution_step = layer_deepliftshap.attribute(
             inputs=input,
             baselines=baselines,
             target=target,
+            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
         )
+        self.set_forward_func_return_logits_only(False)
 
         subtle_importance_step_layer = torch.mean(
             torch.abs(layer_attribution_step),
@@ -869,21 +926,23 @@ class SubtleAdaHAT(AdaHAT):
 
     def get_subtle_importance_step_layer_gradientshap(
         self: str,
-        forward_func: Callable,
         layer: nn.Module,
         input: Tensor | tuple[Tensor, ...],
         baselines: None | int | float | Tensor | tuple[int | float | Tensor, ...],
         target: Tensor | None,
+        batch_idx: int,
+        num_batches: int,
         mask: Tensor,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the [Layer Grad-CAM](https://captum.ai/api/layer.html#gradcam).
 
         **Args:**
-        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
         - **layer** (`nn.Module`): the layer to get unit-wise subtle importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): starting point from which expectation is computed. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerGradientShap.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
+        - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
@@ -891,14 +950,17 @@ class SubtleAdaHAT(AdaHAT):
         """
 
         # initialise the Layer GradientShap object
-        layer_gradientshap = LayerGradientShap(forward_func=forward_func, layer=layer)
+        layer_gradientshap = LayerGradientShap(forward_func=self.forward, layer=layer)
 
+        self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         layer_attribution_step = layer_gradientshap.attribute(
             inputs=input,
             baselines=baselines,
             target=target,
+            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
         )
+        self.set_forward_func_return_logits_only(False)
 
         subtle_importance_step_layer = torch.mean(
             torch.abs(layer_attribution_step),
@@ -914,21 +976,23 @@ class SubtleAdaHAT(AdaHAT):
 
     def get_subtle_importance_step_layer_integrated_gradients(
         self: str,
-        forward_func: Callable,
         layer: nn.Module,
         input: Tensor | tuple[Tensor, ...],
         baselines: None | int | float | Tensor | tuple[int | float | Tensor, ...],
         target: Tensor | None,
+        batch_idx: int,
+        num_batches: int,
         mask: Tensor,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance of a layer of a training step for [Layer Integrated Gradients](https://captum.ai/api/layer.html#layer-integrated-gradients) mode (before scaling). See $v_l$ in the paper draft.
 
         **Args:**
-        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
         - **layer** (`nn.Module`): the layer to get unit-wise subtle importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): starting point from which integral is computed. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerIntegratedGradients.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
+        - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
@@ -938,15 +1002,18 @@ class SubtleAdaHAT(AdaHAT):
 
         # initialise the Layer Integrated Gradients object
         layer_integrated_gradients = LayerIntegratedGradients(
-            forward_func=forward_func, layer=layer
+            forward_func=self.forward, layer=layer
         )
 
+        self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         layer_attribution_step = layer_integrated_gradients.attribute(
             inputs=input,
             baselines=baselines,
             target=target,
+            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
         )
+        self.set_forward_func_return_logits_only(False)
 
         subtle_importance_step_layer = torch.mean(
             torch.abs(layer_attribution_step),
@@ -962,21 +1029,23 @@ class SubtleAdaHAT(AdaHAT):
 
     def get_subtle_importance_step_layer_feature_ablation(
         self: str,
-        forward_func: Callable,
         layer: nn.Module,
         input: Tensor | tuple[Tensor, ...],
         layer_baselines: None | int | float | Tensor | tuple[int | float | Tensor, ...],
         target: Tensor | None,
+        batch_idx: int,
+        num_batches: int,
         mask: Tensor,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the [Layer Grad-CAM](https://captum.ai/api/layer.html#gradcam).
 
         **Args:**
-        - **forward_func** (`Tensor`): the pure forward function of the model, from inputs to logits.
         - **layer** (`nn.Module`): the layer to get unit-wise subtle importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **layer_baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): reference values which replace each layer input / output value when ablated. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerFeatureAblation.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
+        - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
@@ -985,15 +1054,18 @@ class SubtleAdaHAT(AdaHAT):
 
         # initialise the Layer Feature Ablation object
         layer_feature_ablation = LayerFeatureAblation(
-            forward_func=forward_func, layer=layer
+            forward_func=self.forward, layer=layer
         )
 
+        self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         layer_attribution_step = layer_feature_ablation.attribute(
             inputs=input,
             layer_baselines=layer_baselines,
             target=target,
+            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
         )
+        self.set_forward_func_return_logits_only(False)
 
         subtle_importance_step_layer = torch.mean(
             torch.abs(layer_attribution_step),
@@ -1012,6 +1084,8 @@ class SubtleAdaHAT(AdaHAT):
         layer: nn.Module,
         input: Tensor | tuple[Tensor, ...],
         target: Tensor | None,
+        batch_idx: int,
+        num_batches: int,
         mask: Tensor,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the [Layer Grad-CAM](https://captum.ai/api/layer.html#gradcam).
@@ -1020,6 +1094,8 @@ class SubtleAdaHAT(AdaHAT):
         - **layer** (`nn.Module`): the layer to get unit-wise subtle importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **target** (`Tensor` | `None`): the target batch of the training step.
+        - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
@@ -1029,11 +1105,17 @@ class SubtleAdaHAT(AdaHAT):
         # initialise the Layer DeepLift object
         layer_lrp = LayerLRP(model=self, layer=layer)
 
+        # set model to evaluation mode to prevent updating the model parameters
+        self.eval()
+
+        self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         layer_attribution_step = layer_lrp.attribute(
             inputs=input,
             target=target,
+            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
         )
+        self.set_forward_func_return_logits_only(False)
 
         subtle_importance_step_layer = torch.mean(
             torch.abs(layer_attribution_step),

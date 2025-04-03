@@ -5,7 +5,7 @@ The submodule in `cl_algorithms` for [HAT (Hard Attention to the Task) algorithm
 __all__ = ["HAT"]
 
 import logging
-from typing import Any
+from typing import Any, Callable
 
 import torch
 from torch import Tensor
@@ -290,7 +290,34 @@ class HAT(CLAlgorithm):
         )
         logits = self.heads(feature, task_id)
 
-        return logits, mask, hidden_features
+        return (
+            logits
+            if self.if_forward_func_return_logits_only
+            else (logits, mask, hidden_features)
+        )
+
+    # def make_train_forward_func(self, batch_idx: int, num_batches: int) -> Callable:
+    #     r"""Closure to get the pure forward function for training. It is used for Captum APIs to calculate the attributions.
+
+    #     **Args:**
+    #     - **batch_idx** (`int`): the current training batch index.
+    #     - **num_batches** (`int`): the total number of training batches.
+
+    #     **Returns:**
+    #     - **forward_func** (`Callable`): a callable function that  takes the input tensor only and returns the logits tensor only.
+    #     """
+
+    #     def train_forward_func(input: Tensor) -> Tensor:
+    #         logits, _, _ = self.forward(
+    #             input=input,
+    #             stage="train",
+    #             batch_idx=batch_idx,
+    #             num_batches=num_batches,
+    #             task_id=self.task_id,
+    #         )
+    #         return logits
+
+    #     return train_forward_func
 
     def training_step(self, batch: Any, batch_idx: int) -> dict[str, Tensor]:
         r"""Training step for current task `self.task_id`.
@@ -344,17 +371,6 @@ class HAT(CLAlgorithm):
         # accuracy of the batch
         acc = (logits.argmax(dim=1) == y).float().mean()
 
-        # retrieve the pure forward function
-        def forward_func(input: Tensor) -> Tensor:
-            logits, _, _ = self.forward(
-                x,
-                stage="train",
-                batch_idx=batch_idx,
-                num_batches=num_batches,
-                task_id=self.task_id,
-            )
-            return logits
-
         return {
             "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
@@ -363,7 +379,9 @@ class HAT(CLAlgorithm):
             "hidden_features": hidden_features,
             "logits": logits,
             "mask": mask,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
-            "forward_func": forward_func,  # Return the forward function for Captum to use
+            # "forward_func": self.make_train_forward_func(
+            #     batch_idx=batch_idx, num_batches=num_batches
+            # ),  # Return the forward function for Captum to use
             "input": x,  # Return the input batch for Captum to use
             "target": y,  # Return the target batch for Captum to use
             "capacity": capacity,
