@@ -5,12 +5,11 @@ The submodule in `cl_datasets` for Split TinyImageNet dataset.
 __all__ = ["SplitTinyImageNet"]
 
 import logging
-import os
-import urllib.request
-import zipfile
 from typing import Callable
 
-from torch.utils.data import Dataset
+import torch
+from tinyimagenet import TinyImageNet
+from torch.utils.data import Dataset, random_split
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 
@@ -37,6 +36,7 @@ class SplitTinyImageNet(CLSplitDataset):
         root: str,
         num_tasks: int,
         class_split: list[list[int]],
+        validation_percentage: float,
         batch_size: int = 1,
         num_workers: int = 0,
         custom_transforms: Callable | transforms.Compose | None = None,
@@ -48,6 +48,7 @@ class SplitTinyImageNet(CLSplitDataset):
         - **root** (`str`): the root directory where the original TinyImageNet data 'tiny-imagenet-200/' live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
         - **class_split** (`list[list[int]]`): the class split for each task. Each element in the list is a list of class labels (integers starting from 0) to split for a task.
+        - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
         - **batch_size** (`int`): The batch size in train, val, test dataloader.
         - **num_workers** (`int`): the number of workers for dataloaders.
         - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform.
@@ -69,72 +70,56 @@ class SplitTinyImageNet(CLSplitDataset):
             custom_target_transforms=custom_target_transforms,
         )
 
+        self.validation_percentage = validation_percentage
+        """Store the percentage to randomly split some of the training data into validation data."""
+
     def prepare_data(self) -> None:
-        r"""Download the original CIFAR-100 dataset if haven't."""
+        r"""Download the original TinyImagenet dataset if haven't."""
+        TinyImageNet(self.root)
 
-        url = "http://cs231n.stanford.edu/tiny-imagenet-200.zip"
-        zip_path = os.path.join(self.root, "tiny-imagenet-200.zip")
-        data_dir = os.path.join(self.root, "tiny-imagenet-200")
+    def get_class_subset(self, dataset: ImageFolder) -> ImageFolder:
+        r"""Provide a util method here to retrieve a subset from PyTorch ImageFolder of current classes of `self.task_id`. It could be useful when you constructing the split CL dataset.
 
-        # check if the root directory exists. If it doesn't, create it
-        if not os.path.exists(self.root):
-            os.makedirs(self.root)
-            pylogger.info("Created directory %s", self.root)
-
-        # check if the dataset folder already exists. If it does, skip download
-        if os.path.exists(data_dir):
-            pylogger.info(
-                "TinyImageNet dataset already exists at %s. Skipping download.",
-                data_dir,
-            )
-            return
-
-        # download the zip file if it doesn't exist
-        if not os.path.exists(zip_path):
-            pylogger.info("Downloading TinyImageNet dataset from %s...", url)
-            urllib.request.urlretrieve(url, zip_path)
-            pylogger.info("Download complete: %s", self.root)
-
-        # Extract the zip file
-        pylogger.info("Extracting TinyImageNet dataset to %s...", self.root)
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(self.root)
-        os.remove(zip_path)
-        pylogger.info("Extraction complete.")
-
-    def train_dataset(self) -> Dataset:
-        r"""Get the training dataset of task `self.task_id`.
+        **Args:**
+        - **dataset** (`ImageFolder`): the original dataset to retrieve subset from.
 
         **Returns:**
-        - **train_dataset** (`Dataset`): the train dataset of task `self.task_id`.
+        - **subset** (`ImageFolder`): subset of original dataset in classes.
         """
-        dataset_train = self.get_class_subset(
-            ImageFolder(
-                root=os.path.join(self.root, "tiny-imagenet-200", "train"),
-                transform=self.train_and_val_transforms(to_tensor=True),
-            )
-        )
+        classes = self.class_split[self.task_id - 1]
 
-        dataset_train.target_transform = self.target_transforms()
+        # get the indices of the dataset that belong to the classes
+        idx = [i for i, (_, target) in enumerate(dataset) if target in classes]
 
-        return dataset_train
+        # subset the dataset by the indices, in-place operation
+        dataset.samples = [dataset.samples[i] for i in idx]  # samples is a list
+        dataset.targets = [dataset.targets[i] for i in idx]  # targets is a list
 
-    def val_dataset(self) -> Dataset:
-        r"""Get the validation dataset of task `self.task_id`.
+        return dataset
+
+    def train_and_val_dataset(self) -> Dataset:
+        r"""Get the training and validation dataset of task `self.task_id`.
 
         **Returns:**
+        - **train_dataset** (`Dataset`): the training dataset of task `self.task_id`.
         - **val_dataset** (`Dataset`): the validation dataset of task `self.task_id`.
         """
-        dataset_val = self.get_class_subset(
-            ImageFolder(
-                root=os.path.join(self.root, "tiny-imagenet-200", "val"),
+        dataset_train_and_val = self.get_class_subset(
+            TinyImageNet(
+                root=self.root,
+                split="train",
                 transform=self.train_and_val_transforms(to_tensor=True),
             )
         )
+        dataset_train_and_val.target_transform = self.target_transforms()
 
-        dataset_val.target_transform = self.target_transforms()
-
-        return dataset_val
+        return random_split(
+            dataset_train_and_val,
+            lengths=[1 - self.validation_percentage, self.validation_percentage],
+            generator=torch.Generator().manual_seed(
+                42
+            ),  # this must be set fixed to make sure the datasets across experiments are the same. Don't handle it to global seed as it might vary across experiments
+        )
 
     def test_dataset(self) -> Dataset:
         r"""Get the test dataset of task `self.task_id`.
@@ -143,9 +128,10 @@ class SplitTinyImageNet(CLSplitDataset):
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
         dataset_test = self.get_class_subset(
-            ImageFolder(
-                root=os.path.join(self.root, "tiny-imagenet-200", "val"),
-                transform=self.test_transforms(to_tensor=True),
+            TinyImageNet(
+                root=self.root,
+                split="val",
+                transform=self.train_and_val_transforms(to_tensor=True),
             )
         )
 

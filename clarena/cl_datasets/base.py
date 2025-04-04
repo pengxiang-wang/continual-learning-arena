@@ -252,7 +252,7 @@ class CLDataset(LightningDataModule):
         """Get the test dataset of task `self.task_id`. It must be implemented by subclasses.
 
         **Returns:**
-        - **train_and_val_dataset** (`Any`): the test dataset of task `self.task_id`.
+        - **test_dataset** (`Any`): the test dataset of task `self.task_id`.
         """
 
     def train_dataloader(self) -> DataLoader:
@@ -590,26 +590,6 @@ class CLSplitDataset(CLDataset):
         - **std** (`tuple[float]`): he standard deviation values for normalisation.
         """
         return self.std_original
-
-    def get_class_subset(self, dataset: Dataset) -> Dataset:
-        r"""Provide a util method here to retrieve a subset from PyTorch Dataset of current classes of `self.task_id`. It could be useful when you constructing the split CL dataset.
-
-        **Args:**
-        - **dataset** (`Dataset`): the original dataset to retrieve subset from.
-
-        **Returns:**
-        - **subset** (`Dataset`): subset of original dataset in classes.
-        """
-        classes = self.class_split[self.task_id - 1]
-
-        # get the indices of the dataset that belong to the classes
-        idx = [i for i, (_, target) in enumerate(dataset) if target in classes]
-
-        # subset the dataset by the indices, in-place operation
-        dataset.data = dataset.data[idx]
-        dataset.targets = [dataset.targets[i] for i in idx]
-
-        return dataset
 
 
 class CLClassMapping:
