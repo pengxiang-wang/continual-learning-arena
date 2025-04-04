@@ -5,12 +5,11 @@ The submodule in `cl_algorithms` for SubtleAdaHAT algorithm.
 __all__ = ["SubtleAdaHAT"]
 
 import logging
-from typing import Any, Callable
+from typing import Any
 
 import torch
 from captum.attr import (
     InternalInfluence,
-    LayerActivation,
     LayerConductance,
     LayerDeepLift,
     LayerDeepLiftShap,
@@ -21,7 +20,7 @@ from captum.attr import (
     LayerIntegratedGradients,
     LayerLRP,
 )
-from torch import Tensor, nn
+from torch import Tensor
 
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import AdaHAT
@@ -101,6 +100,8 @@ class SubtleAdaHAT(AdaHAT):
             17. 'integrated_gradients_abs':
             18. 'feature_ablation_abs':
             19. 'lrp_abs':
+            20. 'cbp_adaptation':
+            21: 'cbp_adaptative_contribution':
         - **subtle_importance_scaling_factor** (`float` | `None`): the scaling factor for the subtle importance. The subtle importance is multiplied by the scaling factor before applying the adjustment rate. It applies only when adjustment_mode is 'subtle_importance_to_adahat'.
         """
         AdaHAT.__init__(
@@ -295,13 +296,19 @@ class SubtleAdaHAT(AdaHAT):
             if self.subtle_importance_type == "input_weight_abs_sum":
                 subtle_importance_step = (
                     self.get_subtle_importance_step_layer_weight_abs_sum(
-                        layer_name=layer_name, mask=m, if_output_weight=False
+                        layer_name=layer_name,
+                        mask=m,
+                        if_output_weight=False,
+                        reciprocal=False,
                     )
                 )
             elif self.subtle_importance_type == "output_weight_abs_sum":
                 subtle_importance_step = (
                     self.get_subtle_importance_step_layer_weight_abs_sum(
-                        layer_name=layer_name, mask=m, if_output_weight=True
+                        layer_name=layer_name,
+                        mask=m,
+                        if_output_weight=True,
+                        reciprocal=False,
                     )
                 )
             elif self.subtle_importance_type == "input_weight_gradient_abs_sum":
@@ -473,6 +480,23 @@ class SubtleAdaHAT(AdaHAT):
                     num_batches=num_batches,
                     mask=m,
                 )
+            elif self.subtle_importance_type == "cbp_adaptation":
+                subtle_importance_step = (
+                    self.get_subtle_importance_step_layer_weight_abs_sum(
+                        layer_name=layer_name,
+                        mask=m,
+                        if_output_weight=False,
+                        reciprocal=True,
+                    )
+                )
+            elif self.subtle_importance_type == "cbp_adaptive_contribution":
+                subtle_importance_step = (
+                    self.get_subtle_importance_step_layer_cbp_adaptive_contribution(
+                        layer_name=layer_name,
+                        activation=activation,
+                        mask=m,
+                    )
+                )
             print(subtle_importance_step)
 
             subtle_importance_step = min_max_normalise(
@@ -507,6 +531,7 @@ class SubtleAdaHAT(AdaHAT):
         layer_name: str,
         mask: Tensor,
         if_output_weight: bool,
+        reciprocal: bool,
     ) -> Tensor:
         r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the sum of absolute values of layer input or output weights.
 
@@ -514,6 +539,7 @@ class SubtleAdaHAT(AdaHAT):
         - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
         - **if_output_weight** (`bool`): whether to use the output weights or input weights.
+        - **reciprocal** (`bool`): whether to take reciprocal.
 
         **Returns:**
         - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
@@ -537,7 +563,11 @@ class SubtleAdaHAT(AdaHAT):
                 ],  # sum over the output dimension
             )
 
-        subtle_importance_step_layer = weight_abs_sum * mask
+        if reciprocal:
+            weight_abs_sum_reciprocal = torch.reciprocal(weight_abs_sum)
+            subtle_importance_step_layer = weight_abs_sum_reciprocal * mask
+        else:
+            subtle_importance_step_layer = weight_abs_sum * mask
         subtle_importance_step_layer = subtle_importance_step_layer.detach()
 
         return subtle_importance_step_layer
@@ -643,7 +673,6 @@ class SubtleAdaHAT(AdaHAT):
                     i for i in range(weight_abs.dim()) if i != 1
                 ],  # sum over the output dimension
             )
-            print(weight_abs.shape, weight_abs_sum.shape)
 
         activation_abs_batch_mean = torch.mean(
             torch.abs(activation),
@@ -1217,6 +1246,58 @@ class SubtleAdaHAT(AdaHAT):
         )
 
         subtle_importance_step_layer = attribution_abs_batch_mean * mask
+        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+
+        return subtle_importance_step_layer
+
+    def get_subtle_importance_step_layer_cbp_adaptive_contribution(
+        self: str,
+        layer_name: str,
+        activation: Tensor,
+        mask: Tensor,
+    ) -> Tensor:
+        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the sum of absolute values of layer output weights multiplied by absolute values of activation, then divided by the reciprocal of sum of absolute values of layer input weights. It is equal to the adaptive contribution utility in [CBP](https://www.nature.com/articles/s41586-024-07711-7).
+
+        **Args:**
+        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
+        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
+
+        **Returns:**
+        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        """
+        layer = self.backbone.get_layer_by_name(layer_name)
+
+        input_weight_abs = torch.abs(layer.weight.data)
+        input_weight_abs_sum = torch.sum(
+            input_weight_abs,
+            dim=[
+                i for i in range(input_weight_abs.dim()) if i != 0
+            ],  # sum over the input dimension
+        )
+        input_weight_abs_sum_reciprocal = torch.reciprocal(input_weight_abs_sum)
+
+        output_weight_abs = torch.abs(self.next_layer(layer_name).weight.data)
+        output_weight_abs_sum = torch.sum(
+            output_weight_abs,
+            dim=[
+                i for i in range(output_weight_abs.dim()) if i != 1
+            ],  # sum over the output dimension
+        )
+
+        activation_abs_batch_mean = torch.mean(
+            torch.abs(activation),
+            dim=[
+                i for i in range(activation.dim()) if i != 1
+            ],  # average the features over batch samples
+        )
+
+        subtle_importance_step_layer = (
+            output_weight_abs_sum
+            * activation_abs_batch_mean
+            * input_weight_abs_sum_reciprocal
+            * mask
+        )
         subtle_importance_step_layer = subtle_importance_step_layer.detach()
 
         return subtle_importance_step_layer
