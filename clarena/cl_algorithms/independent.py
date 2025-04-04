@@ -71,7 +71,7 @@ class Independent(Finetuning):
         backbone = self.backbones[
             f"{test_task_id}"
         ]  # use the corresponding independenet backbone for the test task
-        feature, hidden_features = backbone(x, stage="test", task_id=test_task_id)
+        feature, activations = backbone(x, stage="test", task_id=test_task_id)
         logits = self.heads(feature, test_task_id)
         # use the corresponding head to test (instead of the current task `self.task_id`)
         loss_cls = self.criterion(logits, y)

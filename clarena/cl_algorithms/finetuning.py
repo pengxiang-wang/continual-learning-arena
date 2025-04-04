@@ -49,7 +49,7 @@ class Finetuning(CLAlgorithm):
         x, y = batch
 
         # classification loss
-        logits, hidden_features = self.forward(x, stage="train", task_id=self.task_id)
+        logits, activations = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
         # total loss
@@ -62,7 +62,7 @@ class Finetuning(CLAlgorithm):
             "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
-            "hidden_features": hidden_features,
+            "activations": activations,
         }
 
     def validation_step(self, batch: Any) -> dict[str, Tensor]:
@@ -75,7 +75,7 @@ class Finetuning(CLAlgorithm):
         - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this validation step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
         """
         x, y = batch
-        logits, hidden_features = self.forward(
+        logits, activations = self.forward(
             x,
             stage="validation",
             task_id=self.task_id,
@@ -104,7 +104,7 @@ class Finetuning(CLAlgorithm):
         test_task_id = self.get_test_task_id_from_dataloader_idx(dataloader_idx)
 
         x, y = batch
-        logits, hidden_features = self.forward(
+        logits, activations = self.forward(
             x, stage="test", task_id=test_task_id
         )  # use the corresponding head to test (instead of the current task `self.task_id`)
         loss_cls = self.criterion(logits, y)

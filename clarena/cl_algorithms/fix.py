@@ -55,7 +55,7 @@ class Fix(Finetuning):
                 param.requires_grad = False
 
         # classification loss
-        logits, hidden_features = self.forward(x, stage="train", task_id=self.task_id)
+        logits, activations = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
         # total loss
@@ -68,5 +68,5 @@ class Fix(Finetuning):
             "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,
-            "hidden_features": hidden_features,
+            "activations": activations,
         }

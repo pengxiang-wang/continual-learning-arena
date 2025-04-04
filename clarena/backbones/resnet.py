@@ -141,9 +141,9 @@ class ResNetBlockSmall(CLBackbone):
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature maps.
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
         """
-        hidden_features = {}
+        activations = {}
 
         identity = (
             self.identity_downsample(input)
@@ -157,7 +157,7 @@ class ResNetBlockSmall(CLBackbone):
             x = self.conv_bn1(x)
         if self.activation:
             x = self.conv_activation1(x)
-        hidden_features[self.full_1st_layer_name] = x  # store the hidden feature
+        activations[self.full_1st_layer_name] = x  # store the hidden feature
 
         x = self.conv2(x)
         if self.batch_normalisation:
@@ -166,11 +166,11 @@ class ResNetBlockSmall(CLBackbone):
         x = x + identity
         if self.activation:
             x = self.conv_activation2(x)  # activation after the shortcut connection
-        hidden_features[self.full_2nd_layer_name] = x  # store the hidden feature
+        activations[self.full_2nd_layer_name] = x  # store the hidden feature
 
         output_feature = x
 
-        return output_feature, hidden_features
+        return output_feature, activations
 
 
 class ResNetBlockLarge(CLBackbone):
@@ -319,9 +319,9 @@ class ResNetBlockLarge(CLBackbone):
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature maps.
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
         """
-        hidden_features = {}
+        activations = {}
 
         identity = (
             self.identity_downsample(input)
@@ -335,14 +335,14 @@ class ResNetBlockLarge(CLBackbone):
             x = self.conv_bn1(x)
         if self.activation:
             x = self.conv_activation1(x)
-        hidden_features[self.full_1st_layer_name] = x  # store the hidden feature
+        activations[self.full_1st_layer_name] = x  # store the hidden feature
 
         x = self.conv2(x)
         if self.batch_normalisation:
             x = self.conv_bn2(x)
         if self.activation:
             x = self.conv_activation2(x)
-        hidden_features[self.full_2nd_layer_name] = x  # store the hidden feature
+        activations[self.full_2nd_layer_name] = x  # store the hidden feature
 
         x = self.conv3(x)
         if self.batch_normalisation:
@@ -351,11 +351,11 @@ class ResNetBlockLarge(CLBackbone):
         x = x + identity
         if self.activation:
             x = self.conv_activation3(x)  # activation after the shortcut connection
-        hidden_features[self.full_3rd_layer_name] = x  # store the hidden feature
+        activations[self.full_3rd_layer_name] = x  # store the hidden feature
 
         output_feature = x
 
-        return output_feature, hidden_features
+        return output_feature, activations
 
 
 class ResNetBase(CLBackbone):
@@ -557,10 +557,10 @@ class ResNetBase(CLBackbone):
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
         """
         batch_size = input.size(0)
-        hidden_features = {}
+        activations = {}
 
         x = input
 
@@ -569,28 +569,28 @@ class ResNetBase(CLBackbone):
             x = self.conv_bn1(x)
         if self.activation:
             x = self.conv_activation1(x)
-        hidden_features["conv1"] = x
+        activations["conv1"] = x
 
         x = self.maxpool(x)
 
         for block in self.conv2x:
-            x, hidden_features_block = block(x)
-            hidden_features.update(hidden_features_block)  # store the hidden feature
+            x, activations_block = block(x)
+            activations.update(activations_block)  # store the hidden feature
         for block in self.conv3x:
-            x, hidden_features_block = block(x)
-            hidden_features.update(hidden_features_block)  # store the hidden feature
+            x, activations_block = block(x)
+            activations.update(activations_block)  # store the hidden feature
         for block in self.conv4x:
-            x, hidden_features_block = block(x)
-            hidden_features.update(hidden_features_block)  # store the hidden feature
+            x, activations_block = block(x)
+            activations.update(activations_block)  # store the hidden feature
         for block in self.conv5x:
-            x, hidden_features_block = block(x)
-            hidden_features.update(hidden_features_block)  # store the hidden feature
+            x, activations_block = block(x)
+            activations.update(activations_block)  # store the hidden feature
 
         x = self.avepool(x)
 
         output_feature = x.view(batch_size, -1)  # flatten before going through heads
 
-        return output_feature, hidden_features
+        return output_feature, activations
 
 
 class ResNet18(ResNetBase):
@@ -864,9 +864,9 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
         **Returns:**
         - **output_feature** (`Tensor`): the output feature maps.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
-        hidden_features = {}
+        activations = {}
 
         # get the mask for the current task from the task embedding in this stage
         mask = self.get_mask(
@@ -890,7 +890,7 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
         )  # apply the mask to the 1st convolutional layer. Broadcast the dimension of mask to match the input
         if self.activation:
             x = self.conv_activation1(x)  # activation function third
-        hidden_features[self.full_1st_layer_name] = x  # store the hidden feature
+        activations[self.full_1st_layer_name] = x  # store the hidden feature
 
         x = self.conv2(x)  # weighted convolutional layer first
         x = x + identity
@@ -899,11 +899,11 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
         )  # apply the mask to the 2nd convolutional layer after the shortcut connection. Broadcast the dimension of mask to match the input
         if self.activation:
             x = self.conv_activation2(x)  # activation after the shortcut connection
-        hidden_features[self.full_2nd_layer_name] = x  # store the hidden feature
+        activations[self.full_2nd_layer_name] = x  # store the hidden feature
 
         output_feature = x
 
-        return output_feature, mask, hidden_features
+        return output_feature, mask, activations
 
 
 class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
@@ -1001,9 +1001,9 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         **Returns:**
         - **output_feature** (`Tensor`): the output feature maps.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
-        hidden_features = {}
+        activations = {}
 
         # get the mask for the current task from the task embedding in this stage
         mask = self.get_mask(
@@ -1027,7 +1027,7 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         )  # apply the mask to the 1st convolutional layer. Broadcast the dimension of mask to match the input
         if self.activation:
             x = self.conv_activation1(x)  # activation function third
-        hidden_features[self.full_1st_layer_name] = x  # store the hidden feature
+        activations[self.full_1st_layer_name] = x  # store the hidden feature
 
         x = self.conv2(x)  # weighted convolutional layer first
         x = x * (
@@ -1035,7 +1035,7 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         )  # apply the mask to the 2nd convolutional layer. Broadcast the dimension of mask to match the input
         if self.activation:
             x = self.conv_activation2(x)  # activation function third
-        hidden_features[self.full_2nd_layer_name] = x  # store the hidden feature
+        activations[self.full_2nd_layer_name] = x  # store the hidden feature
 
         x = self.conv3(x)  # weighted convolutional layer first
         x = x + identity
@@ -1044,11 +1044,11 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         )  # apply the mask to the 3rd convolutional layer after the shortcut connection. Broadcast the dimension of mask to match the input
         if self.activation:
             x = self.activation3(x)  # activation after the shortcut connection
-        hidden_features[self.full_3rd_layer_name] = x  # store the hidden feature
+        activations[self.full_3rd_layer_name] = x  # store the hidden feature
 
         output_feature = x
 
-        return output_feature, mask, hidden_features
+        return output_feature, mask, activations
 
 
 class HATMaskResNetBase(ResNetBase, HATMaskBackbone):
@@ -1219,10 +1219,10 @@ class HATMaskResNetBase(ResNetBase, HATMaskBackbone):
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed to the heads.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
         batch_size = input.size(0)
-        hidden_features = {}
+        activations = {}
 
         # get the mask for the current task from the task embedding in this stage
         mask = self.get_mask(
@@ -1242,12 +1242,12 @@ class HATMaskResNetBase(ResNetBase, HATMaskBackbone):
         )  # apply the mask to the 1st convolutional layer. Broadcast the dimension of mask to match the input
         if self.activation:
             x = self.conv_activation1(x)
-        hidden_features["conv1"] = x
+        activations["conv1"] = x
 
         x = self.maxpool(x)
 
         for block in self.conv2x:
-            x, _, hidden_features_block = block(
+            x, _, activations_block = block(
                 x,
                 stage=stage,
                 s_max=s_max,
@@ -1255,9 +1255,9 @@ class HATMaskResNetBase(ResNetBase, HATMaskBackbone):
                 num_batches=num_batches,
                 test_mask=test_mask,
             )
-            hidden_features.update(hidden_features_block)  # store the hidden feature
+            activations.update(activations_block)  # store the hidden feature
         for block in self.conv3x:
-            x, _, hidden_features_block = block(
+            x, _, activations_block = block(
                 x,
                 stage=stage,
                 s_max=s_max,
@@ -1265,9 +1265,9 @@ class HATMaskResNetBase(ResNetBase, HATMaskBackbone):
                 num_batches=num_batches,
                 test_mask=test_mask,
             )
-            hidden_features.update(hidden_features_block)  # store the hidden feature
+            activations.update(activations_block)  # store the hidden feature
         for block in self.conv4x:
-            x, _, hidden_features_block = block(
+            x, _, activations_block = block(
                 x,
                 stage=stage,
                 s_max=s_max,
@@ -1275,9 +1275,9 @@ class HATMaskResNetBase(ResNetBase, HATMaskBackbone):
                 num_batches=num_batches,
                 test_mask=test_mask,
             )
-            hidden_features.update(hidden_features_block)  # store the hidden feature
+            activations.update(activations_block)  # store the hidden feature
         for block in self.conv5x:
-            x, _, hidden_features_block = block(
+            x, _, activations_block = block(
                 x,
                 stage=stage,
                 s_max=s_max,
@@ -1285,13 +1285,13 @@ class HATMaskResNetBase(ResNetBase, HATMaskBackbone):
                 num_batches=num_batches,
                 test_mask=test_mask,
             )
-            hidden_features.update(hidden_features_block)  # store the hidden feature
+            activations.update(activations_block)  # store the hidden feature
 
         x = self.avepool(x)
 
         output_feature = x.view(batch_size, -1)  # flatten before going through heads
 
-        return output_feature, mask, hidden_features
+        return output_feature, mask, activations
 
 
 class HATMaskResNet18(HATMaskResNetBase):

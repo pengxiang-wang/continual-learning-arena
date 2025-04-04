@@ -88,7 +88,7 @@ class CBP(Finetuning):
         - **batch_idx** (`int`): the index of the current batch. This is for the file name of mask figures.
         """
 
-        hidden_features = outputs["hidden_features"]
+        activations = outputs["activations"]
 
         for layer_name in self.backbone.weighted_layer_names:
             # layer-wise operation
@@ -103,7 +103,7 @@ class CBP(Finetuning):
             # calculate current contribution utility
             current_contribution_utility = (
                 torch.mean(
-                    torch.abs(hidden_features[layer_name]),
+                    torch.abs(activations[layer_name]),
                     dim=0,  # average the features over batch samples
                 )
                 * torch.sum(
@@ -143,11 +143,9 @@ class CBP(Finetuning):
                 ]
 
                 # reinitialise the input weights of the unit
-                preceding_layer_name = self.backbone.preceding_layer_name(layer_name)
-                if preceding_layer_name is not None:
-                    preceding_layer = self.backbone.get_layer_by_name(
-                        preceding_layer_name
-                    )
+                preceding_layer = self.backbone.preceding_layer(layer_name)
+                if preceding_layer is not None:
+
                     with torch.no_grad():
 
                         preceding_layer.weight[:, replaced_unit_idx] = torch.rand_like(

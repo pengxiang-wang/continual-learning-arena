@@ -24,7 +24,6 @@ class CLDataset(LightningDataModule):
         self,
         root: str,
         num_tasks: int,
-        validation_percentage: float,
         batch_size: int = 1,
         num_workers: int = 10,
         custom_transforms: Callable | transforms.Compose | None = None,
@@ -35,7 +34,6 @@ class CLDataset(LightningDataModule):
         **Args:**
         - **root** (`str`): the root directory where the original data files for constructing the CL dataset physically live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
-        - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
         - **batch_size** (`int`): The batch size in train, val, test dataloader.
         - **num_workers** (`int`): the number of workers for dataloaders.
         - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included.
@@ -47,8 +45,6 @@ class CLDataset(LightningDataModule):
         r"""Store the root directory of the original data files. Used when constructing the dataset."""
         self.num_tasks: int = num_tasks
         r"""Store the maximum number of tasks supported by the dataset."""
-        self.validation_percentage: float = validation_percentage
-        r"""Store the percentage to randomly split some of the training data into validation data."""
         self.batch_size: int = batch_size
         r"""Store the batch size. Used when constructing train, val, test dataloader."""
         self.num_workers: int = num_workers
@@ -83,13 +79,8 @@ class CLDataset(LightningDataModule):
         CLDataset.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments.
-
-        **Raises:**
-        - **ValueError**: when the `validation_percentage` is not in the range of 0-1.
-        """
-        if not 0.0 < self.validation_percentage < 1.0:
-            raise ValueError("The validation_percentage should be 0-1.")
+        r"""Check the sanity of the arguments."""
+        pass
 
     @abstractmethod
     def cl_class_map(self, task_id: int) -> dict[str | int, int]:
@@ -335,7 +326,6 @@ class CLPermutedDataset(CLDataset):
         self,
         root: str,
         num_tasks: int,
-        validation_percentage: float,
         batch_size: int = 1,
         num_workers: int = 10,
         custom_transforms: Callable | transforms.Compose | None = None,
@@ -348,7 +338,6 @@ class CLPermutedDataset(CLDataset):
         **Args:**
         - **root** (`str`): the root directory where the original data files for constructing the CL dataset physically live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
-        - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
         - **batch_size** (`int`): The batch size in train, val, test dataloader.
         - **num_workers** (`int`): the number of workers for dataloaders.
         - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included.
@@ -363,7 +352,6 @@ class CLPermutedDataset(CLDataset):
             self,
             root=root,
             num_tasks=num_tasks,
-            validation_percentage=validation_percentage,
             batch_size=batch_size,
             num_workers=num_workers,
             custom_transforms=custom_transforms,
@@ -518,7 +506,6 @@ class CLSplitDataset(CLDataset):
         root: str,
         num_tasks: int,
         class_split: list[list[int]],
-        validation_percentage: float,
         batch_size: int = 1,
         num_workers: int = 10,
         custom_transforms: Callable | transforms.Compose | None = None,
@@ -530,7 +517,6 @@ class CLSplitDataset(CLDataset):
         - **root** (`str`): the root directory where the original data files for constructing the CL dataset physically live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
         - **class_split** (`list[list[int]]`): the class split for each task. Each element in the list is a list of class labels (integers starting from 0) to split for a task.
-        - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
         - **batch_size** (`int`): The batch size in train, val, test dataloader.
         - **num_workers** (`int`): the number of workers for dataloaders.
         - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included.
@@ -540,7 +526,6 @@ class CLSplitDataset(CLDataset):
             self,
             root=root,
             num_tasks=num_tasks,
-            validation_percentage=validation_percentage,
             batch_size=batch_size,
             num_workers=num_workers,
             custom_transforms=custom_transforms,

@@ -38,6 +38,17 @@ class HeadsTIL(nn.Module):
             self.head_t = nn.Linear(self.input_dim, num_classes_t)
             self.heads[f"{self.task_id}"] = self.head_t
 
+    def get_head(self, task_id: int) -> nn.Linear:
+        r"""Get the output head for task `task_id`.
+
+        **Args:**
+        - **task_id** (`int`): the target task ID.
+
+        **Returns:**
+        - **head_t** (`nn.Linear`): the output head for task `task_id`.
+        """
+        return self.heads[f"{task_id}"]
+
     def forward(self, feature: Tensor, task_id: int) -> Tensor:
         r"""The forward pass for data from task `task_id`. A head is selected according to the task_id and the feature is passed through the head.
 

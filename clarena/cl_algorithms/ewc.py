@@ -144,7 +144,7 @@ class EWC(Finetuning):
         x, y = batch
 
         # classification loss
-        logits, hidden_features = self.forward(x, stage="train", task_id=self.task_id)
+        logits, activations = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
         # regularisation loss. See equation (3) in the [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114).
@@ -173,7 +173,7 @@ class EWC(Finetuning):
             "loss_cls": loss_cls,
             "loss_reg": loss_reg,
             "acc": acc,
-            "hidden_features": hidden_features,
+            "activations": activations,
         }
 
     def on_train_end(self) -> None:

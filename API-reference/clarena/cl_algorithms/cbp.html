@@ -176,7 +176,7 @@
 </span><span id="L-88"><a href="#L-88"><span class="linenos"> 88</span></a><span class="sd">        - **batch_idx** (`int`): the index of the current batch. This is for the file name of mask figures.</span>
 </span><span id="L-89"><a href="#L-89"><span class="linenos"> 89</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a>
-</span><span id="L-91"><a href="#L-91"><span class="linenos"> 91</span></a>        <span class="n">hidden_features</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;hidden_features&quot;</span><span class="p">]</span>
+</span><span id="L-91"><a href="#L-91"><span class="linenos"> 91</span></a>        <span class="n">activations</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;activations&quot;</span><span class="p">]</span>
 </span><span id="L-92"><a href="#L-92"><span class="linenos"> 92</span></a>
 </span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a>        <span class="k">for</span> <span class="n">layer_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">weighted_layer_names</span><span class="p">:</span>
 </span><span id="L-94"><a href="#L-94"><span class="linenos"> 94</span></a>            <span class="c1"># layer-wise operation</span>
@@ -191,7 +191,7 @@
 </span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a>            <span class="c1"># calculate current contribution utility</span>
 </span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a>            <span class="n">current_contribution_utility</span> <span class="o">=</span> <span class="p">(</span>
 </span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a>                <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
-</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a>                    <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">hidden_features</span><span class="p">[</span><span class="n">layer_name</span><span class="p">]),</span>
+</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a>                    <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">activations</span><span class="p">[</span><span class="n">layer_name</span><span class="p">]),</span>
 </span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a>                    <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>  <span class="c1"># average the features over batch samples</span>
 </span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a>                <span class="p">)</span>
 </span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a>                <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
@@ -340,7 +340,7 @@
 </span><span id="CBP-89"><a href="#CBP-89"><span class="linenos"> 89</span></a><span class="sd">        - **batch_idx** (`int`): the index of the current batch. This is for the file name of mask figures.</span>
 </span><span id="CBP-90"><a href="#CBP-90"><span class="linenos"> 90</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="CBP-91"><a href="#CBP-91"><span class="linenos"> 91</span></a>
-</span><span id="CBP-92"><a href="#CBP-92"><span class="linenos"> 92</span></a>        <span class="n">hidden_features</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;hidden_features&quot;</span><span class="p">]</span>
+</span><span id="CBP-92"><a href="#CBP-92"><span class="linenos"> 92</span></a>        <span class="n">activations</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;activations&quot;</span><span class="p">]</span>
 </span><span id="CBP-93"><a href="#CBP-93"><span class="linenos"> 93</span></a>
 </span><span id="CBP-94"><a href="#CBP-94"><span class="linenos"> 94</span></a>        <span class="k">for</span> <span class="n">layer_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">weighted_layer_names</span><span class="p">:</span>
 </span><span id="CBP-95"><a href="#CBP-95"><span class="linenos"> 95</span></a>            <span class="c1"># layer-wise operation</span>
@@ -355,7 +355,7 @@
 </span><span id="CBP-104"><a href="#CBP-104"><span class="linenos">104</span></a>            <span class="c1"># calculate current contribution utility</span>
 </span><span id="CBP-105"><a href="#CBP-105"><span class="linenos">105</span></a>            <span class="n">current_contribution_utility</span> <span class="o">=</span> <span class="p">(</span>
 </span><span id="CBP-106"><a href="#CBP-106"><span class="linenos">106</span></a>                <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
-</span><span id="CBP-107"><a href="#CBP-107"><span class="linenos">107</span></a>                    <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">hidden_features</span><span class="p">[</span><span class="n">layer_name</span><span class="p">]),</span>
+</span><span id="CBP-107"><a href="#CBP-107"><span class="linenos">107</span></a>                    <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">activations</span><span class="p">[</span><span class="n">layer_name</span><span class="p">]),</span>
 </span><span id="CBP-108"><a href="#CBP-108"><span class="linenos">108</span></a>                    <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>  <span class="c1"># average the features over batch samples</span>
 </span><span id="CBP-109"><a href="#CBP-109"><span class="linenos">109</span></a>                <span class="p">)</span>
 </span><span id="CBP-110"><a href="#CBP-110"><span class="linenos">110</span></a>                <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
@@ -626,7 +626,7 @@
 </span><span id="CBP.on_train_batch_end-89"><a href="#CBP.on_train_batch_end-89"><span class="linenos"> 89</span></a><span class="sd">        - **batch_idx** (`int`): the index of the current batch. This is for the file name of mask figures.</span>
 </span><span id="CBP.on_train_batch_end-90"><a href="#CBP.on_train_batch_end-90"><span class="linenos"> 90</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="CBP.on_train_batch_end-91"><a href="#CBP.on_train_batch_end-91"><span class="linenos"> 91</span></a>
-</span><span id="CBP.on_train_batch_end-92"><a href="#CBP.on_train_batch_end-92"><span class="linenos"> 92</span></a>        <span class="n">hidden_features</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;hidden_features&quot;</span><span class="p">]</span>
+</span><span id="CBP.on_train_batch_end-92"><a href="#CBP.on_train_batch_end-92"><span class="linenos"> 92</span></a>        <span class="n">activations</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;activations&quot;</span><span class="p">]</span>
 </span><span id="CBP.on_train_batch_end-93"><a href="#CBP.on_train_batch_end-93"><span class="linenos"> 93</span></a>
 </span><span id="CBP.on_train_batch_end-94"><a href="#CBP.on_train_batch_end-94"><span class="linenos"> 94</span></a>        <span class="k">for</span> <span class="n">layer_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">weighted_layer_names</span><span class="p">:</span>
 </span><span id="CBP.on_train_batch_end-95"><a href="#CBP.on_train_batch_end-95"><span class="linenos"> 95</span></a>            <span class="c1"># layer-wise operation</span>
@@ -641,7 +641,7 @@
 </span><span id="CBP.on_train_batch_end-104"><a href="#CBP.on_train_batch_end-104"><span class="linenos">104</span></a>            <span class="c1"># calculate current contribution utility</span>
 </span><span id="CBP.on_train_batch_end-105"><a href="#CBP.on_train_batch_end-105"><span class="linenos">105</span></a>            <span class="n">current_contribution_utility</span> <span class="o">=</span> <span class="p">(</span>
 </span><span id="CBP.on_train_batch_end-106"><a href="#CBP.on_train_batch_end-106"><span class="linenos">106</span></a>                <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
-</span><span id="CBP.on_train_batch_end-107"><a href="#CBP.on_train_batch_end-107"><span class="linenos">107</span></a>                    <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">hidden_features</span><span class="p">[</span><span class="n">layer_name</span><span class="p">]),</span>
+</span><span id="CBP.on_train_batch_end-107"><a href="#CBP.on_train_batch_end-107"><span class="linenos">107</span></a>                    <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">activations</span><span class="p">[</span><span class="n">layer_name</span><span class="p">]),</span>
 </span><span id="CBP.on_train_batch_end-108"><a href="#CBP.on_train_batch_end-108"><span class="linenos">108</span></a>                    <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>  <span class="c1"># average the features over batch samples</span>
 </span><span id="CBP.on_train_batch_end-109"><a href="#CBP.on_train_batch_end-109"><span class="linenos">109</span></a>                <span class="p">)</span>
 </span><span id="CBP.on_train_batch_end-110"><a href="#CBP.on_train_batch_end-110"><span class="linenos">110</span></a>                <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>

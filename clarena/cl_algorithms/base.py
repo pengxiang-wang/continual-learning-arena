@@ -118,6 +118,45 @@ class CLAlgorithm(LightningModule):
         """
         self.if_forward_func_return_logits_only = forward_func_return_logits_only
 
+    def preceding_layer(self, layer_name: str) -> nn.Module | None:
+        r"""Get the preceding layer of the given layer. If the given layer is the first layer, return `None`.
+
+        **Args:**
+        - **layer_name** (`str`): the name of the layer.
+
+        **Returns:**
+        - **preceding_layer** (`nn.Module` | `None`): the preceding layer.
+        """
+        if layer_name == "heads":
+            backbone_last_layer_name = self.backbone.weighted_layer_names[-1]
+            backbone_last_layer = self.backbone.get_layer_by_name(
+                backbone_last_layer_name
+            )
+            return backbone_last_layer
+        else:
+            preceding_layer_name = self.backbone.preceding_layer_name(layer_name)
+            preceding_layer = self.backbone.get_layer_by_name(preceding_layer_name)
+        return preceding_layer
+
+    def next_layer(self, layer_name: str) -> nn.Module | None:
+        r"""Get the next layer of the given layer. If the given layer is the first layer, return `None`.
+
+        **Args:**
+        - **layer_name** (`str`): the name of the layer.
+
+        **Returns:**
+        - **preceding_layer** (`nn.Module` | `None`): the next layer.
+        """
+        if layer_name == "heads":
+            return None
+        else:
+            next_layer_name = self.backbone.next_layer_name(layer_name)
+            if next_layer_name is not None:
+                next_layer = self.backbone.get_layer_by_name(next_layer_name)
+            else:
+                next_layer = self.heads.get_head(self.task_id)
+        return next_layer
+
     def forward(self, input: Tensor, stage: str, task_id: int | None = None) -> Tensor:
         r"""The forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`.
 
@@ -131,14 +170,12 @@ class CLAlgorithm(LightningModule):
 
         **Returns:**
         - **logits** (`Tensor`): the output logits tensor.
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although Finetuning algorithm does not need this, it is still provided for API consistence for other algorithms inherited this `forward()` method of `Finetuning` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although Finetuning algorithm does not need this, it is still provided for API consistence for other algorithms inherited this `forward()` method of `Finetuning` class.
         """
-        feature, hidden_features = self.backbone(input, stage=stage, task_id=task_id)
+        feature, activations = self.backbone(input, stage=stage, task_id=task_id)
         logits = self.heads(feature, task_id)
         return (
-            logits
-            if self.if_forward_func_return_logits_only
-            else (logits, hidden_features)
+            logits if self.if_forward_func_return_logits_only else (logits, activations)
         )
 
     def configure_optimizers(self) -> Optimizer:

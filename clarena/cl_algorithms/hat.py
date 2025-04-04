@@ -278,9 +278,9 @@ class HAT(CLAlgorithm):
         **Returns:**
         - **logits** (`Tensor`): the output logits tensor.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
-        feature, mask, hidden_features = self.backbone(
+        feature, mask, activations = self.backbone(
             input,
             stage=stage,
             s_max=self.s_max if stage == "train" or stage == "validation" else None,
@@ -293,7 +293,7 @@ class HAT(CLAlgorithm):
         return (
             logits
             if self.if_forward_func_return_logits_only
-            else (logits, mask, hidden_features)
+            else (logits, mask, activations)
         )
 
     # def make_train_forward_func(self, batch_idx: int, num_batches: int) -> Callable:
@@ -337,7 +337,7 @@ class HAT(CLAlgorithm):
 
         # classification loss
         num_batches = self.trainer.num_training_batches
-        logits, mask, hidden_features = self.forward(
+        logits, mask, activations = self.forward(
             x,
             stage="train",
             batch_idx=batch_idx,
@@ -376,7 +376,7 @@ class HAT(CLAlgorithm):
             "loss_cls": loss_cls,
             "loss_reg": loss_reg,
             "acc": acc,
-            "hidden_features": hidden_features,
+            "activations": activations,
             "logits": logits,
             "mask": mask,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
             # "forward_func": self.make_train_forward_func(
@@ -420,7 +420,7 @@ class HAT(CLAlgorithm):
         - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this validation step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
         """
         x, y = batch
-        logits, mask, hidden_features = self.forward(
+        logits, mask, activations = self.forward(
             x, stage="validation", task_id=self.task_id
         )
         loss_cls = self.criterion(logits, y)
@@ -446,7 +446,7 @@ class HAT(CLAlgorithm):
         test_task_id = self.get_test_task_id_from_dataloader_idx(dataloader_idx)
 
         x, y = batch
-        logits, mask, hidden_features = self.forward(
+        logits, mask, activations = self.forward(
             x,
             stage="test",
             task_id=test_task_id,

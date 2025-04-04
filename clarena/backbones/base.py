@@ -50,15 +50,18 @@ class CLBackbone(nn.Module):
         self.task_id = task_id
         self.seen_task_ids.append(task_id)
 
-    def get_layer_by_name(self, layer_name: str) -> nn.Module:
+    def get_layer_by_name(self, layer_name: str | None) -> nn.Module | None:
         r"""Get the layer by its name.
 
         **Args:**
-        - **layer_name** (`str`): the name of the layer. Note that the name is the name substituting the '.' with '/', like `block/conv1`, rather than `block.conv1`.
+        - **layer_name** (`str` | `None`): the name of the layer. Note that the name is the name substituting the '.' with '/', like `block/conv1`, rather than `block.conv1`. If `None`, return `None`.
 
         **Returns:**
-        - **layer** (`nn.Module`): the layer.
+        - **layer** (`nn.Module` | `None`): the layer.
         """
+        if layer_name is None:
+            return None
+
         for name, layer in self.named_modules():
             if name == layer_name.replace("/", "."):
                 return layer
@@ -82,7 +85,30 @@ class CLBackbone(nn.Module):
         weighted_layer_idx = self.weighted_layer_names.index(layer_name)
         if weighted_layer_idx == 0:
             return None
-        return self.weighted_layer_names[weighted_layer_idx - 1]
+        preceding_layer_name = self.weighted_layer_names[weighted_layer_idx - 1]
+        return preceding_layer_name
+
+    def next_layer_name(self, layer_name: str) -> str:
+        r"""Get the name of the next layer of the given layer from the stored `self.masked_layer_order`. If the given layer is the last layer of the BACKBONE, return `None`.
+
+        **Args:**
+        - **layer_name** (`str`): the name of the layer.
+
+        **Returns:**
+        - **next_layer_name** (`str`): the name of the next layer.
+
+        **Raises:**
+        - **ValueError**: if `layer_name` is not in the weighted layer order.
+        """
+
+        if layer_name not in self.weighted_layer_names:
+            raise ValueError(f"The layer name {layer_name} doesn't exist.")
+
+        weighted_layer_idx = self.weighted_layer_names.index(layer_name)
+        if weighted_layer_idx == len(self.weighted_layer_names) - 1:
+            return None
+        next_layer_name = self.weighted_layer_names[weighted_layer_idx + 1]
+        return next_layer_name
 
     @override  # since `nn.Module` uses it
     def forward(
@@ -103,7 +129,7 @@ class CLBackbone(nn.Module):
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
         """
 
 
@@ -290,7 +316,7 @@ class HATMaskBackbone(CLBackbone):
         else:
             raise ValueError(f"The aggregation method {aggregation} is not supported.")
 
-        # get the preceding layer name
+        # get the preceding layer
         preceding_layer_name = self.preceding_layer_name(layer_name)
 
         # get weight size for expanding the measures
@@ -359,7 +385,7 @@ class HATMaskBackbone(CLBackbone):
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
 
         """
         # this should be copied to all subclasses. Make sure it is called to get the mask for the current task from the task embedding in this stage

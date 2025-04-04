@@ -93,7 +93,7 @@ class LwF(Finetuning):
         x, y = batch
 
         # classification loss. See equation (1) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
-        logits, hidden_features = self.forward(x, stage="train", task_id=self.task_id)
+        logits, activations = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
         # regularisation loss. See equation (2) (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
@@ -138,7 +138,7 @@ class LwF(Finetuning):
             "loss_cls": loss_cls,
             "loss_reg": loss_reg,
             "acc": acc,
-            "hidden_features": hidden_features,
+            "activations": activations,
         }
 
     def on_train_end(self) -> None:

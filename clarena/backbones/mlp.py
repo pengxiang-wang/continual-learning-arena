@@ -105,10 +105,10 @@ class MLP(CLBackbone):
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
         """
         batch_size = input.size(0)
-        hidden_features = {}
+        activations = {}
 
         x = input.view(batch_size, -1)  # flatten before going through MLP
 
@@ -118,13 +118,13 @@ class MLP(CLBackbone):
                 x = self.fc_bn[layer_idx](x)  # batch normalisation second
             if self.activation:
                 x = self.fc_activation[layer_idx](x)  # activation function third
-            hidden_features[layer_name] = x  # store the hidden feature
+            activations[layer_name] = x  # store the hidden feature
             if self.dropout:
                 x = self.fc_dropout[layer_idx](x)  # dropout last
 
         output_feature = x
 
-        return output_feature, hidden_features
+        return output_feature, activations
 
 
 class HATMaskMLP(MLP, HATMaskBackbone):
@@ -210,10 +210,10 @@ class HATMaskMLP(MLP, HATMaskBackbone):
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
-        - **hidden_features** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
         batch_size = input.size(0)
-        hidden_features = {}
+        activations = {}
 
         # get the mask for the current task from the task embedding in this stage
         mask = self.get_mask(
@@ -231,10 +231,10 @@ class HATMaskMLP(MLP, HATMaskBackbone):
             x = x * mask[f"fc/{layer_idx}"]  # apply the mask to the parameters second
             if self.activation:
                 x = self.fc_activation[layer_idx](x)  # activation function third
-            hidden_features[layer_name] = x  # store the hidden feature
+            activations[layer_name] = x  # store the hidden feature
             if self.dropout:
                 x = self.fc_dropout[layer_idx](x)  # dropout last
 
         output_feature = x
 
-        return output_feature, mask, hidden_features
+        return output_feature, mask, activations

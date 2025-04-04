@@ -22,7 +22,7 @@ class PermutedMNIST(CLPermutedDataset):
     r"""Permuted MNIST dataset. The [original MNIST dataset](http://yann.lecun.com/exdb/mnist/) is a collection of handwritten digits. It consists of 70,000 28x28 B&W images in 10 classes (correspond to 10 digits), with 7000 images per class. There are 60,000 training examples and 10,000 test examples."""
 
     num_classes: int = 10
-    """The number of classes in MNIST."""
+    """The number of classes in MNIST dataset."""
 
     img_size: torch.Size = torch.Size([1, 28, 28])
     """The size of MNIST images."""
@@ -66,7 +66,6 @@ class PermutedMNIST(CLPermutedDataset):
             self,
             root=root,
             num_tasks=num_tasks,
-            validation_percentage=validation_percentage,
             batch_size=batch_size,
             num_workers=num_workers,
             custom_transforms=custom_transforms,
@@ -74,6 +73,9 @@ class PermutedMNIST(CLPermutedDataset):
             permutation_mode=permutation_mode,
             permutation_seeds=permutation_seeds,
         )
+
+        self.validation_percentage = validation_percentage
+        """Store the percentage to randomly split some of the training data into validation data."""
 
     def prepare_data(self) -> None:
         r"""Download the original MNIST dataset if haven't."""
@@ -100,6 +102,9 @@ class PermutedMNIST(CLPermutedDataset):
         return random_split(
             dataset_train_and_val,
             lengths=[1 - self.validation_percentage, self.validation_percentage],
+            generator=torch.Generator().manual_seed(
+                42
+            ),  # this must be set fixed to make sure the datasets across experiments are the same. Don't handle it to global seed as it might vary across experiments
         )
 
     def test_dataset(self) -> Dataset:
