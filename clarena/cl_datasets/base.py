@@ -27,6 +27,8 @@ class CLDataset(LightningDataModule):
         batch_size: int = 1,
         num_workers: int = 10,
         custom_transforms: Callable | transforms.Compose | None = None,
+        to_tensor: bool = True,
+        resize: tuple[int, int] | None = None,
         custom_target_transforms: Callable | transforms.Compose | None = None,
     ) -> None:
         r"""Initialise the CL dataset object providing the root where data files live.
@@ -37,6 +39,8 @@ class CLDataset(LightningDataModule):
         - **batch_size** (`int`): The batch size in train, val, test dataloader.
         - **num_workers** (`int`): the number of workers for dataloaders.
         - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included.
+        - **to_tensor** (`bool`): whether to include `ToTensor()` transform. Default is True.
+        - **resize** (`tuple[int, int]` | `None`): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers.
         - **custom_target_transforms** (`transform` or `transforms.Compose` or `None`): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included.
         """
         LightningDataModule.__init__(self)
@@ -51,6 +55,10 @@ class CLDataset(LightningDataModule):
         r"""Store the number of workers. Used when constructing train, val, test dataloader."""
         self.custom_transforms: Callable | transforms.Compose | None = custom_transforms
         r"""Store the custom transforms other than the basics. Used when constructing the dataset."""
+        self.to_tensor: bool = to_tensor
+        r"""Store the to_tensor flag. Used when constructing the transforms."""
+        self.resize: tuple[int, int] = resize
+        r"""Store the resize size. Used when constructing the transforms."""
         self.custom_target_transforms: Callable | transforms.Compose | None = (
             custom_target_transforms
         )
@@ -168,11 +176,8 @@ class CLDataset(LightningDataModule):
         - **std** (`tuple[float]`): the standard deviation values for normalisation.
         """
 
-    def train_and_val_transforms(self, to_tensor: bool) -> transforms.Compose:
+    def train_and_val_transforms(self) -> transforms.Compose:
         r"""Transforms generator for train and validation dataset incorporating the custom transforms with basic transforms like `normalisation` and `ToTensor()`. It is a handy tool to use in subclasses when constructing the dataset.
-
-        **Args:**
-        - **to_tensor** (`bool`): whether to include `ToTensor()` transform.
 
         **Returns:**
         - **train_and_val_transforms** (`transforms.Compose`): the composed training transforms.
@@ -183,7 +188,8 @@ class CLDataset(LightningDataModule):
                 filter(
                     None,
                     [
-                        transforms.ToTensor() if to_tensor else None,
+                        transforms.ToTensor() if self.to_tensor else None,
+                        transforms.Resize(self.resize) if self.resize else None,
                         self.custom_transforms,
                         transforms.Normalize(
                             self.mean(self.task_id), self.std(self.task_id)
@@ -193,11 +199,8 @@ class CLDataset(LightningDataModule):
             )
         )  # the order of transforms matters
 
-    def test_transforms(self, to_tensor: bool) -> transforms.Compose:
+    def test_transforms(self) -> transforms.Compose:
         r"""Transforms generator for test dataset. Only basic transforms like `normalisation` and `ToTensor()` are included. It is a handy tool to use in subclasses when constructing the dataset.
-
-        **Args:**
-        - **to_tensor** (`bool`): whether to include `ToTensor()` transform.
 
         **Returns:**
         - **test_transforms** (`transforms.Compose`): the composed training transforms.
@@ -208,7 +211,8 @@ class CLDataset(LightningDataModule):
                 filter(
                     None,
                     [
-                        transforms.ToTensor() if to_tensor else None,
+                        transforms.ToTensor() if self.to_tensor else None,
+                        transforms.Resize(self.resize) if self.resize else None,
                         transforms.Normalize(
                             self.mean(self.task_id), self.std(self.task_id)
                         ),
@@ -329,6 +333,8 @@ class CLPermutedDataset(CLDataset):
         batch_size: int = 1,
         num_workers: int = 10,
         custom_transforms: Callable | transforms.Compose | None = None,
+        to_tensor: bool = True,
+        resize: tuple[int, int] | None = None,
         custom_target_transforms: Callable | transforms.Compose | None = None,
         permutation_mode: str = "first_channel_only",
         permutation_seeds: list[int] | None = None,
@@ -341,6 +347,8 @@ class CLPermutedDataset(CLDataset):
         - **batch_size** (`int`): The batch size in train, val, test dataloader.
         - **num_workers** (`int`): the number of workers for dataloaders.
         - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included.
+        - **to_tensor** (`bool`): whether to include `ToTensor()` transform. Default is True.
+        - **resize** (`tuple[int, int]` | `None`): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers.
         - **custom_target_transforms** (`transform` or `transforms.Compose` or `None`): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included.
         - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
             1. 'all': permute all pixels.
@@ -355,6 +363,8 @@ class CLPermutedDataset(CLDataset):
             batch_size=batch_size,
             num_workers=num_workers,
             custom_transforms=custom_transforms,
+            to_tensor=to_tensor,
+            resize=resize,
             custom_target_transforms=custom_target_transforms,
         )
 
@@ -437,11 +447,8 @@ class CLPermutedDataset(CLDataset):
         """
         return self.std_original
 
-    def train_and_val_transforms(self, to_tensor: bool) -> transforms.Compose:
+    def train_and_val_transforms(self) -> transforms.Compose:
         r"""Transforms generator for train and validation dataset incorporating the custom transforms with basic transforms like `normalisation` and `ToTensor()`. In permuted CL datasets, permute transform also applies. It is a handy tool to use in subclasses when constructing the dataset.
-
-        **Args:**
-        - **to_tensor** (`bool`): whether to include `ToTensor()` transform.
 
         **Returns:**
         - **train_and_val_transforms** (`transforms.Compose`): the composed training transforms.
@@ -452,7 +459,7 @@ class CLPermutedDataset(CLDataset):
                 filter(
                     None,
                     [
-                        transforms.ToTensor() if to_tensor else None,
+                        transforms.ToTensor() if self.to_tensor else None,
                         self.permute_t,
                         self.custom_transforms,
                         transforms.Normalize(
@@ -463,11 +470,8 @@ class CLPermutedDataset(CLDataset):
             )
         )  # the order of transforms matters
 
-    def test_transforms(self, to_tensor: bool) -> transforms.Compose:
+    def test_transforms(self) -> transforms.Compose:
         r"""Transforms generator for test dataset. Only basic transforms like `normalisation` and `ToTensor()` are included. It is a handy tool to use in subclasses when constructing the dataset.
-
-        **Args:**
-        - **to_tensor** (`bool`): whether to include `ToTensor()` transform.
 
         **Returns:**
         - **test_transforms** (`transforms.Compose`): the composed training transforms.
@@ -478,7 +482,7 @@ class CLPermutedDataset(CLDataset):
                 filter(
                     None,
                     [
-                        transforms.ToTensor() if to_tensor else None,
+                        transforms.ToTensor() if self.to_tensor else None,
                         self.permute_t,
                         transforms.Normalize(
                             self.mean(self.task_id), self.std(self.task_id)
@@ -509,6 +513,8 @@ class CLSplitDataset(CLDataset):
         batch_size: int = 1,
         num_workers: int = 10,
         custom_transforms: Callable | transforms.Compose | None = None,
+        to_tensor: bool = True,
+        resize: tuple[int, int] | None = None,
         custom_target_transforms: Callable | transforms.Compose | None = None,
     ) -> None:
         r"""Initialise the CL dataset object providing the root where data files live.
@@ -520,6 +526,8 @@ class CLSplitDataset(CLDataset):
         - **batch_size** (`int`): The batch size in train, val, test dataloader.
         - **num_workers** (`int`): the number of workers for dataloaders.
         - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included.
+        - **to_tensor** (`bool`): whether to include `ToTensor()` transform. Default is True.
+        - **resize** (`tuple[int, int]` | `None`): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers.
         - **custom_target_transforms** (`transform` or `transforms.Compose` or `None`): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included.
         """
         CLDataset.__init__(
@@ -529,6 +537,8 @@ class CLSplitDataset(CLDataset):
             batch_size=batch_size,
             num_workers=num_workers,
             custom_transforms=custom_transforms,
+            to_tensor=to_tensor,
+            resize=resize,
             custom_target_transforms=custom_target_transforms,
         )
 

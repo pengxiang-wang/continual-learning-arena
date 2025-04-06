@@ -22,6 +22,7 @@ from .permuted_mnist import PermutedMNIST
 from .permuted_cifar10 import PermutedCIFAR10
 from .split_cifar100 import SplitCIFAR100
 from .split_tinyimagenet import SplitTinyImageNet
+from .split_cub2002011 import SplitCUB2002011
 
 __all__ = [
     "CLDataset",
@@ -33,4 +34,5 @@ __all__ = [
     "permuted_cifar10",
     "split_cifar100",
     "split_tinyimagenet",
+    "split_cub2002011",
 ]

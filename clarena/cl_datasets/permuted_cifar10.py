@@ -41,6 +41,8 @@ class PermutedCIFAR10(CLPermutedDataset):
         batch_size: int = 1,
         num_workers: int = 0,
         custom_transforms: Callable | transforms.Compose | None = None,
+        to_tensor: bool = True,
+        resize: tuple[int, int] | None = None,
         custom_target_transforms: Callable | transforms.Compose | None = None,
         permutation_mode: str = "first_channel_only",
         permutation_seeds: list[int] | None = None,
@@ -55,6 +57,8 @@ class PermutedCIFAR10(CLPermutedDataset):
         - **num_workers** (`int`): the number of workers for dataloaders.
         - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform.
         `ToTensor()`, normalise, permute and so on are not included.
+        - **to_tensor** (`bool`): whether to include `ToTensor()` transform. Default is True.
+        - **resize** (`tuple[int, int]` | `None`): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers.
         - **custom_target_transforms** (`transform` or `transforms.Compose` or `None`): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included.
         - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
             1. 'all': permute all pixels.
@@ -69,12 +73,14 @@ class PermutedCIFAR10(CLPermutedDataset):
             batch_size=batch_size,
             num_workers=num_workers,
             custom_transforms=custom_transforms,
+            to_tensor=to_tensor,
+            resize=resize,
             custom_target_transforms=custom_target_transforms,
             permutation_mode=permutation_mode,
             permutation_seeds=permutation_seeds,
         )
 
-        self.validation_percentage = validation_percentage
+        self.validation_percentage: float = validation_percentage
         """Store the percentage to randomly split some of the training data into validation data."""
 
     def prepare_data(self) -> None:
@@ -96,7 +102,7 @@ class PermutedCIFAR10(CLPermutedDataset):
         dataset_train_and_val = CIFAR10(
             root=self.root,
             train=True,
-            transform=self.train_and_val_transforms(to_tensor=True),
+            transform=self.train_and_val_transforms(),
             download=False,
         )
         return random_split(
@@ -117,6 +123,6 @@ class PermutedCIFAR10(CLPermutedDataset):
         return CIFAR10(
             root=self.root,
             train=False,
-            transform=self.test_transforms(to_tensor=True),
+            transform=self.test_transforms(),
             download=False,
         )

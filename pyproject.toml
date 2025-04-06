@@ -76,6 +76,8 @@ dependencies = [
     # To enable DeviceStatsMonitor callback in PyTorch Lightning: https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.DeviceStatsMonitor.html#devicestatsmonitor
     "psutil",
 
+    # For downloading datasets from Google Drive
+    "gdown",
 ]
 
 [project.urls]
