@@ -17,7 +17,15 @@ The datasets are implemented as subclasses of `CLDataset` classes, which are the
 
 """
 
-from .base import CLClassMapping, CLDataset, CLPermutedDataset, CLSplitDataset, Permute
+from .base import (
+    CLClassMapping,
+    CLDataset,
+    CLPermutedDataset,
+    CLSplitDataset,
+    CLCombinedDataset,
+    Permute,
+)
+from .combined_torchvision import CombinedTorchvision
 from .permuted_mnist import PermutedMNIST
 from .permuted_cifar10 import PermutedCIFAR10
 from .split_cifar100 import SplitCIFAR100
@@ -28,8 +36,10 @@ __all__ = [
     "CLDataset",
     "CLPermutedDataset",
     "CLSplitDataset",
+    "CLCombinedDataset",
     "CLClassMapping",
     "Permute",
+    "combined_torchvision",
     "permuted_mnist",
     "permuted_cifar10",
     "split_cifar100",

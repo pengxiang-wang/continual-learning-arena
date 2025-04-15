@@ -1,4 +1,4 @@
-"""The submodule in `utils` with tools related to configs."""
+r"""The submodule in `utils` with tools related to configs."""
 
 __all__ = ["preprocess_config", "cfg_to_tree", "save_tree_to_file"]
 

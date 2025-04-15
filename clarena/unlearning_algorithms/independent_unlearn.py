@@ -25,7 +25,7 @@ class IndependentUnlearn(UnlearningAlgorithm):
         UnlearningAlgorithm.__init__(self, model=model)
 
     def unlearn(self) -> None:
-        r"""Unlearn the unlearning tasks."""
+        r"""Unlearn the requested unlearning tasks in current task `self.task_id`."""
         for unlearning_task_id in self.unlearning_task_ids:
             self.model.backbones[f"{unlearning_task_id}"].load_state_dict(
                 self.model.original_backbone_state_dict

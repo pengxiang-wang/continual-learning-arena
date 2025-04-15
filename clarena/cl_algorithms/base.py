@@ -178,6 +178,27 @@ class CLAlgorithm(LightningModule):
             logits if self.if_forward_func_return_logits_only else (logits, activations)
         )
 
+    def aggregated_backbone_output(self, input: Tensor) -> Tensor:
+        r"""Get the aggregated backbone output for the input data. All parts of backbones should be aggregated together.
+
+        This output feature is used for measuring unlearning effectiveness. An aggregated output involving every corner of the backbone is needed to ensure the fairness of the metric.
+
+        **Args:**
+        - **input** (`Tensor`): The input tensor from data.
+
+        **Returns:**
+        - **output** (`Tensor`): the aggregated backbone output tensor.
+        """
+        feature = 0
+
+        print(f"self.seen_task_ids: {self.seen_task_ids}")
+        for i in self.seen_task_ids:
+            feature_i = self.backbone(input, stage="train", task_id=i)[0]
+            feature += feature_i
+        feature = feature / len(self.seen_task_ids)
+
+        return feature
+
     def configure_optimizers(self) -> Optimizer:
         r"""
         Configure optimizer hooks by Lightning.

@@ -64,6 +64,8 @@ class CLMetricsCallback(Callback):
         os.makedirs(save_dir, exist_ok=True)
 
         # paths
+        self.save_dir: str = save_dir
+        r"""Store the directory to save the test metrics files and plots."""
         self.test_acc_csv_path: str = os.path.join(save_dir, test_acc_csv_name)
         r"""Store the path to save test accuracy matrix and average accuracy CSV file."""
         self.test_loss_cls_csv_path: str = os.path.join(
@@ -312,10 +314,12 @@ class CLMetricsCallback(Callback):
 
         # save (update) the test metrics to CSV files
         save.update_test_acc_to_csv(
+            after_training_task_id=self.task_id,
             test_acc_metric=self.acc_test,
             csv_path=self.test_acc_csv_path,
         )
         save.update_test_loss_cls_to_csv(
+            after_training_task_id=self.task_id,
             test_loss_cls_metric=self.loss_cls_test,
             csv_path=self.test_loss_cls_csv_path,
         )

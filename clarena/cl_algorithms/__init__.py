@@ -28,7 +28,7 @@ from .cbp import CBP
 
 from .hat import HAT
 from .adahat import AdaHAT
-from .subtle_adahat import SubtleAdaHAT
+from .sadahat import SAdaHAT
 
 
 __all__ = [
@@ -42,5 +42,5 @@ __all__ = [
     "hat",
     "cbp",
     "adahat",
-    "subtle_adahat",
+    "sadahat",
 ]

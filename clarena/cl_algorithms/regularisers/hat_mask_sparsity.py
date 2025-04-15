@@ -52,13 +52,13 @@ class HATMaskSparsityReg(nn.Module):
 
         if self.mode == "original":
             return self.original_reg(mask, previous_cumulative_mask)
-        
+
         if self.mode == "cross":
             return self.cross_reg(mask, previous_cumulative_mask)
 
     def original_reg(
         self, mask: dict[str, Tensor], previous_cumulative_mask: dict[str, Tensor]
-    ) -> Tensor:
+    ) -> tuple[Tensor, dict[str, Tensor]]:
         r"""Calculate the original mask sparsity regularisation loss in HAT paper.
 
         See chapter 2.6 "Promoting Low Capacity Usage" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
@@ -69,6 +69,7 @@ class HATMaskSparsityReg(nn.Module):
 
         **Returns:**
         - **reg** (`Tensor`): the original mask sparsity regularisation loss.
+        - **network_sparsity** (`dict[str, Tensor]`): the network sparsity for each layer. Keys are layer names and values are the network sparsity value.
         """
 
         count_available = 0  # number of units available for the new task
@@ -108,7 +109,7 @@ class HATMaskSparsityReg(nn.Module):
 
     def cross_reg(
         self, mask: dict[str, Tensor], previous_cumulative_mask: dict[str, Tensor]
-    ) -> Tensor:
+    ) -> tuple[Tensor, dict[str, Tensor]]:
         r"""Calculate the cross mask sparsity regularisation loss. This is an attempting improvement by me to the original regularisation, which not only considers the sparsity in available units but also the density in the units occupied by previous tasks.
 
         **Args:**
@@ -117,6 +118,7 @@ class HATMaskSparsityReg(nn.Module):
 
         **Returns:**
         - **reg** (`Tensor`): the cross mask sparsity regularisation loss.
+        - **network_sparsity** (`dict[str, Tensor]`): the network sparsity for each layer. Keys are layer names and values are the network sparsity value.
         """
 
         count_previous = 0  # number of units occupied by the previous tasks

@@ -22,6 +22,7 @@ __all__ = [
 ]
 
 
+import torchvision
 from torch import Tensor, nn
 
 from clarena.backbones import CLBackbone, HATMaskBackbone
@@ -606,6 +607,7 @@ class ResNet18(ResNetBase):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalisation: bool = True,
         bias: bool = False,
+        pretrained: bool = False,
     ) -> None:
         r"""Construct and initialise the ResNet-18 backbone network.
 
@@ -615,6 +617,7 @@ class ResNet18(ResNetBase):
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **batch_normalisation** (`bool`): whether to use batch normalisation after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalisation are doing the similar thing with bias.
+        - **pretrained** (`bool`): whether to use the pretrained weights from TorchVision. Default `False`.
         """
         ResNetBase.__init__(
             self,
@@ -628,6 +631,12 @@ class ResNet18(ResNetBase):
             batch_normalisation=batch_normalisation,
             bias=bias,
         )
+
+        if pretrained:
+
+            raw_state_dict = torchvision.models.resnet18(
+                weights="IMAGENET1K_V1"
+            ).state_dict()
 
 
 class ResNet34(ResNetBase):

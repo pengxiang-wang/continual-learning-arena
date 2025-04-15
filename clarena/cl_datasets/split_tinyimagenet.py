@@ -22,55 +22,54 @@ pylogger = logging.getLogger(__name__)
 class SplitTinyImageNet(CLSplitDataset):
     r"""Split TinyImageNet dataset. [TinyImageNet](http://vision.stanford.edu/teaching/cs231n/reports/2015/pdfs/yle_project.pdf) is smaller, more manageable version of the [larger ImageNet dataset](https://www.image-net.org). It consists of 120,000 64x64 colour images in 200 classes, with 500 training, 50 validation and 50 test examples per class."""
 
-    num_classes: int = 200
-    r"""The number of classes in TinyImageNet dataset."""
-
-    mean_original: tuple[float] = (0.4802, 0.4481, 0.3975)
-    r"""The mean values for normalisation."""
-
-    std_original: tuple[float] = (0.2302, 0.2265, 0.2262)
-    r"""The standard deviation values for normalisation."""
+    original_dataset_python_class: type[Dataset] = TinyImageNet
+    r"""The original dataset class."""
 
     def __init__(
         self,
         root: str,
-        num_tasks: int,
         class_split: list[list[int]],
         validation_percentage: float,
-        batch_size: int = 1,
-        num_workers: int = 0,
-        custom_transforms: Callable | transforms.Compose | None = None,
-        to_tensor: bool = True,
-        resize: tuple[int, int] | None = None,
-        custom_target_transforms: Callable | transforms.Compose | None = None,
+        batch_size: int | list[int] = 1,
+        num_workers: int | list[int] = 0,
+        custom_transforms: (
+            Callable
+            | transforms.Compose
+            | None
+            | list[Callable | transforms.Compose | None]
+        ) = None,
+        repeat_channels: int | None | list[int | None] = None,
+        to_tensor: bool | list[bool] = True,
+        resize: tuple[int, int] | None | list[tuple[int, int] | None] = None,
+        custom_target_transforms: (
+            Callable
+            | transforms.Compose
+            | None
+            | list[Callable | transforms.Compose | None]
+        ) = None,
     ) -> None:
-        r"""Initialise the Split TinyImageNet dataset.
+        r"""Initialise the Split TinyImageNet dataset object providing the root where data files live.
 
         **Args:**
         - **root** (`str`): the root directory where the original TinyImageNet data 'tiny-imagenet-200/' live.
-        - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
         - **class_split** (`list[list[int]]`): the class split for each task. Each element in the list is a list of class labels (integers starting from 0) to split for a task.
         - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
-        - **batch_size** (`int`): The batch size in train, val, test dataloader.
-        - **num_workers** (`int`): the number of workers for dataloaders.
-        - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform.
-        `ToTensor()`, normalise, permute and so on are not included.
-        - **to_tensor** (`bool`): whether to include `ToTensor()` transform. Default is True.
-        - **resize** (`tuple[int, int]` | `None`): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers.
-        - **custom_target_transforms** (`transform` or `transforms.Compose` or `None`): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included.
-        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
-            1. 'all': permute all pixels.
-            2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
-            3. 'first_channel_only': permute only the first channel.
+        - **batch_size** (`int` | `list[int]`): The batch size in train, val, test dataloader. If `list[str]`, it should be a list of integers, each integer is the batch size for each task.
+        - **num_workers** (`int` | `list[int]`): the number of workers for dataloaders. If `list[str]`, it should be a list of integers, each integer is the num of workers for each task.
+        - **custom_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included. If it is a list, each item is the custom transforms for each task.
+        - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
+        - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
+        - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
+        - **custom_target_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included. If it is a list, each item is the custom transforms for each task.
         """
         CLSplitDataset.__init__(
             self,
             root=root,
-            num_tasks=num_tasks,
             class_split=class_split,
             batch_size=batch_size,
             num_workers=num_workers,
             custom_transforms=custom_transforms,
+            repeat_channels=repeat_channels,
             to_tensor=to_tensor,
             resize=resize,
             custom_target_transforms=custom_target_transforms,
@@ -81,16 +80,20 @@ class SplitTinyImageNet(CLSplitDataset):
 
     def prepare_data(self) -> None:
         r"""Download the original TinyImagenet dataset if haven't."""
-        TinyImageNet(self.root)
+        TinyImageNet(self.root_t)
 
-    def get_class_subset(self, dataset: ImageFolder) -> ImageFolder:
-        r"""Provide a util method here to retrieve a subset from PyTorch ImageFolder of current classes of `self.task_id`. It could be useful when you constructing the split CL dataset.
+        pylogger.debug(
+            "The original TinyImageNet dataset has been downloaded to %s.", self.root_t
+        )
+
+    def get_subset_of_classes(self, dataset: ImageFolder) -> ImageFolder:
+        r"""Get a subset of classes from the dataset of current classes of `self.task_id`. It is used when constructing the split.
 
         **Args:**
-        - **dataset** (`ImageFolder`): the original dataset to retrieve subset from.
+        - **dataset** (`ImageFolder`): the dataset to retrieve subset from.
 
         **Returns:**
-        - **subset** (`ImageFolder`): subset of original dataset in classes.
+        - **subset** (`ImageFolder`): the subset of classes from the dataset.
         """
         classes = self.class_split[self.task_id - 1]
 
@@ -110,9 +113,9 @@ class SplitTinyImageNet(CLSplitDataset):
         - **train_dataset** (`Dataset`): the training dataset of task `self.task_id`.
         - **val_dataset** (`Dataset`): the validation dataset of task `self.task_id`.
         """
-        dataset_train_and_val = self.get_class_subset(
+        dataset_train_and_val = self.get_subset_of_classes(
             TinyImageNet(
-                root=self.root,
+                root=self.root_t,
                 split="train",
                 transform=self.train_and_val_transforms(),
             )
@@ -133,9 +136,9 @@ class SplitTinyImageNet(CLSplitDataset):
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
-        dataset_test = self.get_class_subset(
+        dataset_test = self.get_subset_of_classes(
             TinyImageNet(
-                root=self.root,
+                root=self.root_t,
                 split="val",
                 transform=self.train_and_val_transforms(),
             )

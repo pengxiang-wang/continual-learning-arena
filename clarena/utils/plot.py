@@ -232,3 +232,72 @@ def plot_hat_mask(
         plot_path = os.path.join(plot_dir, plot_name)
         fig.savefig(plot_path)
         plt.close(fig)
+
+
+def plot_unlearning_test_distance_from_csv(csv_path: str, plot_path: str) -> None:
+    """Plot the unlearning test distance matrix over different unlearned tasks from saved csv file and save the plot to the designated directory.
+
+    **Args:**
+    - **csv_path** (`str`): the path to the csv file where the `utils.save_unlearning_test_distance_to_csv()` saved the unlearning test distance metric.
+    - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/results/unlearning_test_after_task_X/distance.png'.
+    """
+    data = pd.read_csv(csv_path)
+    unlearned_task_ids = [
+        int(col.replace("unlearning_test_on_task_", ""))
+        for col in data.columns
+        if col.startswith("unlearning_test_on_task_")
+    ]
+    num_tasks = len(unlearned_task_ids)
+
+    # plot the accuracy matrix
+    fig, ax = plt.subplots(
+        figsize=(2 * (num_tasks + 1), 2 * (num_tasks + 1))
+    )  # adaptive figure size
+    cax = ax.imshow(
+        data.drop(
+            ["unlearning_test_after_task", "average_distribution_distance"], axis=1
+        ),
+        interpolation="nearest",
+        cmap="Greens",
+        vmin=0,
+        vmax=1,
+    )
+
+    colorbar = fig.colorbar(cax)
+    yticks = colorbar.ax.get_yticks()
+    colorbar.ax.set_yticks(yticks)
+    colorbar.ax.set_yticklabels(
+        [f"{tick:.2f}" for tick in yticks], fontsize=10 + num_tasks
+    )  # adaptive font size
+
+    for r in range(num_tasks):
+        for c in range(r + 1):
+            j = unlearned_task_ids[c]
+            ax.text(
+                c,
+                r,
+                f"{data.loc[r, f"unlearning_test_on_task_{j}"]:.3f}",
+                ha="center",
+                va="center",
+                color="black",
+                fontsize=10 + num_tasks,  # adaptive font size
+            )
+
+    ax.set_xticks(range(num_tasks))
+    ax.set_yticks(range(num_tasks))
+    ax.set_xticklabels(
+        unlearned_task_ids, fontsize=10 + num_tasks
+    )  # adaptive font size
+    ax.set_yticklabels(
+        unlearned_task_ids, fontsize=10 + num_tasks
+    )  # adaptive font size
+
+    # Labeling the axes
+    ax.set_xlabel(
+        "Testing unlearning on task τ", fontsize=10 + num_tasks
+    )  # adaptive font size
+    ax.set_ylabel(
+        "Unlearning test after training task t", fontsize=10 + num_tasks
+    )  # adaptive font size
+    fig.savefig(plot_path)
+    plt.close(fig)

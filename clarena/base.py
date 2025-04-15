@@ -103,14 +103,6 @@ class CLExperiment:
         if not self.cfg.get("num_tasks"):
             raise KeyError("Field num_tasks should be specified in experiment config!")
 
-        if not self.cfg.cl_dataset.get("num_tasks"):
-            raise KeyError("Field num_tasks should be specified in cl_dataset config!")
-
-        if not self.cfg.num_tasks <= self.cfg.cl_dataset.num_tasks:
-            raise ValueError(
-                f"The experiment is set to run {self.cfg.num_tasks} tasks whereas only {self.cfg.cl_dataset.num_tasks} exists in current cl_dataset setting!"
-            )
-
         if not self.cfg.get("test"):
             raise KeyError("Field test should be specified in experiment config!")
 
@@ -208,18 +200,18 @@ class CLExperiment:
         elif isinstance(optimizer_cfg, DictConfig):
             pylogger.debug("Uniform optimizer config is applied to all tasks.")
 
-            # partially instantiate optimizer as the 'params' argument is from Lightning Modules cannot be passed for now.
-            pylogger.debug(
-                "Partially instantiating optimizer <%s> (torch.optim.Optimizer) for task %d...",
-                optimizer_cfg.get("_target_"),
-                task_id,
-            )
-            self.optimizer: Optimizer = hydra.utils.instantiate(optimizer_cfg)
-            pylogger.debug(
-                "Optimizer <%s> (torch.optim.Optimizer) partially for task %d instantiated!",
-                optimizer_cfg.get("_target_"),
-                task_id,
-            )
+        # partially instantiate optimizer as the 'params' argument is from Lightning Modules cannot be passed for now.
+        pylogger.debug(
+            "Partially instantiating optimizer <%s> (torch.optim.Optimizer) for task %d...",
+            optimizer_cfg.get("_target_"),
+            task_id,
+        )
+        self.optimizer: Optimizer = hydra.utils.instantiate(optimizer_cfg)
+        pylogger.debug(
+            "Optimizer <%s> (torch.optim.Optimizer) partially for task %d instantiated!",
+            optimizer_cfg.get("_target_"),
+            task_id,
+        )
 
         if lr_scheduler_cfg:
             if isinstance(lr_scheduler_cfg, ListConfig):
@@ -232,28 +224,35 @@ class CLExperiment:
                     "Uniform learning rate scheduler config is applied to all tasks."
                 )
 
-                # partially instantiate learning rate scheduler as the 'optimizer' argument is from Lightning Modules cannot be passed for now.
-                pylogger.debug(
-                    "Partially instantiating learning rate scheduler <%s> (torch.optim.lr_scheduler.LRScheduler) for task %d...",
-                    lr_scheduler_cfg.get("_target_"),
-                    task_id,
-                )
-                self.lr_scheduler: LRScheduler = hydra.utils.instantiate(
-                    lr_scheduler_cfg
-                )
-                pylogger.debug(
-                    "Learning rate scheduler <%s> (torch.optim.lr_scheduler.LRScheduler) partially for task %d instantiated!",
-                    lr_scheduler_cfg.get("_target_"),
-                    task_id,
-                )
+            # partially instantiate learning rate scheduler as the 'optimizer' argument is from Lightning Modules cannot be passed for now.
+            pylogger.debug(
+                "Partially instantiating learning rate scheduler <%s> (torch.optim.lr_scheduler.LRScheduler) for task %d...",
+                lr_scheduler_cfg.get("_target_"),
+                task_id,
+            )
+            self.lr_scheduler: LRScheduler = hydra.utils.instantiate(lr_scheduler_cfg)
+            pylogger.debug(
+                "Learning rate scheduler <%s> (torch.optim.lr_scheduler.LRScheduler) partially for task %d instantiated!",
+                lr_scheduler_cfg.get("_target_"),
+                task_id,
+            )
 
-    def instantiate_trainer(self, trainer_cfg: DictConfig, task_id: int) -> None:
+    def instantiate_trainer(
+        self, trainer_cfg: DictConfig | ListConfig, task_id: int
+    ) -> None:
         r"""Instantiate the trainer object for task `task_id` from trainer config.
 
         **Args:**
-        - **trainer_cfg** (`DictConfig`): the trainer config dict. All tasks share the same trainer config but different objects.
+        - **trainer_cfg** (`DictConfig` or `ListConfig`): the trainer config dict. If it's a `ListConfig`, it should contain optimizer config for each task; otherwise, it's an uniform optimizer config for all tasks (but different objects).
         - **task_id** (`int`): the target task ID.
         """
+
+        if isinstance(trainer_cfg, ListConfig):
+            pylogger.debug("Distinct trainer config is applied to each task.")
+            trainer_cfg = trainer_cfg[task_id - 1]
+        elif isinstance(trainer_cfg, DictConfig):
+            pylogger.debug("Uniform trainer config is applied to all tasks.")
+
         pylogger.debug(
             "Instantiating trainer <%s> (lightning.Trainer) for task %d...",
             trainer_cfg.get("_target_"),
@@ -401,6 +400,9 @@ class CLExperiment:
         )  # task ID counts from 1
         # task loop
         for task_id in run_task_ids:
+            if task_id > self.num_tasks:
+                pylogger.critical("Task ID %d is out of range! Skip it...", task_id)
+
             self.setup_task_id(task_id)
             self.instantiate_task_specific()
             self.setup_task_specific()

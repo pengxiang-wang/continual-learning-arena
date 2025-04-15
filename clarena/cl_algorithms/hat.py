@@ -178,7 +178,7 @@ class HAT(CLAlgorithm):
             weight_mask, bias_mask = self.backbone.get_layer_measure_parameter_wise(
                 unit_wise_measure=self.cumulative_mask_for_previous_tasks,
                 layer_name=layer_name,
-                aggregation="min",
+                aggregation_mode="min",
             )
 
             if self.adjustment_mode == "hat":
@@ -357,6 +357,35 @@ class HAT(CLAlgorithm):
         # backward step (manually)
         self.manual_backward(loss)  # calculate the gradients
         # HAT hard clip gradients by the cumulative masks. See equation (2) inchapter 2.3 "Network Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a). Network capacity is calculated along with this process. Network capacity is defined as the average adjustment rate over all paramaters. See chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
+
+        # print(
+        #     mask["fc/0"].numel() * mask["fc/1"].numel(),
+        #     self.backbone.fc[1].weight.grad.data.numel(),
+        # )
+
+        # print(mask["fc/0"]).view(1, -1).expand(100, 256).size())
+        # print(torch.abs(mask["fc/1"]).view(-1, 1).expand(100, 256).size())
+        # print(
+        #     (torch.abs(mask["fc/1"]).view(1, -1) * torch.abs(mask["fc/0"]))
+        #     .view(-1, 1)
+        #     .size()
+        # )
+
+        # print(
+        #     (
+        #         torch.abs(
+        #             (mask["fc/0"].view(1, -1).expand(100, 256) > 0.5)
+        #             * (mask["fc/1"].view(-1, 1).expand(100, 256) > 0.5)
+        #         )
+        #         == 0
+        #     )
+        #     .sum()
+        #     .item()
+        #     / (mask["fc/0"].numel() * mask["fc/1"].numel()),
+        #     (torch.abs(self.backbone.fc[1].weight.grad.data) != 0).sum().item()
+        #     / (self.backbone.fc[1].weight.grad.data.numel()),
+        # )
+
         capacity = self.clip_grad_by_adjustment(
             network_sparsity=network_sparsity,  # pass a keyword argument network sparsity here to make it compatible with AdaHAT. AdaHAT inherits this `training_step()` method.
         )

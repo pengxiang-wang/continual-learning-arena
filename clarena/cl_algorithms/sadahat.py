@@ -1,8 +1,8 @@
 r"""
-The submodule in `cl_algorithms` for SubtleAdaHAT algorithm.
+The submodule in `cl_algorithms` for S-AdaHAT algorithm.
 """
 
-__all__ = ["SubtleAdaHAT"]
+__all__ = ["SAdaHAT"]
 
 import logging
 from typing import Any
@@ -32,55 +32,38 @@ from clarena.utils.transforms import min_max_normalise
 pylogger = logging.getLogger(__name__)
 
 
-class SubtleAdaHAT(AdaHAT):
-    r"""SubtleAdaHAT algorithm.
+class SAdaHAT(AdaHAT):
+    r"""S-AdaHAT (Subtle Adaptive Hard Attention to the Task) algorithm.
 
-    SubtleAdaHAT is what I am working on. It introduces a more unit-wise subtle importance in addition to the AdaHAT importance.
+    S-AdaHAT is an architecture-based continual learning approach that improves [AdaHAT (Adaptive Hard Attention to the Task, 2024)](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9) by introducing subtler neuron-wise importance measures guiding the adaptive adjustment mechanism in AdaHAT.
 
-    We implement SubtleAdaHAT as a subclass of AdaHAT algorithm because SubtleAdaHAT adopt the similar idea as AdaHAT.
+    We implement S-AdaHAT as a subclass of AdaHAT algorithm because S-AdaHAT still uses some components of AdaHAT, such as summative mask.
     """
 
     def __init__(
         self,
         backbone: HATMaskBackbone,
         heads: HeadsTIL | HeadsCIL,
-        adjustment_mode: str,
         adjustment_intensity: float,
-        adahat_importance_scaling_factor: float,
-        subtle_importance_decay_rate: float,
+        importance_type: str,
+        importance_scheduler_type: str,
+        neuron_to_weight_importance_aggregation_mode: str,
         s_max: float,
         clamp_threshold: float,
         mask_sparsity_reg_factor: float,
         mask_sparsity_reg_mode: str = "original",
+        base_importance: float = 0.01,
+        base_mask_sparsity_reg: float = 0.1,
+        base_linear: float = 10,
         task_embedding_init_mode: str = "N01",
-        epsilon: float = 0.1,
-        subtle_importance_type: str | None = None,
-        subtle_importance_scaling_factor: float | None = None,
     ) -> None:
-        r"""Initialise the SubtleAdaHAT algorithm with the network.
+        r"""Initialise the S-AdaHAT algorithm with the network.
 
         **Args:**
         - **backbone** (`HATMaskBackbone`): must be a backbone network with HAT mask mechanism.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
-        - **adjustment_mode** (`str`): the strategy of adjustment i.e. the mode of gradient clipping, should be one of the following:
-            1. 'subtle_importance_to_adahat' (default): adding a subtle importance to the AdaHAT importance.
-        - **adjustment_intensity** (`float`): hyperparameter, control the overall intensity of gradient adjustment. It's the $\alpha$ in equation (9) in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
-        - **subtle_importance_decay_rate** (`float`): the decay rate when accumulating subtle importance. It is the rate at which the utility of a unit decays over time.
-        - **s_max** (`float`): hyperparameter, the maximum scaling factor in the gate function. See chapter 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
-        - **clamp_threshold** (`float`): the threshold for task embedding gradient compensation. See chapter 2.5 "Embedding Gradient Compensation" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
-        - **mask_sparsity_reg_factor** (`float`): hyperparameter, the regularisation factor for mask sparsity.
-        - **mask_sparsity_reg_mode** (`str`): the mode of mask sparsity regularisation, should be one of the following:
-            1. 'original' (default): the original mask sparsity regularisation in HAT paper.
-            2. 'cross': the cross version mask sparsity regularisation.
-        - **task_embedding_init_mode** (`str`): the initialisation method for task embeddings, should be one of the following:
-            1. 'N01' (default): standard normal distribution $N(0, 1)$.
-            2. 'U-11': uniform distribution $U(-1, 1)$.
-            3. 'U01': uniform distribution $U(0, 1)$.
-            4. 'U-10': uniform distribution $U(-1, 0)$.
-            5. 'last': inherit task embedding from last task.
-        - **epsilon** (`float`): the value added to network sparsity to avoid zero appeared in equation (9) in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
-        - **adahat_importance_scaling_factor** (`float`): the scaling factor for AdaHAT importance. The AdaHAT importance is multiplied by the scaling factor before applying the adjustment rate.
-        - **subtle_importance_type** (`str` | `None`): the type of the unit-wise subtle importance added to AdaHAT importance. It applies only when adjustment_mode is 'subtle_importance_to_adahat', should be one of the following:
+        - **adjustment_intensity** (`float`): hyperparameter, control the overall intensity of gradient adjustment. It is the $\alpha$ in the paper.
+        - **importance_type** (`str`): the type of the neuron-wise importance, should be one of the following:
             1. 'input_weight_abs_sum':
             2. 'output_weight_abs_sum':
             3. 'input_weight_gradient_abs_sum':
@@ -101,88 +84,116 @@ class SubtleAdaHAT(AdaHAT):
             18. 'feature_ablation_abs':
             19. 'lrp_abs':
             20. 'cbp_adaptation':
-            21: 'cbp_adaptative_contribution':
-        - **subtle_importance_scaling_factor** (`float` | `None`): the scaling factor for the subtle importance. The subtle importance is multiplied by the scaling factor before applying the adjustment rate. It applies only when adjustment_mode is 'subtle_importance_to_adahat'.
+            21. 'cbp_adaptative_contribution':
+        - **importance_scheduler_type** (`str`): the scheduler for the importance, i.e. the factor $c_{l,ij}$ multiplied to the parameter importance that refines the importance. It should be one of the following:
+            1. 'linear_sparsity_reg': $\left(t + b_L\right) \cdot  \left[R \left( M^t, M^{<t} \right) + b_R \right]$
+            2. 'constant_sparsity_reg': $b_L \cdot  \left[R \left( M^t, M^{<t} \right) + b_R \right]$
+            3. 'summative_mask_sparsity_reg': $\left(\min\left( m_{l,i}^{<t, \text{sum}},  m_{l-1,j}^{<t, \text{sum}}\right) + b_L\right) \cdot  \left[R \left( M^t, M^{<t} \right) + b_R \right]$
+        - **neuron_to_weight_importance_aggregation_mode** (`str`): the mode of aggregation from neuron-wise to weight-wise importance, i.e. how the weight importance is calculated from the importance of the neurons that the weight connects to. It should be one of the following:
+            1. 'min': minimum value of the neuron importance.
+            2. 'max': maximum value of the neuron importance.
+            3. 'mean': mean value of the neuron importance.
+        - **s_max** (`float`): hyperparameter, the maximum scaling factor in the gate function. See chapter 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
+        - **clamp_threshold** (`float`): the threshold for task embedding gradient compensation. See chapter 2.5 "Embedding Gradient Compensation" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
+        - **mask_sparsity_reg_factor** (`float`): hyperparameter, the regularisation factor for mask sparsity.
+        - **mask_sparsity_reg_mode** (`str`): the mode of mask sparsity regularisation, should be one of the following:
+            1. 'original' (default): the original mask sparsity regularisation in HAT paper.
+            2. 'cross': the cross version mask sparsity regularisation.
+        - **base_importance** (`float`): the base value added to the importance. It is $b_I$ in the paper. Default is 0.1.
+        - **base_mask_sparsity_reg** (`float`): the base value added to the mask sparsity regularisation factor in the importance scheduler. It is $b_R$ in the paper. Default is 0.1.
+        - **base_linear** (`float`): the base value added to the linear factor in the importance scheduler. It is $b_L$ in the paper. Default is 10.
+        - **task_embedding_init_mode** (`str`): the initialisation method for task embeddings, should be one of the following:
+            1. 'N01' (default): standard normal distribution $N(0, 1)$.
+            2. 'U-11': uniform distribution $U(-1, 1)$.
+            3. 'U01': uniform distribution $U(0, 1)$.
+            4. 'U-10': uniform distribution $U(-1, 0)$.
+            5. 'last': inherit task embedding from last task.
         """
         AdaHAT.__init__(
             self,
             backbone=backbone,
             heads=heads,
-            adjustment_mode=adjustment_mode,
+            adjustment_mode=None,
             adjustment_intensity=adjustment_intensity,
             s_max=s_max,
             clamp_threshold=clamp_threshold,
             mask_sparsity_reg_factor=mask_sparsity_reg_factor,
             mask_sparsity_reg_mode=mask_sparsity_reg_mode,
             task_embedding_init_mode=task_embedding_init_mode,
-            epsilon=epsilon,
-            adahat_importance_scaling_factor=adahat_importance_scaling_factor,
+            epsilon=base_mask_sparsity_reg,
         )
 
-        self.subtle_importance_type: str | None = subtle_importance_type
-        r"""Store the type of the unit-wise subtle importance added to AdaHAT importance. """
-        self.subtle_importance_scaling_factor: float | None = (
-            subtle_importance_scaling_factor
+        self.importance_type: str | None = importance_type
+        r"""Store the type of the neuron-wise importance added to AdaHAT importance. """
+        self.importance_scheduler_type: str = importance_scheduler_type
+        r"""Store the type of the importance scheduler. It is used to calculate the importance scaling factor. """
+        self.neuron_to_weight_importance_aggregation_mode: str = (
+            neuron_to_weight_importance_aggregation_mode
         )
-        r"""Store the scaling factor for the subtle importance. """
+        r"""Store the mode of aggregation from neuron-wise to weight-wise importance. It is used to calculate the weight importance from the neuron importance. """
 
-        self.subtle_importance_decay_rate: float = subtle_importance_decay_rate
-        r"""Store the decay rate when accumulating subtle importance. """
+        # base values
+        self.base_importance: float = base_importance
+        r"""Store the base value added to the importance to avoid zero. """
+        self.base_mask_sparsity_reg: float = base_mask_sparsity_reg
+        r"""Store the base value added to the mask sparsity regularisation to avoid zero. """
+        self.base_linear: float = base_linear
+        r"""Store the base value added to the linear layer to avoid zero. """
 
-        self.accumulated_subtle_importance: dict[str, Tensor] = {}
-        r"""Store the min-max scaled ($[0, 1]$) accumulated unit-wise subtle importance of units. See $U_{l,i}$ in the paper draft. Keys are layer names and values are the utility tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units). """
-        self.age_t: dict[str, Tensor] = {}
-        r"""Store the age of units. Keys are layer names and values are the age tensor for the layer for current task. The age tensor is the same size as the feature tensor with size (number of units). """
-
-        self.subtle_importance_for_previous_tasks: dict[str, Tensor] = {}
-        r"""Store the unit-wise subtle importance values of units for previous tasks $(1, \cdots, t-1)$. See $I^{(<t)}$ in the paper draft. Keys are layer names and values are the importance tensor for the layer. The importance tensor is the same size as the feature tensor with size (number of units). """
+        self.accumulated_importance: dict[str, Tensor] = {}
+        r"""Store the min-max scaled ($[0, 1]$) accumulated neuron-wise importance of units. It is $I^{<t}_{l,i}$ in the paper before divided by number of steps. Keys are layer names and values are the importance tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units). """
+        self.num_steps: int = 0
+        r"""Number of steps counter (from the beginning of the first task)."""
+        self.importance_for_previous_tasks: dict[str, Tensor] = {}
+        r"""Store the neuron-wise importance values of units for previous tasks before the current task `self.task_id`. See $I^{<t}_{l,i}$ in the paper. Keys are layer names and values are the importance tensor for the layer. The importance tensor is the same size as the feature tensor with size (number of units). """
 
         # set manual optimisation
         self.automatic_optimization = False
 
-        SubtleAdaHAT.sanity_check(self)
+        SAdaHAT.sanity_check(self)
 
     def sanity_check(self) -> None:
         r"""Check the sanity of the arguments.
 
         **Raises:**
-        - **ValueError**: If the subtle importance decay rate is not in the range (0, 1].
+        - **ValueError**: if the `base_importance`, `base_mask_sparsity_reg` or `base_linear` is less than or equal to 0.
         """
-        if (
-            self.subtle_importance_decay_rate > 1
-            or self.subtle_importance_decay_rate <= 0
-        ):
+        if self.base_importance <= 0:
             raise ValueError(
-                f"The subtle importance decay rate should be in the range (0, 1], but got {self.subtle_importance_decay_rate}."
+                f"base_importance must be > 0, but got {self.base_importance}"
             )
+        if self.base_mask_sparsity_reg <= 0:
+            raise ValueError(
+                f"base_mask_sparsity_reg must be > 0, but got {self.base_mask_sparsity_reg}"
+            )
+        if self.base_linear <= 0:
+            raise ValueError(f"base_linear must be > 0, but got {self.base_linear}")
 
     def on_train_start(self) -> None:
-        r"""Additionally initialise the utility, age and the SubtleAdaHAT unit-wise subtle importance for each layer as zeros."""
+        r"""Initialise neuron importance accumulation variable for each layer as zeros, in addition to initialisation of summative mask in AdaHAT."""
         AdaHAT.on_train_start(self)
 
-        for layer_name in self.backbone.weighted_layer_names:
-            layer = self.backbone.get_layer_by_name(
-                layer_name
-            )  # get the layer by its name
-            num_units = layer.weight.shape[0]
+        # initialise the neuron importance at the beginning of first task. This should not be called in `__init__()` method as the `self.device` is not available at that time.
+        if self.task_id == 1:
+            for layer_name in self.backbone.weighted_layer_names:
+                layer = self.backbone.get_layer_by_name(
+                    layer_name
+                )  # get the layer by its name
+                num_units = layer.weight.shape[0]
 
-            # initialise the accumulated subtle importance and age at the beginning of first task
-            self.accumulated_subtle_importance[layer_name] = torch.zeros(num_units).to(
-                self.device
-            )
-            self.age_t[layer_name] = torch.zeros(num_units).to(self.device)
+                self.accumulated_importance[layer_name] = torch.zeros(num_units).to(
+                    self.device
+                )  # initialise the accumulated importance at the beginning of first task
 
-            # initialise the unit-wise subtle importance at the beginning of first task. This should not be called in `__init__()` method as the `self.device` is not available at that time.
-            if self.task_id == 1:
-                self.subtle_importance_for_previous_tasks[layer_name] = torch.zeros(
+                self.importance_for_previous_tasks[layer_name] = torch.zeros(
                     num_units
                 ).to(
                     self.device
-                )  # the unit-wise subtle importance $I^{(t-1)}$ is initialised as zeros mask ($t = 1$). See the paper draft.
+                )  # the neuron-wise importance for previous tasks $I^{<t}_{l,i}$ is initialised as zeros mask for $t = 1$. See the paper.
 
     def clip_grad_by_adjustment(
         self,
-        network_sparsity: dict[str, Tensor] | None = None,
+        network_sparsity: dict[str, Tensor],
     ) -> Tensor:
         r"""Clip the gradients by the adjustment rate.
 
@@ -192,7 +203,7 @@ class SubtleAdaHAT(AdaHAT):
 
 
         **Args:**
-        - **network_sparsity** (`dict[str, Tensor]` | `None`): The network sparsity i.e. the mask sparsity loss of each layer for the current task. It applies only to AdaHAT modes, as it is used to calculate the adjustment rate for the gradients.
+        - **network_sparsity** (`dict[str, Tensor]`): The network sparsity i.e. the mask sparsity loss of each layer for the current task. Keys are layer names and values are the network sparsity value.
 
         **Returns:**
         - **capacity** (`Tensor`): the calculated network capacity.
@@ -212,50 +223,38 @@ class SubtleAdaHAT(AdaHAT):
             adjustment_rate_weight = 1
             adjustment_rate_bias = 1
 
-            weight_subtle_importance, bias_subtle_importance = (
+            # aggregate the neuron-wise importance to weight-wise importance. Note that the neuron-wise importance is already min-max scaled to [0, 1] in the `on_train_batch_end()` method, and added the base value, and multiplied by the cumulative mask.
+            weight_importance, bias_importance = (
                 self.backbone.get_layer_measure_parameter_wise(
-                    unit_wise_measure=self.subtle_importance_for_previous_tasks,
+                    unit_wise_measure=self.importance_for_previous_tasks,
                     layer_name=layer_name,
-                    aggregation="min",
+                    aggregation_mode=self.neuron_to_weight_importance_aggregation_mode,
                 )
-            )
-
-            weight_adahat_importance, bias_adahat_importance = (
-                self.backbone.get_layer_measure_parameter_wise(
-                    unit_wise_measure=self.summative_mask_for_previous_tasks,
-                    layer_name=layer_name,
-                    aggregation="min",
-                )
-            )
-
-            # apply the scaling factor to the parameter importance
-            weight_subtle_importance = (
-                weight_subtle_importance * self.subtle_importance_scaling_factor
-            )
-            bias_subtle_importance = (
-                bias_subtle_importance * self.subtle_importance_scaling_factor
-            )
-            weight_adahat_importance = (
-                weight_adahat_importance * self.adahat_importance_scaling_factor
-            )
-            bias_adahat_importance = (
-                bias_adahat_importance * self.adahat_importance_scaling_factor
             )
 
             network_sparsity_layer = network_sparsity[layer_name]
 
-            if self.adjustment_mode == "subtle_importance_to_adahat":
-                r_layer = self.adjustment_intensity / (
-                    self.epsilon + network_sparsity_layer
-                )
-                adjustment_rate_weight = torch.div(
-                    r_layer,
-                    (weight_subtle_importance + weight_adahat_importance + r_layer),
+            # calculate the factor of importance (importance scheduler)
+            factor = network_sparsity_layer + self.base_mask_sparsity_reg
+            if self.importance_scheduler_type == "linear_sparsity_reg":
+                factor = factor * (self.task_id + self.base_linear)
+            elif self.importance_scheduler_type == "constant_sparsity_reg":
+                factor = factor * self.base_linear
+            elif self.importance_scheduler_type == "summative_mask_sparsity_reg":
+                factor = factor * (
+                    self.summative_mask_for_previous_tasks + self.base_linear
                 )
 
-                adjustment_rate_bias = torch.div(
-                    r_layer, (bias_subtle_importance + bias_adahat_importance + r_layer)
-                )
+            # calculate the adjustment rate
+            adjustment_rate_weight = torch.div(
+                self.adjustment_intensity,
+                (factor * weight_importance + self.adjustment_intensity),
+            )
+
+            adjustment_rate_bias = torch.div(
+                self.adjustment_intensity,
+                (factor * bias_importance + self.adjustment_intensity),
+            )
 
             # apply the adjustment rate to the gradients
             layer.weight.grad.data *= adjustment_rate_weight
@@ -270,7 +269,7 @@ class SubtleAdaHAT(AdaHAT):
     def on_train_batch_end(
         self, outputs: dict[str, Any], batch: Any, batch_idx: int
     ) -> None:
-        r"""Update the accumulated subtle importance and age of units after each training step.
+        r"""Calculate the step-wise importance, update the accumulated importance and number of steps counter after each training step.
 
         **Args:**
         - **outputs** (`dict[str, Any]`): the outputs of the training step, which is the returns of the `training_step()` method in the `CLAlgorithm`.
@@ -290,64 +289,61 @@ class SubtleAdaHAT(AdaHAT):
 
             activation = activations[layer_name]
             m = mask[layer_name]
+            cumulative_m = self.cumulative_mask_for_previous_tasks[layer_name]
             num_units = activation.shape[1]
 
-            # calculate unit-wise subtle importance of the training step. See $v_{l,i}$ in the paper draft.
-            if self.subtle_importance_type == "input_weight_abs_sum":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_weight_abs_sum(
-                        layer_name=layer_name,
-                        mask=m,
-                        if_output_weight=False,
-                        reciprocal=False,
-                    )
+            # calculate neuron-wise importance of the training step. See $v^{t,s}_{l,i}$ in the paper.
+            if self.importance_type == "input_weight_abs_sum":
+                importance_step = self.get_importance_step_layer_weight_abs_sum(
+                    layer_name=layer_name,
+                    mask=m,
+                    if_output_weight=False,
+                    reciprocal=False,
                 )
-            elif self.subtle_importance_type == "output_weight_abs_sum":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_weight_abs_sum(
-                        layer_name=layer_name,
-                        mask=m,
-                        if_output_weight=True,
-                        reciprocal=False,
-                    )
+            elif self.importance_type == "output_weight_abs_sum":
+                importance_step = self.get_importance_step_layer_weight_abs_sum(
+                    layer_name=layer_name,
+                    mask=m,
+                    if_output_weight=True,
+                    reciprocal=False,
                 )
-            elif self.subtle_importance_type == "input_weight_gradient_abs_sum":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_weight_gradient_abs_sum(
+            elif self.importance_type == "input_weight_gradient_abs_sum":
+                importance_step = (
+                    self.get_importance_step_layer_weight_gradient_abs_sum(
                         layer_name=layer_name, mask=m, if_output_weight=False
                     )
                 )
-            elif self.subtle_importance_type == "output_weight_gradient_abs_sum":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_weight_gradient_abs_sum(
+            elif self.importance_type == "output_weight_gradient_abs_sum":
+                importance_step = (
+                    self.get_importance_step_layer_weight_gradient_abs_sum(
                         layer_name=layer_name, mask=m, if_output_weight=True
                     )
                 )
-            elif self.subtle_importance_type == "activation_abs":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_activation_abs(
-                        activation=activation, mask=m
+            elif self.importance_type == "activation_abs":
+                importance_step = self.get_importance_step_layer_activation_abs(
+                    activation=activation, mask=m
+                )
+            elif self.importance_type == "input_weight_abs_sum_x_activation_abs":
+                importance_step = (
+                    self.get_importance_step_layer_weight_abs_sum_x_activation_abs(
+                        layer_name=layer_name,
+                        activation=activation,
+                        mask=m,
+                        if_output_weight=False,
                     )
                 )
-            elif self.subtle_importance_type == "input_weight_abs_sum_x_activation_abs":
-                subtle_importance_step = self.get_subtle_importance_step_layer_weight_abs_sum_x_activation_abs(
-                    layer_name=layer_name,
-                    activation=activation,
-                    mask=m,
-                    if_output_weight=False,
+            elif self.importance_type == "output_weight_abs_sum_x_activation_abs":
+                importance_step = (
+                    self.get_importance_step_layer_weight_abs_sum_x_activation_abs(
+                        layer_name=layer_name,
+                        activation=activation,
+                        mask=m,
+                        if_output_weight=True,
+                    )
                 )
-            elif (
-                self.subtle_importance_type == "output_weight_abs_sum_x_activation_abs"
-            ):
-                subtle_importance_step = self.get_subtle_importance_step_layer_weight_abs_sum_x_activation_abs(
-                    layer_name=layer_name,
-                    activation=activation,
-                    mask=m,
-                    if_output_weight=True,
-                )
-            elif self.subtle_importance_type == "gradient_x_activation_abs":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_gradient_x_activation_abs(
+            elif self.importance_type == "gradient_x_activation_abs":
+                importance_step = (
+                    self.get_importance_step_layer_gradient_x_activation_abs(
                         layer_name=layer_name,
                         input=input,
                         target=target,
@@ -357,122 +353,51 @@ class SubtleAdaHAT(AdaHAT):
                     )
                 )
             elif (
-                self.subtle_importance_type
+                self.importance_type
                 == "input_weight_gradient_square_sum_x_activation_abs"
             ):
-                subtle_importance_step = self.get_subtle_importance_step_layer_weight_abs_sum_x_activation_abs(
-                    layer_name=layer_name,
-                    activation=activation,
-                    mask=m,
-                    if_output_weight=False,
+                importance_step = (
+                    self.get_importance_step_layer_weight_abs_sum_x_activation_abs(
+                        layer_name=layer_name,
+                        activation=activation,
+                        mask=m,
+                        if_output_weight=False,
+                    )
                 )
             elif (
-                self.subtle_importance_type
+                self.importance_type
                 == "output_weight_gradient_square_sum_x_activation_abs"
             ):
-                subtle_importance_step = self.get_subtle_importance_step_layer_weight_abs_sum_x_activation_abs(
+                importance_step = (
+                    self.get_importance_step_layer_weight_abs_sum_x_activation_abs(
+                        layer_name=layer_name,
+                        activation=activation,
+                        mask=m,
+                        if_output_weight=True,
+                    )
+                )
+            elif self.importance_type == "conductance_abs":
+                importance_step = self.get_importance_step_layer_conductance_abs(
                     layer_name=layer_name,
-                    activation=activation,
+                    input=input,
+                    baselines=None,
+                    target=target,
+                    batch_idx=batch_idx,
+                    num_batches=num_batches,
                     mask=m,
-                    if_output_weight=True,
                 )
-            elif self.subtle_importance_type == "conductance_abs":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_conductance_abs(
-                        layer_name=layer_name,
-                        input=input,
-                        baselines=None,
-                        target=target,
-                        batch_idx=batch_idx,
-                        num_batches=num_batches,
-                        mask=m,
-                    )
+            elif self.importance_type == "internal_influence_abs":
+                importance_step = self.get_importance_step_layer_internal_influence_abs(
+                    layer_name=layer_name,
+                    input=input,
+                    baselines=None,
+                    target=target,
+                    batch_idx=batch_idx,
+                    num_batches=num_batches,
+                    mask=m,
                 )
-            elif self.subtle_importance_type == "internal_influence_abs":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_internal_influence_abs(
-                        layer_name=layer_name,
-                        input=input,
-                        baselines=None,
-                        target=target,
-                        batch_idx=batch_idx,
-                        num_batches=num_batches,
-                        mask=m,
-                    )
-                )
-            elif self.subtle_importance_type == "gradcam_abs":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_gradcam_abs(
-                        layer_name=layer_name,
-                        input=input,
-                        target=target,
-                        batch_idx=batch_idx,
-                        num_batches=num_batches,
-                        mask=m,
-                    )
-                )
-            elif self.subtle_importance_type == "deeplift_abs":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_deeplift_abs(
-                        layer_name=layer_name,
-                        input=input,
-                        baselines=None,
-                        target=target,
-                        batch_idx=batch_idx,
-                        num_batches=num_batches,
-                        mask=m,
-                    )
-                )
-            elif self.subtle_importance_type == "deepliftshap_abs":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_deepliftshap_abs(
-                        layer_name=layer_name,
-                        input=input,
-                        baselines=None,
-                        target=target,
-                        batch_idx=batch_idx,
-                        num_batches=num_batches,
-                        mask=m,
-                    )
-                )
-            elif self.subtle_importance_type == "gradientshap_abs":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_gradientshap_abs(
-                        layer_name=layer_name,
-                        input=input,
-                        baselines=None,
-                        target=target,
-                        batch_idx=batch_idx,
-                        num_batches=num_batches,
-                        mask=m,
-                    )
-                )
-            elif self.subtle_importance_type == "integrated_gradients_abs":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_integrated_gradients_abs(
-                        layer_name=layer_name,
-                        input=input,
-                        baselines=None,
-                        target=target,
-                        batch_idx=batch_idx,
-                        num_batches=num_batches,
-                        mask=m,
-                    )
-                )
-            elif self.subtle_importance_type == "feature_ablation_abs":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_feature_ablation_abs(
-                        layer_name=layer_name,
-                        input=input,
-                        layer_baselines=None,
-                        target=target,
-                        batch_idx=batch_idx,
-                        num_batches=num_batches,
-                        mask=m,
-                    )
-                )
-            elif self.subtle_importance_type == "lrp_abs":
-                subtle_importance_step = self.get_subtle_importance_step_layer_lrp_abs(
+            elif self.importance_type == "gradcam_abs":
+                importance_step = self.get_importance_step_layer_gradcam_abs(
                     layer_name=layer_name,
                     input=input,
                     target=target,
@@ -480,69 +405,129 @@ class SubtleAdaHAT(AdaHAT):
                     num_batches=num_batches,
                     mask=m,
                 )
-            elif self.subtle_importance_type == "cbp_adaptation":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_weight_abs_sum(
+            elif self.importance_type == "deeplift_abs":
+                importance_step = self.get_importance_step_layer_deeplift_abs(
+                    layer_name=layer_name,
+                    input=input,
+                    baselines=None,
+                    target=target,
+                    batch_idx=batch_idx,
+                    num_batches=num_batches,
+                    mask=m,
+                )
+            elif self.importance_type == "deepliftshap_abs":
+                importance_step = self.get_importance_step_layer_deepliftshap_abs(
+                    layer_name=layer_name,
+                    input=input,
+                    baselines=None,
+                    target=target,
+                    batch_idx=batch_idx,
+                    num_batches=num_batches,
+                    mask=m,
+                )
+            elif self.importance_type == "gradientshap_abs":
+                importance_step = self.get_importance_step_layer_gradientshap_abs(
+                    layer_name=layer_name,
+                    input=input,
+                    baselines=None,
+                    target=target,
+                    batch_idx=batch_idx,
+                    num_batches=num_batches,
+                    mask=m,
+                )
+            elif self.importance_type == "integrated_gradients_abs":
+                importance_step = (
+                    self.get_importance_step_layer_integrated_gradients_abs(
                         layer_name=layer_name,
+                        input=input,
+                        baselines=None,
+                        target=target,
+                        batch_idx=batch_idx,
+                        num_batches=num_batches,
                         mask=m,
-                        if_output_weight=False,
-                        reciprocal=True,
                     )
                 )
-            elif self.subtle_importance_type == "cbp_adaptive_contribution":
-                subtle_importance_step = (
-                    self.get_subtle_importance_step_layer_cbp_adaptive_contribution(
+            elif self.importance_type == "feature_ablation_abs":
+                importance_step = self.get_importance_step_layer_feature_ablation_abs(
+                    layer_name=layer_name,
+                    input=input,
+                    layer_baselines=None,
+                    target=target,
+                    batch_idx=batch_idx,
+                    num_batches=num_batches,
+                    mask=m,
+                )
+            elif self.importance_type == "lrp_abs":
+                importance_step = self.get_importance_step_layer_lrp_abs(
+                    layer_name=layer_name,
+                    input=input,
+                    target=target,
+                    batch_idx=batch_idx,
+                    num_batches=num_batches,
+                    mask=m,
+                )
+            elif self.importance_type == "cbp_adaptation":
+                importance_step = self.get_importance_step_layer_weight_abs_sum(
+                    layer_name=layer_name,
+                    mask=m,
+                    if_output_weight=False,
+                    reciprocal=True,
+                )
+            elif self.importance_type == "cbp_adaptive_contribution":
+                importance_step = (
+                    self.get_importance_step_layer_cbp_adaptive_contribution(
                         layer_name=layer_name,
                         activation=activation,
                         mask=m,
                     )
                 )
-            print(subtle_importance_step)
 
-            subtle_importance_step = min_max_normalise(
-                subtle_importance_step
-            )  # min-max scaling the utility to [0,1]. See in the paper draft.
+            importance_step = min_max_normalise(
+                importance_step
+            )  # min-max scaling the utility to [0,1]. See in the paper.
 
-            print(subtle_importance_step)
+            # add the base importance
+            importance_step = importance_step + self.base_importance
 
-            # update accumulated subtle importance
-            self.accumulated_subtle_importance[layer_name] = (
-                self.subtle_importance_decay_rate
-                * self.accumulated_subtle_importance[layer_name]
-                + subtle_importance_step
+            # multiply by the cumulative mask
+            # importance_step = importance_step * cumulative_m
+
+            # update accumulated importance
+            self.accumulated_importance[layer_name] = (
+                self.accumulated_importance[layer_name] + importance_step
             )
 
-            # update age
-            self.age_t[layer_name] += 1
+            # update number of steps counter
+            self.num_steps += 1
 
     def on_train_end(self) -> None:
-        r"""Additionally store (take screenshot of) it as unit-wise subtle importance for previous tasks at the end of a task training."""
+        r"""Additionally take screenshot of neuron-wise importance for previous tasks at the end of a task training."""
         AdaHAT.on_train_end(
             self
         )  # store the mask and update cumulative and summative masks
 
         for layer_name in self.backbone.weighted_layer_names:
-            self.subtle_importance_for_previous_tasks[layer_name] += (
-                self.accumulated_subtle_importance[layer_name]
-            ) / self.age_t[layer_name]
+            self.importance_for_previous_tasks[layer_name] = (
+                self.accumulated_importance[layer_name]
+            ) / self.num_steps
 
-    def get_subtle_importance_step_layer_weight_abs_sum(
+    def get_importance_step_layer_weight_abs_sum(
         self: str,
         layer_name: str,
         mask: Tensor,
         if_output_weight: bool,
         reciprocal: bool,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the sum of absolute values of layer input or output weights.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the sum of absolute values of layer input or output weights.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
         - **if_output_weight** (`bool`): whether to use the output weights or input weights.
         - **reciprocal** (`bool`): whether to take reciprocal.
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -565,28 +550,28 @@ class SubtleAdaHAT(AdaHAT):
 
         if reciprocal:
             weight_abs_sum_reciprocal = torch.reciprocal(weight_abs_sum)
-            subtle_importance_step_layer = weight_abs_sum_reciprocal * mask
+            importance_step_layer = weight_abs_sum_reciprocal * mask
         else:
-            subtle_importance_step_layer = weight_abs_sum * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+            importance_step_layer = weight_abs_sum * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_weight_gradient_abs_sum(
+    def get_importance_step_layer_weight_gradient_abs_sum(
         self: str,
         layer_name: str,
         mask: Tensor,
         if_output_weight: bool,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the sum of absolute values of gradients of the layer input or output weights.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the sum of absolute values of gradients of the layer input or output weights.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
         - **if_output_weight** (`bool`): whether to use the output weights or input weights.
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -607,24 +592,24 @@ class SubtleAdaHAT(AdaHAT):
                 ],  # sum over the output dimension
             )
 
-        subtle_importance_step_layer = gradient_abs_sum * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = gradient_abs_sum * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_activation_abs(
+    def get_importance_step_layer_activation_abs(
         self: str,
         activation: Tensor,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the absolute value of activation of the layer. This is our own implementation of [Layer Activation](https://captum.ai/api/layer.html#layer-activation) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute value of activation of the layer. This is our own implementation of [Layer Activation](https://captum.ai/api/layer.html#layer-activation) in Captum.
 
         **Args:**
         - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         activation_abs_batch_mean = torch.mean(
             torch.abs(activation),
@@ -632,28 +617,28 @@ class SubtleAdaHAT(AdaHAT):
                 i for i in range(activation.dim()) if i != 1
             ],  # average the features over batch samples
         )
-        subtle_importance_step_layer = activation_abs_batch_mean * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = activation_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_weight_abs_sum_x_activation_abs(
+    def get_importance_step_layer_weight_abs_sum_x_activation_abs(
         self: str,
         layer_name: str,
         activation: Tensor,
         mask: Tensor,
         if_output_weight: bool,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the sum of absolute values of layer input / output weights multiplied by absolute values of activation. The input weights version is equal to the contribution utility in [CBP](https://www.nature.com/articles/s41586-024-07711-7).
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the sum of absolute values of layer input / output weights multiplied by absolute values of activation. The input weights version is equal to the contribution utility in [CBP](https://www.nature.com/articles/s41586-024-07711-7).
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
         - **if_output_weight** (`bool`): whether to use the output weights or input weights.
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -681,12 +666,12 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = weight_abs_sum * activation_abs_batch_mean * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = weight_abs_sum * activation_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_gradient_x_activation_abs(
+    def get_importance_step_layer_gradient_x_activation_abs(
         self: str,
         layer_name: str,
         input: Tensor | tuple[Tensor, ...],
@@ -695,10 +680,10 @@ class SubtleAdaHAT(AdaHAT):
         num_batches: int,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the absolute values of the gradient of layer activation multiplied by the activation. We implement this using [Layer Gradient X Activation](https://captum.ai/api/layer.html#layer-gradient-x-activation) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of the gradient of layer activation multiplied by the activation. We implement this using [Layer Gradient X Activation](https://captum.ai/api/layer.html#layer-gradient-x-activation) in Captum.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
@@ -706,7 +691,7 @@ class SubtleAdaHAT(AdaHAT):
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -728,35 +713,35 @@ class SubtleAdaHAT(AdaHAT):
 
         attribution_abs_step_layer = torch.abs(attribution)
 
-        subtle_importance_step_layer = torch.mean(
+        importance_step_layer = torch.mean(
             attribution_abs_step_layer,
             dim=[
                 i for i in range(attribution.dim()) if i != 1
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = subtle_importance_step_layer * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = importance_step_layer * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_weight_gradient_square_sum_x_activation_abs(
+    def get_importance_step_layer_weight_gradient_square_sum_x_activation_abs(
         self: str,
         layer_name: str,
         activation: Tensor,
         mask: Tensor,
         if_output_weight: bool,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the sum of layer weight gradient squares multiplied by absolute values of activation. The weight gradient square is equal to fisher information in [EWC](https://www.pnas.org/doi/10.1073/pnas.1611835114).
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the sum of layer weight gradient squares multiplied by absolute values of activation. The weight gradient square is equal to fisher information in [EWC](https://www.pnas.org/doi/10.1073/pnas.1611835114).
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
         - **if_output_weight** (`bool`): whether to use the output weights or input weights.
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -784,14 +769,12 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = (
-            gradient_square_sum * activation_abs_batch_mean * mask
-        )
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = gradient_square_sum * activation_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_conductance_abs(
+    def get_importance_step_layer_conductance_abs(
         self: str,
         layer_name: str,
         input: Tensor | tuple[Tensor, ...],
@@ -801,10 +784,10 @@ class SubtleAdaHAT(AdaHAT):
         num_batches: int,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the absolute values of [conductance](https://openreview.net/forum?id=SylKoo0cKm). We implement this using [Layer Conductance](https://captum.ai/api/layer.html#layer-conductance) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [conductance](https://openreview.net/forum?id=SylKoo0cKm). We implement this using [Layer Conductance](https://captum.ai/api/layer.html#layer-conductance) in Captum.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): starting point from which integral is computed in this method. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerConductance.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
@@ -812,7 +795,7 @@ class SubtleAdaHAT(AdaHAT):
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.- **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -836,12 +819,12 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = attribution_abs_batch_mean * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_internal_influence_abs(
+    def get_importance_step_layer_internal_influence_abs(
         self: str,
         layer_name: str,
         input: Tensor | tuple[Tensor, ...],
@@ -851,10 +834,10 @@ class SubtleAdaHAT(AdaHAT):
         num_batches: int,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the absolute values of [internal influence](https://openreview.net/forum?id=SJPpHzW0-). We implement this using [Internal Influence](https://captum.ai/api/layer.html#internal-influence) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [internal influence](https://openreview.net/forum?id=SJPpHzW0-). We implement this using [Internal Influence](https://captum.ai/api/layer.html#internal-influence) in Captum.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): starting point from which integral is computed in this method. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.InternalInfluence.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
@@ -863,7 +846,7 @@ class SubtleAdaHAT(AdaHAT):
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -887,12 +870,12 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = attribution_abs_batch_mean * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_gradcam_abs(
+    def get_importance_step_layer_gradcam_abs(
         self: str,
         layer_name: str,
         input: Tensor | tuple[Tensor, ...],
@@ -901,10 +884,10 @@ class SubtleAdaHAT(AdaHAT):
         num_batches: int,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the absolute values of [Grad-CAM](https://openreview.net/forum?id=SJPpHzW0-). We implement this using [Layer Grad-CAM](https://captum.ai/api/layer.html#gradcam) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [Grad-CAM](https://openreview.net/forum?id=SJPpHzW0-). We implement this using [Layer Grad-CAM](https://captum.ai/api/layer.html#gradcam) in Captum.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
@@ -912,7 +895,7 @@ class SubtleAdaHAT(AdaHAT):
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -935,12 +918,12 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = attribution_abs_batch_mean * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_deeplift_abs(
+    def get_importance_step_layer_deeplift_abs(
         self: str,
         layer_name: str,
         input: Tensor | tuple[Tensor, ...],
@@ -950,10 +933,10 @@ class SubtleAdaHAT(AdaHAT):
         num_batches: int,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the absolute values of [DeepLift](https://proceedings.mlr.press/v70/shrikumar17a/shrikumar17a.pdf). We implement this using [Layer DeepLift](https://captum.ai/api/layer.html#layer-deeplift) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [DeepLift](https://proceedings.mlr.press/v70/shrikumar17a/shrikumar17a.pdf). We implement this using [Layer DeepLift](https://captum.ai/api/layer.html#layer-deeplift) in Captum.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): baselines define reference samples that are compared with the inputs. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerDeepLift.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
@@ -962,7 +945,7 @@ class SubtleAdaHAT(AdaHAT):
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -986,12 +969,12 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = attribution_abs_batch_mean * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_deepliftshap_abs(
+    def get_importance_step_layer_deepliftshap_abs(
         self: str,
         layer_name: str,
         input: Tensor | tuple[Tensor, ...],
@@ -1001,10 +984,10 @@ class SubtleAdaHAT(AdaHAT):
         num_batches: int,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the absolute values of [DeepLift SHAP](https://proceedings.neurips.cc/paper_files/paper/2017/file/8a20a8621978632d76c43dfd28b67767-Paper.pdf). We implement this using [Layer DeepLiftShap](https://captum.ai/api/layer.html#layer-deepliftshap) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [DeepLift SHAP](https://proceedings.neurips.cc/paper_files/paper/2017/file/8a20a8621978632d76c43dfd28b67767-Paper.pdf). We implement this using [Layer DeepLiftShap](https://captum.ai/api/layer.html#layer-deepliftshap) in Captum.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): baselines define reference samples that are compared with the inputs. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerDeepLiftShap.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
@@ -1013,7 +996,7 @@ class SubtleAdaHAT(AdaHAT):
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -1037,12 +1020,12 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = attribution_abs_batch_mean * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_gradientshap_abs(
+    def get_importance_step_layer_gradientshap_abs(
         self: str,
         layer_name: str,
         input: Tensor | tuple[Tensor, ...],
@@ -1052,10 +1035,10 @@ class SubtleAdaHAT(AdaHAT):
         num_batches: int,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the absolute values of gradient SHAP. We implement this using [Layer GradientShap](https://captum.ai/api/layer.html#layer-gradientshap) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of gradient SHAP. We implement this using [Layer GradientShap](https://captum.ai/api/layer.html#layer-gradientshap) in Captum.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): starting point from which expectation is computed. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerGradientShap.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
@@ -1064,7 +1047,7 @@ class SubtleAdaHAT(AdaHAT):
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -1088,12 +1071,12 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = attribution_abs_batch_mean * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_integrated_gradients_abs(
+    def get_importance_step_layer_integrated_gradients_abs(
         self: str,
         layer_name: str,
         input: Tensor | tuple[Tensor, ...],
@@ -1103,10 +1086,10 @@ class SubtleAdaHAT(AdaHAT):
         num_batches: int,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the absolute values of [integrated gradients](https://proceedings.mlr.press/v70/sundararajan17a/sundararajan17a.pdf). We implement this using [Layer Integrated Gradients](https://captum.ai/api/layer.html#layer-integrated-gradients) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [integrated gradients](https://proceedings.mlr.press/v70/sundararajan17a/sundararajan17a.pdf). We implement this using [Layer Integrated Gradients](https://captum.ai/api/layer.html#layer-integrated-gradients) in Captum.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): starting point from which integral is computed. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerIntegratedGradients.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
@@ -1115,7 +1098,7 @@ class SubtleAdaHAT(AdaHAT):
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -1141,12 +1124,12 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = attribution_abs_batch_mean * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_feature_ablation_abs(
+    def get_importance_step_layer_feature_ablation_abs(
         self: str,
         layer_name: str,
         input: Tensor | tuple[Tensor, ...],
@@ -1156,10 +1139,10 @@ class SubtleAdaHAT(AdaHAT):
         num_batches: int,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the absolute values of [feature ablation](https://link.springer.com/chapter/10.1007/978-3-319-10590-1_53) attribution. We implement this using [Layer Feature Ablation](https://captum.ai/api/layer.html#layer-feature-ablation) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [feature ablation](https://link.springer.com/chapter/10.1007/978-3-319-10590-1_53) attribution. We implement this using [Layer Feature Ablation](https://captum.ai/api/layer.html#layer-feature-ablation) in Captum.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **layer_baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): reference values which replace each layer input / output value when ablated. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerFeatureAblation.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
@@ -1168,7 +1151,7 @@ class SubtleAdaHAT(AdaHAT):
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -1194,12 +1177,12 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = attribution_abs_batch_mean * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_lrp_abs(
+    def get_importance_step_layer_lrp_abs(
         self: str,
         layer_name: str,
         input: Tensor | tuple[Tensor, ...],
@@ -1208,10 +1191,10 @@ class SubtleAdaHAT(AdaHAT):
         num_batches: int,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the absolute values of [LRP](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0130140). We implement this using [Layer LRP](https://captum.ai/api/layer.html#layer-lrp) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [LRP](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0130140). We implement this using [Layer LRP](https://captum.ai/api/layer.html#layer-lrp) in Captum.
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
@@ -1219,7 +1202,7 @@ class SubtleAdaHAT(AdaHAT):
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -1245,26 +1228,26 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = attribution_abs_batch_mean * mask
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer
 
-    def get_subtle_importance_step_layer_cbp_adaptive_contribution(
+    def get_importance_step_layer_cbp_adaptive_contribution(
         self: str,
         layer_name: str,
         activation: Tensor,
         mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw unit-wise subtle importance (before scaling) of a layer of a training step. See $v_l$ in the paper draft. This method uses the sum of absolute values of layer output weights multiplied by absolute values of activation, then divided by the reciprocal of sum of absolute values of layer input weights. It is equal to the adaptive contribution utility in [CBP](https://www.nature.com/articles/s41586-024-07711-7).
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the sum of absolute values of layer output weights multiplied by absolute values of activation, then divided by the reciprocal of sum of absolute values of layer input weights. It is equal to the adaptive contribution utility in [CBP](https://www.nature.com/articles/s41586-024-07711-7).
 
         **Args:**
-        - **layer_name** (`str`): the name of layer to get unit-wise subtle importance.
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
         - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
-        - **subtle_importance_step_layer** (`Tensor`): the unit-wise subtle importance of the layer of the training step.
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
@@ -1292,12 +1275,12 @@ class SubtleAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        subtle_importance_step_layer = (
+        importance_step_layer = (
             output_weight_abs_sum
             * activation_abs_batch_mean
             * input_weight_abs_sum_reciprocal
             * mask
         )
-        subtle_importance_step_layer = subtle_importance_step_layer.detach()
+        importance_step_layer = importance_step_layer.detach()
 
-        return subtle_importance_step_layer
+        return importance_step_layer

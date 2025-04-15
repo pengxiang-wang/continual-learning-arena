@@ -5,6 +5,7 @@ The submoduule in `unlearning_algorithms` for unlearning alogrithm bases.
 __all__ = ["UnlearningAlgorithm"]
 
 import logging
+from abc import abstractmethod
 
 from omegaconf import DictConfig
 
@@ -75,6 +76,6 @@ class UnlearningAlgorithm:
             self.unlearned_task_ids
         )  # let model know the unlearned task IDs
 
+    @abstractmethod
     def unlearn(self) -> None:
-        r"""Unlearn the unlearning tasks."""
-        raise NotImplementedError
+        r"""Unlearn the requested unlearning tasks in current task `self.task_id`."""

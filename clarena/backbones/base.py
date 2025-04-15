@@ -280,7 +280,7 @@ class HATMaskBackbone(CLBackbone):
         self,
         unit_wise_measure: dict[str, Tensor],
         layer_name: str,
-        aggregation: str,
+        aggregation_mode: str,
     ) -> Tensor:
         r"""Get the parameter-wise measure on the parameters right before the given layer.
 
@@ -297,10 +297,10 @@ class HATMaskBackbone(CLBackbone):
         **Args:**
         - **unit_wise_measure** (`dict[str, Tensor]`): the unit-wise measure. Key is layer name, value is the unit-wise measure tensor. The measure tensor has size (number of units).
         - **layer_name** (`str`): the name of given layer.
-        - **aggregation** (`str`): the aggregation method turning two feature-wise measures into weight-wise matrix, should be one of the following:
+        - **aggregation_mode** (`str`): the aggregation mode turning two feature-wise measures into weight-wise matrix, should be one of the following:
             - 'min': takes minimum of the two connected unit measures.
             - 'max': takes maximum of the two connected unit measures.
-
+            - 'mean': takes mean of the two connected unit measures.
         **Returns:**
         - **weight_measure** (`Tensor`): the weight measure matrix, same size as the corresponding weights.
         - **bias_measure** (`Tensor`): the bias measure vector, same size as the corresponding bias.
@@ -309,12 +309,16 @@ class HATMaskBackbone(CLBackbone):
         """
 
         # initialise the aggregation function
-        if aggregation == "min":
+        if aggregation_mode == "min":
             aggregation_func = torch.min
-        elif aggregation == "max":
+        elif aggregation_mode == "max":
             aggregation_func = torch.max
+        elif aggregation_mode == "mean":
+            aggregation_func = torch.mean
         else:
-            raise ValueError(f"The aggregation method {aggregation} is not supported.")
+            raise ValueError(
+                f"The aggregation method {aggregation_mode} is not supported."
+            )
 
         # get the preceding layer
         preceding_layer_name = self.preceding_layer_name(layer_name)

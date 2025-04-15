@@ -36,6 +36,8 @@ def js_div(
     reduce: bool | None = None,
     reduction: str = "mean",
 ):
+    r"""Jensen-Shannon divergence between two distributions."""
+
     m = 0.5 * (input + target)
 
     kl_input = nn.functional.kl_div(
