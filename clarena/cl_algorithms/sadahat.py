@@ -55,6 +55,7 @@ class SAdaHAT(AdaHAT):
         base_importance: float = 0.01,
         base_mask_sparsity_reg: float = 0.1,
         base_linear: float = 10,
+        filter_unmasked_importance: bool = True,
         task_embedding_init_mode: str = "N01",
     ) -> None:
         r"""Initialise the S-AdaHAT algorithm with the network.
@@ -99,9 +100,10 @@ class SAdaHAT(AdaHAT):
         - **mask_sparsity_reg_mode** (`str`): the mode of mask sparsity regularisation, should be one of the following:
             1. 'original' (default): the original mask sparsity regularisation in HAT paper.
             2. 'cross': the cross version mask sparsity regularisation.
-        - **base_importance** (`float`): the base value added to the importance. It is $b_I$ in the paper. Default is 0.1.
+        - **base_importance** (`float`): the base value added to the importance. It is $b_I$ in the paper. Default is 0.01.
         - **base_mask_sparsity_reg** (`float`): the base value added to the mask sparsity regularisation factor in the importance scheduler. It is $b_R$ in the paper. Default is 0.1.
         - **base_linear** (`float`): the base value added to the linear factor in the importance scheduler. It is $b_L$ in the paper. Default is 10.
+        - **filter_unmasked_importance** (`bool`): whether to filter unmasked importance values (set them to 0) at the end of task training. Filtering is to multiply the final trained mask $m^{t}_{l,i}$ to the importance $I^{t}_{l,i}$. Default is True.
         - **task_embedding_init_mode** (`str`): the initialisation method for task embeddings, should be one of the following:
             1. 'N01' (default): standard normal distribution $N(0, 1)$.
             2. 'U-11': uniform distribution $U(-1, 1)$.
@@ -131,6 +133,8 @@ class SAdaHAT(AdaHAT):
             neuron_to_weight_importance_aggregation_mode
         )
         r"""Store the mode of aggregation from neuron-wise to weight-wise importance. It is used to calculate the weight importance from the neuron importance. """
+        self.filter_unmasked_importance: bool = filter_unmasked_importance
+        r"""Store the flag to filter unmasked importance values (set them to 0) at the end of task training. """
 
         # base values
         self.base_importance: float = base_importance
@@ -140,12 +144,12 @@ class SAdaHAT(AdaHAT):
         self.base_linear: float = base_linear
         r"""Store the base value added to the linear layer to avoid zero. """
 
-        self.accumulated_importance: dict[str, Tensor] = {}
-        r"""Store the min-max scaled ($[0, 1]$) accumulated neuron-wise importance of units. It is $I^{<t}_{l,i}$ in the paper before divided by number of steps. Keys are layer names and values are the importance tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units). """
-        self.num_steps: int = 0
-        r"""Number of steps counter (from the beginning of the first task)."""
-        self.importance_for_previous_tasks: dict[str, Tensor] = {}
-        r"""Store the neuron-wise importance values of units for previous tasks before the current task `self.task_id`. See $I^{<t}_{l,i}$ in the paper. Keys are layer names and values are the importance tensor for the layer. The importance tensor is the same size as the feature tensor with size (number of units). """
+        self.importances: dict[str, dict[str, Tensor]] = {}
+        r"""Store the min-max scaled ($[0, 1]$) neuron-wise importance of units. It is $I^{\tau}_{l}$ in the paper. Keys are task IDs (string type) and values are the corresponding importance tensor. Each importance tensor is a dict where keys are layer names and values are the importance tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units). """
+        self.num_steps_t: int
+        r"""Store the number of training steps for the current task `self.task_id`. It is used to calculate the neuron-wise importance for a task. """
+        self.average_importance_for_previous_tasks: dict[str, Tensor] = {}
+        r"""Store the average neuron-wise importance values of units for previous tasks before the current task `self.task_id`. See $I^{<t}_{l}$ in the paper. Keys are layer names and values are the average importance tensor for the layer. The average importance tensor is the same size as the feature tensor with size (number of units). """
 
         # set manual optimisation
         self.automatic_optimization = False
@@ -173,23 +177,30 @@ class SAdaHAT(AdaHAT):
         r"""Initialise neuron importance accumulation variable for each layer as zeros, in addition to initialisation of summative mask in AdaHAT."""
         AdaHAT.on_train_start(self)
 
-        # initialise the neuron importance at the beginning of first task. This should not be called in `__init__()` method as the `self.device` is not available at that time.
-        if self.task_id == 1:
-            for layer_name in self.backbone.weighted_layer_names:
-                layer = self.backbone.get_layer_by_name(
-                    layer_name
-                )  # get the layer by its name
-                num_units = layer.weight.shape[0]
+        self.importances[f"{self.task_id}"] = (
+            {}
+        )  # initialise the importance for the current task
 
-                self.accumulated_importance[layer_name] = torch.zeros(num_units).to(
-                    self.device
-                )  # initialise the accumulated importance at the beginning of first task
+        # initialise the neuron importance at the beginning of each task. This should not be called in `__init__()` method as the `self.device` is not available at that time.
+        for layer_name in self.backbone.weighted_layer_names:
+            layer = self.backbone.get_layer_by_name(
+                layer_name
+            )  # get the layer by its name
+            num_units = layer.weight.shape[0]
 
-                self.importance_for_previous_tasks[layer_name] = torch.zeros(
+            self.importances[f"{self.task_id}"][layer_name] = torch.zeros(num_units).to(
+                self.device
+            )  # initialise the accumulated importance at the beginning of each task
+            self.num_steps_t = (
+                0  # reset the number of steps counter for the current task
+            )
+
+            if self.task_id == 1:
+                self.average_importance_for_previous_tasks[layer_name] = torch.zeros(
                     num_units
                 ).to(
                     self.device
-                )  # the neuron-wise importance for previous tasks $I^{<t}_{l,i}$ is initialised as zeros mask for $t = 1$. See the paper.
+                )  # the average neuron-wise importance for previous tasks $I^{<t}_{l}$ is initialised as zeros mask for $t = 1$. See the paper.
 
     def clip_grad_by_adjustment(
         self,
@@ -223,10 +234,10 @@ class SAdaHAT(AdaHAT):
             adjustment_rate_weight = 1
             adjustment_rate_bias = 1
 
-            # aggregate the neuron-wise importance to weight-wise importance. Note that the neuron-wise importance is already min-max scaled to [0, 1] in the `on_train_batch_end()` method, and added the base value, and multiplied by the cumulative mask.
+            # aggregate the neuron-wise importance to weight-wise importance. Note that the neuron-wise importance is already min-max scaled to [0, 1] in the `on_train_batch_end()` method, and added the base value, and filtered by the mask.
             weight_importance, bias_importance = (
                 self.backbone.get_layer_measure_parameter_wise(
-                    unit_wise_measure=self.importance_for_previous_tasks,
+                    unit_wise_measure=self.average_importance_for_previous_tasks,
                     layer_name=layer_name,
                     aggregation_mode=self.neuron_to_weight_importance_aggregation_mode,
                 )
@@ -279,7 +290,6 @@ class SAdaHAT(AdaHAT):
 
         # get potential useful information from training batch
         activations = outputs["activations"]
-        mask = outputs["mask"]
         input = outputs["input"]
         target = outputs["target"]
         num_batches = self.trainer.num_training_batches
@@ -288,47 +298,41 @@ class SAdaHAT(AdaHAT):
             # layer-wise operation
 
             activation = activations[layer_name]
-            m = mask[layer_name]
-            cumulative_m = self.cumulative_mask_for_previous_tasks[layer_name]
-            num_units = activation.shape[1]
 
             # calculate neuron-wise importance of the training step. See $v^{t,s}_{l,i}$ in the paper.
             if self.importance_type == "input_weight_abs_sum":
                 importance_step = self.get_importance_step_layer_weight_abs_sum(
                     layer_name=layer_name,
-                    mask=m,
                     if_output_weight=False,
                     reciprocal=False,
                 )
             elif self.importance_type == "output_weight_abs_sum":
                 importance_step = self.get_importance_step_layer_weight_abs_sum(
                     layer_name=layer_name,
-                    mask=m,
                     if_output_weight=True,
                     reciprocal=False,
                 )
             elif self.importance_type == "input_weight_gradient_abs_sum":
                 importance_step = (
                     self.get_importance_step_layer_weight_gradient_abs_sum(
-                        layer_name=layer_name, mask=m, if_output_weight=False
+                        layer_name=layer_name, if_output_weight=False
                     )
                 )
             elif self.importance_type == "output_weight_gradient_abs_sum":
                 importance_step = (
                     self.get_importance_step_layer_weight_gradient_abs_sum(
-                        layer_name=layer_name, mask=m, if_output_weight=True
+                        layer_name=layer_name, if_output_weight=True
                     )
                 )
             elif self.importance_type == "activation_abs":
                 importance_step = self.get_importance_step_layer_activation_abs(
-                    activation=activation, mask=m
+                    activation=activation
                 )
             elif self.importance_type == "input_weight_abs_sum_x_activation_abs":
                 importance_step = (
                     self.get_importance_step_layer_weight_abs_sum_x_activation_abs(
                         layer_name=layer_name,
                         activation=activation,
-                        mask=m,
                         if_output_weight=False,
                     )
                 )
@@ -337,7 +341,6 @@ class SAdaHAT(AdaHAT):
                     self.get_importance_step_layer_weight_abs_sum_x_activation_abs(
                         layer_name=layer_name,
                         activation=activation,
-                        mask=m,
                         if_output_weight=True,
                     )
                 )
@@ -349,7 +352,6 @@ class SAdaHAT(AdaHAT):
                         target=target,
                         batch_idx=batch_idx,
                         num_batches=num_batches,
-                        mask=m,
                     )
                 )
             elif (
@@ -360,7 +362,6 @@ class SAdaHAT(AdaHAT):
                     self.get_importance_step_layer_weight_abs_sum_x_activation_abs(
                         layer_name=layer_name,
                         activation=activation,
-                        mask=m,
                         if_output_weight=False,
                     )
                 )
@@ -372,7 +373,6 @@ class SAdaHAT(AdaHAT):
                     self.get_importance_step_layer_weight_abs_sum_x_activation_abs(
                         layer_name=layer_name,
                         activation=activation,
-                        mask=m,
                         if_output_weight=True,
                     )
                 )
@@ -384,7 +384,6 @@ class SAdaHAT(AdaHAT):
                     target=target,
                     batch_idx=batch_idx,
                     num_batches=num_batches,
-                    mask=m,
                 )
             elif self.importance_type == "internal_influence_abs":
                 importance_step = self.get_importance_step_layer_internal_influence_abs(
@@ -394,7 +393,6 @@ class SAdaHAT(AdaHAT):
                     target=target,
                     batch_idx=batch_idx,
                     num_batches=num_batches,
-                    mask=m,
                 )
             elif self.importance_type == "gradcam_abs":
                 importance_step = self.get_importance_step_layer_gradcam_abs(
@@ -403,7 +401,6 @@ class SAdaHAT(AdaHAT):
                     target=target,
                     batch_idx=batch_idx,
                     num_batches=num_batches,
-                    mask=m,
                 )
             elif self.importance_type == "deeplift_abs":
                 importance_step = self.get_importance_step_layer_deeplift_abs(
@@ -413,7 +410,6 @@ class SAdaHAT(AdaHAT):
                     target=target,
                     batch_idx=batch_idx,
                     num_batches=num_batches,
-                    mask=m,
                 )
             elif self.importance_type == "deepliftshap_abs":
                 importance_step = self.get_importance_step_layer_deepliftshap_abs(
@@ -423,7 +419,6 @@ class SAdaHAT(AdaHAT):
                     target=target,
                     batch_idx=batch_idx,
                     num_batches=num_batches,
-                    mask=m,
                 )
             elif self.importance_type == "gradientshap_abs":
                 importance_step = self.get_importance_step_layer_gradientshap_abs(
@@ -433,7 +428,6 @@ class SAdaHAT(AdaHAT):
                     target=target,
                     batch_idx=batch_idx,
                     num_batches=num_batches,
-                    mask=m,
                 )
             elif self.importance_type == "integrated_gradients_abs":
                 importance_step = (
@@ -444,7 +438,6 @@ class SAdaHAT(AdaHAT):
                         target=target,
                         batch_idx=batch_idx,
                         num_batches=num_batches,
-                        mask=m,
                     )
                 )
             elif self.importance_type == "feature_ablation_abs":
@@ -455,7 +448,6 @@ class SAdaHAT(AdaHAT):
                     target=target,
                     batch_idx=batch_idx,
                     num_batches=num_batches,
-                    mask=m,
                 )
             elif self.importance_type == "lrp_abs":
                 importance_step = self.get_importance_step_layer_lrp_abs(
@@ -464,12 +456,10 @@ class SAdaHAT(AdaHAT):
                     target=target,
                     batch_idx=batch_idx,
                     num_batches=num_batches,
-                    mask=m,
                 )
             elif self.importance_type == "cbp_adaptation":
                 importance_step = self.get_importance_step_layer_weight_abs_sum(
                     layer_name=layer_name,
-                    mask=m,
                     if_output_weight=False,
                     reciprocal=True,
                 )
@@ -478,7 +468,6 @@ class SAdaHAT(AdaHAT):
                     self.get_importance_step_layer_cbp_adaptive_contribution(
                         layer_name=layer_name,
                         activation=activation,
-                        mask=m,
                     )
                 )
 
@@ -486,43 +475,56 @@ class SAdaHAT(AdaHAT):
                 importance_step
             )  # min-max scaling the utility to [0,1]. See in the paper.
 
-            # add the base importance
-            importance_step = importance_step + self.base_importance
-
-            # multiply by the cumulative mask
-            # importance_step = importance_step * cumulative_m
-
             # update accumulated importance
-            self.accumulated_importance[layer_name] = (
-                self.accumulated_importance[layer_name] + importance_step
+            self.importances[f"{self.task_id}"][layer_name] = (
+                self.importances[f"{self.task_id}"][layer_name] + importance_step
             )
 
             # update number of steps counter
-            self.num_steps += 1
+            self.num_steps_t += 1
 
     def on_train_end(self) -> None:
-        r"""Additionally take screenshot of neuron-wise importance for previous tasks at the end of a task training."""
+        r"""Additionally calculate neuron-wise importance for previous tasks at the end of a task training."""
         AdaHAT.on_train_end(
             self
         )  # store the mask and update cumulative and summative masks
 
         for layer_name in self.backbone.weighted_layer_names:
-            self.importance_for_previous_tasks[layer_name] = (
-                self.accumulated_importance[layer_name]
-            ) / self.num_steps
+
+            # average the neuron-wise step importance
+            self.importances[f"{self.task_id}"][layer_name] = (
+                self.importances[f"{self.task_id}"][layer_name]
+            ) / self.num_steps_t
+
+            # add the base importance
+            self.importances[f"{self.task_id}"][layer_name] = (
+                self.importances[f"{self.task_id}"][layer_name] + self.base_importance
+            )
+
+            # filter unmasked importance
+            if self.filter_unmasked_importance:
+                self.importances[f"{self.task_id}"][layer_name] = (
+                    self.importances[f"{self.task_id}"][layer_name]
+                    * self.masks[f"{self.task_id}"][layer_name]
+                )
+
+            # calculate the average neuron-wise importance for previous tasks
+            self.average_importance_for_previous_tasks[layer_name] = (
+                self.average_importance_for_previous_tasks[layer_name]
+                * (self.task_id - 1)
+                + (self.importances[f"{self.task_id}"][layer_name])
+            ) / self.task_id
 
     def get_importance_step_layer_weight_abs_sum(
         self: str,
         layer_name: str,
-        mask: Tensor,
         if_output_weight: bool,
         reciprocal: bool,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the sum of absolute values of layer input or output weights.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the sum of absolute values of layer input or output weights.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
         - **if_output_weight** (`bool`): whether to use the output weights or input weights.
         - **reciprocal** (`bool`): whether to take reciprocal.
 
@@ -550,9 +552,9 @@ class SAdaHAT(AdaHAT):
 
         if reciprocal:
             weight_abs_sum_reciprocal = torch.reciprocal(weight_abs_sum)
-            importance_step_layer = weight_abs_sum_reciprocal * mask
+            importance_step_layer = weight_abs_sum_reciprocal
         else:
-            importance_step_layer = weight_abs_sum * mask
+            importance_step_layer = weight_abs_sum
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -560,14 +562,12 @@ class SAdaHAT(AdaHAT):
     def get_importance_step_layer_weight_gradient_abs_sum(
         self: str,
         layer_name: str,
-        mask: Tensor,
         if_output_weight: bool,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the sum of absolute values of gradients of the layer input or output weights.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the sum of absolute values of gradients of the layer input or output weights.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
         - **if_output_weight** (`bool`): whether to use the output weights or input weights.
 
         **Returns:**
@@ -592,7 +592,7 @@ class SAdaHAT(AdaHAT):
                 ],  # sum over the output dimension
             )
 
-        importance_step_layer = gradient_abs_sum * mask
+        importance_step_layer = gradient_abs_sum
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -600,13 +600,11 @@ class SAdaHAT(AdaHAT):
     def get_importance_step_layer_activation_abs(
         self: str,
         activation: Tensor,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute value of activation of the layer. This is our own implementation of [Layer Activation](https://captum.ai/api/layer.html#layer-activation) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute value of activation of the layer. This is our own implementation of [Layer Activation](https://captum.ai/api/layer.html#layer-activation) in Captum.
 
         **Args:**
         - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -617,7 +615,7 @@ class SAdaHAT(AdaHAT):
                 i for i in range(activation.dim()) if i != 1
             ],  # average the features over batch samples
         )
-        importance_step_layer = activation_abs_batch_mean * mask
+        importance_step_layer = activation_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -626,15 +624,13 @@ class SAdaHAT(AdaHAT):
         self: str,
         layer_name: str,
         activation: Tensor,
-        mask: Tensor,
         if_output_weight: bool,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the sum of absolute values of layer input / output weights multiplied by absolute values of activation. The input weights version is equal to the contribution utility in [CBP](https://www.nature.com/articles/s41586-024-07711-7).
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the sum of absolute values of layer input / output weights multiplied by absolute values of activation. The input weights version is equal to the contribution utility in [CBP](https://www.nature.com/articles/s41586-024-07711-7).
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
         - **if_output_weight** (`bool`): whether to use the output weights or input weights.
 
         **Returns:**
@@ -666,7 +662,7 @@ class SAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = weight_abs_sum * activation_abs_batch_mean * mask
+        importance_step_layer = weight_abs_sum * activation_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -678,9 +674,8 @@ class SAdaHAT(AdaHAT):
         target: Tensor | None,
         batch_idx: int,
         num_batches: int,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of the gradient of layer activation multiplied by the activation. We implement this using [Layer Gradient X Activation](https://captum.ai/api/layer.html#layer-gradient-x-activation) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute values of the gradient of layer activation multiplied by the activation. We implement this using [Layer Gradient X Activation](https://captum.ai/api/layer.html#layer-gradient-x-activation) in Captum.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
@@ -688,7 +683,6 @@ class SAdaHAT(AdaHAT):
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -711,16 +705,14 @@ class SAdaHAT(AdaHAT):
         )
         self.set_forward_func_return_logits_only(False)
 
-        attribution_abs_step_layer = torch.abs(attribution)
-
-        importance_step_layer = torch.mean(
-            attribution_abs_step_layer,
+        attribution_abs_batch_mean = torch.mean(
+            torch.abs(attribution),
             dim=[
                 i for i in range(attribution.dim()) if i != 1
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = importance_step_layer * mask
+        importance_step_layer = attribution_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -729,15 +721,13 @@ class SAdaHAT(AdaHAT):
         self: str,
         layer_name: str,
         activation: Tensor,
-        mask: Tensor,
         if_output_weight: bool,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the sum of layer weight gradient squares multiplied by absolute values of activation. The weight gradient square is equal to fisher information in [EWC](https://www.pnas.org/doi/10.1073/pnas.1611835114).
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the sum of layer weight gradient squares multiplied by absolute values of activation. The weight gradient square is equal to fisher information in [EWC](https://www.pnas.org/doi/10.1073/pnas.1611835114).
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
         - **if_output_weight** (`bool`): whether to use the output weights or input weights.
 
         **Returns:**
@@ -769,7 +759,7 @@ class SAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = gradient_square_sum * activation_abs_batch_mean * mask
+        importance_step_layer = gradient_square_sum * activation_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -782,9 +772,8 @@ class SAdaHAT(AdaHAT):
         target: Tensor | None,
         batch_idx: int,
         num_batches: int,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [conductance](https://openreview.net/forum?id=SylKoo0cKm). We implement this using [Layer Conductance](https://captum.ai/api/layer.html#layer-conductance) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute values of [conductance](https://openreview.net/forum?id=SylKoo0cKm). We implement this using [Layer Conductance](https://captum.ai/api/layer.html#layer-conductance) in Captum.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
@@ -819,7 +808,7 @@ class SAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = attribution_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -832,9 +821,8 @@ class SAdaHAT(AdaHAT):
         target: Tensor | None,
         batch_idx: int,
         num_batches: int,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [internal influence](https://openreview.net/forum?id=SJPpHzW0-). We implement this using [Internal Influence](https://captum.ai/api/layer.html#internal-influence) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute values of [internal influence](https://openreview.net/forum?id=SJPpHzW0-). We implement this using [Internal Influence](https://captum.ai/api/layer.html#internal-influence) in Captum.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
@@ -843,7 +831,6 @@ class SAdaHAT(AdaHAT):
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -870,7 +857,7 @@ class SAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = attribution_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -882,9 +869,8 @@ class SAdaHAT(AdaHAT):
         target: Tensor | None,
         batch_idx: int,
         num_batches: int,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [Grad-CAM](https://openreview.net/forum?id=SJPpHzW0-). We implement this using [Layer Grad-CAM](https://captum.ai/api/layer.html#gradcam) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute values of [Grad-CAM](https://openreview.net/forum?id=SJPpHzW0-). We implement this using [Layer Grad-CAM](https://captum.ai/api/layer.html#gradcam) in Captum.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
@@ -892,7 +878,6 @@ class SAdaHAT(AdaHAT):
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -918,7 +903,7 @@ class SAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = attribution_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -931,9 +916,8 @@ class SAdaHAT(AdaHAT):
         target: Tensor | None,
         batch_idx: int,
         num_batches: int,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [DeepLift](https://proceedings.mlr.press/v70/shrikumar17a/shrikumar17a.pdf). We implement this using [Layer DeepLift](https://captum.ai/api/layer.html#layer-deeplift) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute values of [DeepLift](https://proceedings.mlr.press/v70/shrikumar17a/shrikumar17a.pdf). We implement this using [Layer DeepLift](https://captum.ai/api/layer.html#layer-deeplift) in Captum.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
@@ -942,7 +926,6 @@ class SAdaHAT(AdaHAT):
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -969,7 +952,7 @@ class SAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = attribution_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -982,9 +965,8 @@ class SAdaHAT(AdaHAT):
         target: Tensor | None,
         batch_idx: int,
         num_batches: int,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [DeepLift SHAP](https://proceedings.neurips.cc/paper_files/paper/2017/file/8a20a8621978632d76c43dfd28b67767-Paper.pdf). We implement this using [Layer DeepLiftShap](https://captum.ai/api/layer.html#layer-deepliftshap) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute values of [DeepLift SHAP](https://proceedings.neurips.cc/paper_files/paper/2017/file/8a20a8621978632d76c43dfd28b67767-Paper.pdf). We implement this using [Layer DeepLiftShap](https://captum.ai/api/layer.html#layer-deepliftshap) in Captum.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
@@ -993,7 +975,6 @@ class SAdaHAT(AdaHAT):
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -1020,7 +1001,7 @@ class SAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = attribution_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -1033,9 +1014,8 @@ class SAdaHAT(AdaHAT):
         target: Tensor | None,
         batch_idx: int,
         num_batches: int,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of gradient SHAP. We implement this using [Layer GradientShap](https://captum.ai/api/layer.html#layer-gradientshap) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute values of gradient SHAP. We implement this using [Layer GradientShap](https://captum.ai/api/layer.html#layer-gradientshap) in Captum.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
@@ -1044,7 +1024,6 @@ class SAdaHAT(AdaHAT):
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -1071,7 +1050,7 @@ class SAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = attribution_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -1084,9 +1063,8 @@ class SAdaHAT(AdaHAT):
         target: Tensor | None,
         batch_idx: int,
         num_batches: int,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [integrated gradients](https://proceedings.mlr.press/v70/sundararajan17a/sundararajan17a.pdf). We implement this using [Layer Integrated Gradients](https://captum.ai/api/layer.html#layer-integrated-gradients) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute values of [integrated gradients](https://proceedings.mlr.press/v70/sundararajan17a/sundararajan17a.pdf). We implement this using [Layer Integrated Gradients](https://captum.ai/api/layer.html#layer-integrated-gradients) in Captum.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
@@ -1095,7 +1073,6 @@ class SAdaHAT(AdaHAT):
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -1124,7 +1101,7 @@ class SAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = attribution_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -1137,9 +1114,8 @@ class SAdaHAT(AdaHAT):
         target: Tensor | None,
         batch_idx: int,
         num_batches: int,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [feature ablation](https://link.springer.com/chapter/10.1007/978-3-319-10590-1_53) attribution. We implement this using [Layer Feature Ablation](https://captum.ai/api/layer.html#layer-feature-ablation) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute values of [feature ablation](https://link.springer.com/chapter/10.1007/978-3-319-10590-1_53) attribution. We implement this using [Layer Feature Ablation](https://captum.ai/api/layer.html#layer-feature-ablation) in Captum.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
@@ -1148,7 +1124,6 @@ class SAdaHAT(AdaHAT):
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -1177,7 +1152,7 @@ class SAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = attribution_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -1189,9 +1164,8 @@ class SAdaHAT(AdaHAT):
         target: Tensor | None,
         batch_idx: int,
         num_batches: int,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the absolute values of [LRP](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0130140). We implement this using [Layer LRP](https://captum.ai/api/layer.html#layer-lrp) in Captum.
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute values of [LRP](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0130140). We implement this using [Layer LRP](https://captum.ai/api/layer.html#layer-lrp) in Captum.
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
@@ -1199,7 +1173,6 @@ class SAdaHAT(AdaHAT):
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -1228,7 +1201,7 @@ class SAdaHAT(AdaHAT):
             ],  # average the features over batch samples
         )
 
-        importance_step_layer = attribution_abs_batch_mean * mask
+        importance_step_layer = attribution_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer
@@ -1237,14 +1210,12 @@ class SAdaHAT(AdaHAT):
         self: str,
         layer_name: str,
         activation: Tensor,
-        mask: Tensor,
     ) -> Tensor:
-        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l$ in the paper. This method uses the sum of absolute values of layer output weights multiplied by absolute values of activation, then divided by the reciprocal of sum of absolute values of layer input weights. It is equal to the adaptive contribution utility in [CBP](https://www.nature.com/articles/s41586-024-07711-7).
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the sum of absolute values of layer output weights multiplied by absolute values of activation, then divided by the reciprocal of sum of absolute values of layer input weights. It is equal to the adaptive contribution utility in [CBP](https://www.nature.com/articles/s41586-024-07711-7).
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
-        - **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -1279,7 +1250,6 @@ class SAdaHAT(AdaHAT):
             output_weight_abs_sum
             * activation_abs_batch_mean
             * input_weight_abs_sum_reciprocal
-            * mask
         )
         importance_step_layer = importance_step_layer.detach()
 
