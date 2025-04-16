@@ -59,6 +59,7 @@ class SAdaHAT(AdaHAT):
         filter_unmasked_importance: bool = True,
         step_multiply_training_mask: bool = False,
         task_embedding_init_mode: str = "N01",
+        importance_summing_strategy_exponential_decay_rate: float | None = None,
     ) -> None:
         r"""Initialise the S-AdaHAT algorithm with the network.
 
@@ -91,6 +92,9 @@ class SAdaHAT(AdaHAT):
         - **importance_summing_strategy** (`str`): the strategy to sum the neuron-wise importance for previous tasks, should be one of the following:
             1. 'add_latest': add the latest task importance to the summative importance.
             2. 'add_average': add the average of all tasks importance to the summative importance.
+            3. 'linear_decrease': linearly decrease the importance weight of all tasks.
+            4. 'exponential_decrease': exponentially decrease the importance weight of all tasks.
+            5. 'reciprocal_decrease': reciprocally decrease the importance weight of all tasks.
         - **importance_scheduler_type** (`str`): the scheduler for the importance, i.e. the factor $c_{l,ij}$ multiplied to the parameter importance that refines the importance. It should be one of the following:
             1. 'linear_sparsity_reg': $\left(t + b_L\right) \cdot  \left[R \left( M^t, M^{<t} \right) + b_R \right]$
             2. 'constant_sparsity_reg': $b_L \cdot  \left[R \left( M^t, M^{<t} \right) + b_R \right]$
@@ -116,6 +120,7 @@ class SAdaHAT(AdaHAT):
             3. 'U01': uniform distribution $U(0, 1)$.
             4. 'U-10': uniform distribution $U(-1, 0)$.
             5. 'last': inherit task embedding from last task.
+        - **importance_summing_strategy_exponential_decay_rate** (`float` | `None`): the exponential decay rate for the importance summing strategy. It is used when `importance_summing_strategy` is 'exponential_decrease'.
         """
         AdaHAT.__init__(
             self,
@@ -145,6 +150,11 @@ class SAdaHAT(AdaHAT):
         r"""Store the flag to filter unmasked importance values (set them to 0) at the end of task training. """
         self.step_multiply_training_mask: bool = step_multiply_training_mask
         r"""Store the flag to multiply the training mask to the importance at each training step. """
+        if importance_summing_strategy_exponential_decay_rate is not None:
+            self.importance_summing_strategy_exponential_decay_rate: float = (
+                importance_summing_strategy_exponential_decay_rate
+            )
+            r"""Store the exponential decay rate for the importance summing strategy. It is used when `importance_summing_strategy` is 'exponential_decrease'. """
 
         # base values
         self.base_importance: float = base_importance
@@ -532,6 +542,47 @@ class SAdaHAT(AdaHAT):
                     self.summative_importance_for_previous_tasks[layer_name] += (
                         self.importances[f"{t}"][layer_name] / self.task_id
                     )
+            else:
+                self.summative_importance_for_previous_tasks[
+                    layer_name
+                ] = torch.zeros_like(
+                    self.summative_importance_for_previous_tasks[layer_name]
+                ).to(
+                    self.device
+                )  # starting adding from 0
+
+                if self.importance_summing_strategy == "linear_decrease":
+                    for t in range(1, self.task_id + 1):
+
+                        w_t = 2 * (self.task_id - t + 1) / (self.task_id + 1)
+
+                        self.summative_importance_for_previous_tasks[layer_name] += (
+                            self.importances[f"{t}"][layer_name] * w_t
+                        )
+                elif self.importance_summing_strategy == "exponential_decrease":
+                    for t in range(1, self.task_id + 1):
+                        r = self.importance_summing_strategy_exponential_decay_rate
+
+                        w_t = (
+                            (1 - r)
+                            * (r ** (t - 1))
+                            * self.task_id
+                            / (1 - (r**self.task_id))
+                        )
+
+                        self.summative_importance_for_previous_tasks[layer_name] += (
+                            self.importances[f"{t}"][layer_name] * w_t
+                        )
+                elif self.importance_summing_strategy == "reciprocal_decrease":
+                    for t in range(1, self.task_id + 1):
+
+                        h = sum(1 / i for i in range(1, self.task_id + 1))
+
+                        w_t = (1 / t) * self.task_id / h
+
+                        self.summative_importance_for_previous_tasks[layer_name] += (
+                            self.importances[f"{t}"][layer_name] * w_t
+                        )
 
     def get_importance_step_layer_weight_abs_sum(
         self: str,
