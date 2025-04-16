@@ -2,7 +2,15 @@ r"""
 The submodule in `cl_datasets` for constants about datasets.
 """
 
-__all__ = ["MNISTConstants"]
+__all__ = [
+    "DatasetConstants",
+    "MNISTConstants",
+    "CIFAR10Constants",
+    "CIFAR100Constants",
+    "TinyImageNetConstants",
+    "CUB2002011Constants",
+    "DATASET_CONSTANTS_MAPPING",
+]
 
 import tinyimagenet
 import torch
@@ -105,10 +113,11 @@ class CUB2002011Constants(DatasetConstants):
     r"""The standard deviation values of each channel. """
 
 
-DATASET_CONSTANTS: dict[type[Dataset], type[DatasetConstants]] = {
+DATASET_CONSTANTS_MAPPING: dict[type[Dataset], type[DatasetConstants]] = {
     implemented_by_torchvision.MNIST: MNISTConstants,
     implemented_by_torchvision.CIFAR10: CIFAR10Constants,
     implemented_by_torchvision.CIFAR100: CIFAR100Constants,
     tinyimagenet.TinyImageNet: TinyImageNetConstants,
     implemented_by_clarena.CUB2002011: CUB2002011Constants,
 }
+r"""A dictionary that maps dataset classes to their corresponding constants."""

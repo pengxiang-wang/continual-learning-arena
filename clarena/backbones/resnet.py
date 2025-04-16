@@ -26,6 +26,7 @@ import torchvision
 from torch import Tensor, nn
 
 from clarena.backbones import CLBackbone, HATMaskBackbone
+from clarena.backbones.constants import RESNET18_STATE_DICT_MAPPING
 
 
 class ResNetBlockSmall(CLBackbone):
@@ -634,9 +635,18 @@ class ResNet18(ResNetBase):
 
         if pretrained:
 
-            raw_state_dict = torchvision.models.resnet18(
+            # load the pretrained weights from TorchVision
+            torchvision_resnet18_state_dict = torchvision.models.resnet18(
                 weights="IMAGENET1K_V1"
             ).state_dict()
+
+            # mapping from torchvision resnet18 state dict to our ResNet18 state dict
+            state_dict_converted = {}
+            for key, value in torchvision_resnet18_state_dict.items():
+                if RESNET18_STATE_DICT_MAPPING[key] is not None:
+                    state_dict_converted[RESNET18_STATE_DICT_MAPPING[key]] = value
+
+            self.load_state_dict(state_dict_converted)
 
 
 class ResNet34(ResNetBase):

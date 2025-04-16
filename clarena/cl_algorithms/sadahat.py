@@ -46,6 +46,7 @@ class SAdaHAT(AdaHAT):
         heads: HeadsTIL | HeadsCIL,
         adjustment_intensity: float,
         importance_type: str,
+        importance_summing_strategy: str,
         importance_scheduler_type: str,
         neuron_to_weight_importance_aggregation_mode: str,
         s_max: float,
@@ -56,6 +57,7 @@ class SAdaHAT(AdaHAT):
         base_mask_sparsity_reg: float = 0.1,
         base_linear: float = 10,
         filter_unmasked_importance: bool = True,
+        step_multiply_training_mask: bool = False,
         task_embedding_init_mode: str = "N01",
     ) -> None:
         r"""Initialise the S-AdaHAT algorithm with the network.
@@ -86,6 +88,9 @@ class SAdaHAT(AdaHAT):
             19. 'lrp_abs':
             20. 'cbp_adaptation':
             21. 'cbp_adaptative_contribution':
+        - **importance_summing_strategy** (`str`): the strategy to sum the neuron-wise importance for previous tasks, should be one of the following:
+            1. 'add_latest': add the latest task importance to the summative importance.
+            2. 'add_average': add the average of all tasks importance to the summative importance.
         - **importance_scheduler_type** (`str`): the scheduler for the importance, i.e. the factor $c_{l,ij}$ multiplied to the parameter importance that refines the importance. It should be one of the following:
             1. 'linear_sparsity_reg': $\left(t + b_L\right) \cdot  \left[R \left( M^t, M^{<t} \right) + b_R \right]$
             2. 'constant_sparsity_reg': $b_L \cdot  \left[R \left( M^t, M^{<t} \right) + b_R \right]$
@@ -104,6 +109,7 @@ class SAdaHAT(AdaHAT):
         - **base_mask_sparsity_reg** (`float`): the base value added to the mask sparsity regularisation factor in the importance scheduler. It is $b_R$ in the paper. Default is 0.1.
         - **base_linear** (`float`): the base value added to the linear factor in the importance scheduler. It is $b_L$ in the paper. Default is 10.
         - **filter_unmasked_importance** (`bool`): whether to filter unmasked importance values (set them to 0) at the end of task training. Filtering is to multiply the final trained mask $m^{t}_{l,i}$ to the importance $I^{t}_{l,i}$. Default is True.
+        - **step_multiply_training_mask** (`bool`): whether to multiply the training mask to the importance at each training step. Default is False.
         - **task_embedding_init_mode** (`str`): the initialisation method for task embeddings, should be one of the following:
             1. 'N01' (default): standard normal distribution $N(0, 1)$.
             2. 'U-11': uniform distribution $U(-1, 1)$.
@@ -127,6 +133,8 @@ class SAdaHAT(AdaHAT):
 
         self.importance_type: str | None = importance_type
         r"""Store the type of the neuron-wise importance added to AdaHAT importance. """
+        self.importance_summing_strategy: str = importance_summing_strategy
+        r"""Store the strategy to sum the neuron-wise importance for previous tasks. It is used to calculate the summative importance for previous tasks. """
         self.importance_scheduler_type: str = importance_scheduler_type
         r"""Store the type of the importance scheduler. It is used to calculate the importance scaling factor. """
         self.neuron_to_weight_importance_aggregation_mode: str = (
@@ -135,6 +143,8 @@ class SAdaHAT(AdaHAT):
         r"""Store the mode of aggregation from neuron-wise to weight-wise importance. It is used to calculate the weight importance from the neuron importance. """
         self.filter_unmasked_importance: bool = filter_unmasked_importance
         r"""Store the flag to filter unmasked importance values (set them to 0) at the end of task training. """
+        self.step_multiply_training_mask: bool = step_multiply_training_mask
+        r"""Store the flag to multiply the training mask to the importance at each training step. """
 
         # base values
         self.base_importance: float = base_importance
@@ -148,8 +158,8 @@ class SAdaHAT(AdaHAT):
         r"""Store the min-max scaled ($[0, 1]$) neuron-wise importance of units. It is $I^{\tau}_{l}$ in the paper. Keys are task IDs (string type) and values are the corresponding importance tensor. Each importance tensor is a dict where keys are layer names and values are the importance tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units). """
         self.num_steps_t: int
         r"""Store the number of training steps for the current task `self.task_id`. It is used to calculate the neuron-wise importance for a task. """
-        self.average_importance_for_previous_tasks: dict[str, Tensor] = {}
-        r"""Store the average neuron-wise importance values of units for previous tasks before the current task `self.task_id`. See $I^{<t}_{l}$ in the paper. Keys are layer names and values are the average importance tensor for the layer. The average importance tensor is the same size as the feature tensor with size (number of units). """
+        self.summative_importance_for_previous_tasks: dict[str, Tensor] = {}
+        r"""Store the summative neuron-wise importance values of units for previous tasks before the current task `self.task_id`. See $I^{<t}_{l}$ in the paper. Keys are layer names and values are the summative importance tensor for the layer. The summative importance tensor is the same size as the feature tensor with size (number of units). """
 
         # set manual optimisation
         self.automatic_optimization = False
@@ -162,9 +172,9 @@ class SAdaHAT(AdaHAT):
         **Raises:**
         - **ValueError**: if the `base_importance`, `base_mask_sparsity_reg` or `base_linear` is less than or equal to 0.
         """
-        if self.base_importance <= 0:
+        if self.base_importance < 0:
             raise ValueError(
-                f"base_importance must be > 0, but got {self.base_importance}"
+                f"base_importance must be >= 0, but got {self.base_importance}"
             )
         if self.base_mask_sparsity_reg <= 0:
             raise ValueError(
@@ -194,13 +204,12 @@ class SAdaHAT(AdaHAT):
             self.num_steps_t = (
                 0  # reset the number of steps counter for the current task
             )
-
             if self.task_id == 1:
-                self.average_importance_for_previous_tasks[layer_name] = torch.zeros(
+                self.summative_importance_for_previous_tasks[layer_name] = torch.zeros(
                     num_units
                 ).to(
                     self.device
-                )  # the average neuron-wise importance for previous tasks $I^{<t}_{l}$ is initialised as zeros mask for $t = 1$. See the paper.
+                )  # the summative neuron-wise importance for previous tasks $I^{<t}_{l}$ is initialised as zeros mask when $t=1$. See the paper.
 
     def clip_grad_by_adjustment(
         self,
@@ -237,7 +246,7 @@ class SAdaHAT(AdaHAT):
             # aggregate the neuron-wise importance to weight-wise importance. Note that the neuron-wise importance is already min-max scaled to [0, 1] in the `on_train_batch_end()` method, and added the base value, and filtered by the mask.
             weight_importance, bias_importance = (
                 self.backbone.get_layer_measure_parameter_wise(
-                    unit_wise_measure=self.average_importance_for_previous_tasks,
+                    unit_wise_measure=self.summative_importance_for_previous_tasks,
                     layer_name=layer_name,
                     aggregation_mode=self.neuron_to_weight_importance_aggregation_mode,
                 )
@@ -292,6 +301,7 @@ class SAdaHAT(AdaHAT):
         activations = outputs["activations"]
         input = outputs["input"]
         target = outputs["target"]
+        mask = outputs["mask"]
         num_batches = self.trainer.num_training_batches
 
         for layer_name in self.backbone.weighted_layer_names:
@@ -475,6 +485,10 @@ class SAdaHAT(AdaHAT):
                 importance_step
             )  # min-max scaling the utility to [0,1]. See in the paper.
 
+            if self.step_multiply_training_mask:
+                # multiply the importance by the training mask
+                importance_step = importance_step * mask[layer_name]
+
             # update accumulated importance
             self.importances[f"{self.task_id}"][layer_name] = (
                 self.importances[f"{self.task_id}"][layer_name] + importance_step
@@ -508,12 +522,16 @@ class SAdaHAT(AdaHAT):
                     * self.masks[f"{self.task_id}"][layer_name]
                 )
 
-            # calculate the average neuron-wise importance for previous tasks
-            self.average_importance_for_previous_tasks[layer_name] = (
-                self.average_importance_for_previous_tasks[layer_name]
-                * (self.task_id - 1)
-                + (self.importances[f"{self.task_id}"][layer_name])
-            ) / self.task_id
+            # calculate the summative neuron-wise importance for previous tasks
+            if self.importance_summing_strategy == "add_latest":
+                self.summative_importance_for_previous_tasks[
+                    layer_name
+                ] += self.importances[f"{self.task_id}"][layer_name]
+            elif self.importance_summing_strategy == "add_average":
+                for t in range(1, self.task_id + 1):
+                    self.summative_importance_for_previous_tasks[layer_name] += (
+                        self.importances[f"{t}"][layer_name] / self.task_id
+                    )
 
     def get_importance_step_layer_weight_abs_sum(
         self: str,

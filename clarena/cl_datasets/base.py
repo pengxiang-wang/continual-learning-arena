@@ -15,7 +15,7 @@ from omegaconf import ListConfig
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-from clarena.cl_datasets.constants import DATASET_CONSTANTS, DatasetConstants
+from clarena.cl_datasets.constants import DATASET_CONSTANTS_MAPPING, DatasetConstants
 from clarena.utils import str_to_class
 
 # always get logger for built-in logging in each module
@@ -462,9 +462,9 @@ class CLPermutedDataset(CLDataset):
             custom_target_transforms=custom_target_transforms,
         )
 
-        self.original_dataset_constants: type[DatasetConstants] = DATASET_CONSTANTS[
-            self.original_dataset_python_class
-        ]
+        self.original_dataset_constants: type[DatasetConstants] = (
+            DATASET_CONSTANTS_MAPPING[self.original_dataset_python_class]
+        )
         r"""The original dataset constants class. """
 
         self.permutation_mode: str = permutation_mode
@@ -665,9 +665,9 @@ class CLSplitDataset(CLDataset):
             custom_target_transforms=custom_target_transforms,
         )
 
-        self.original_dataset_constants: type[DatasetConstants] = DATASET_CONSTANTS[
-            self.original_dataset_python_class
-        ]
+        self.original_dataset_constants: type[DatasetConstants] = (
+            DATASET_CONSTANTS_MAPPING[self.original_dataset_python_class]
+        )
         r"""The original dataset constants class. """
 
         self.class_split: list[list[int]] = class_split
@@ -823,7 +823,7 @@ class CLCombinedDataset(CLDataset):
         if self.cl_paradigm == "CIL":
             num_classes_previous = sum(
                 [
-                    DATASET_CONSTANTS[
+                    DATASET_CONSTANTS_MAPPING[
                         self.original_dataset_python_classes[i]
                     ].NUM_CLASSES
                     for i in range(self.task_id - 1)
@@ -842,9 +842,9 @@ class CLCombinedDataset(CLDataset):
             task_id - 1
         ]
 
-        self.original_dataset_constants_t: type[DatasetConstants] = DATASET_CONSTANTS[
-            self.original_dataset_python_class_t
-        ]
+        self.original_dataset_constants_t: type[DatasetConstants] = (
+            DATASET_CONSTANTS_MAPPING[self.original_dataset_python_class_t]
+        )
         self.num_classes_t = self.original_dataset_constants_t.NUM_CLASSES
 
         CLDataset.setup_task_id(self, task_id)
