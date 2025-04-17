@@ -121,7 +121,7 @@ class AdaHAT(HAT):
     def clip_grad_by_adjustment(
         self,
         network_sparsity: dict[str, Tensor] | None = None,
-    ) -> Tensor:
+    ) -> tuple[dict[str, Tensor], dict[str, Tensor], Tensor]:
         r"""Clip the gradients by the adjustment rate.
 
         Note that as the task embedding fully covers every layer in the backbone network, no parameters are left out of this system. This applies not only the parameters in between layers with task embedding, but also those before the first layer. We designed it seperately in the codes.
@@ -132,11 +132,15 @@ class AdaHAT(HAT):
         - **network_sparsity** (`dict[str, Tensor]` | `None`): The network sparsity i.e. the mask sparsity loss of each layer for the current task. It applies only to AdaHAT modes, as it is used to calculate the adjustment rate for the gradients.
 
         **Returns:**
+        - **adjustment_rate_weight** (`dict[str, Tensor]`): the adjustment rate for weights. Key (`str`) is layer name, value (`Tensor`) is the adjustment rate tensor.
+        - **adjustment_rate_bias** (`dict[str, Tensor]`): the adjustment rate for biases. Key (`str`) is layer name, value (`Tensor`) is the adjustment rate tensor.
         - **capacity** (`Tensor`): the calculated network capacity.
         """
 
         # initialise network capacity metric
         capacity = HATNetworkCapacity()
+        adjustment_rate_weight = {}
+        adjustment_rate_bias = {}
 
         # calculate the adjustment rate for gradients of the parameters, both weights and biases (if exists)
         for layer_name in self.backbone.weighted_layer_names:
@@ -146,8 +150,8 @@ class AdaHAT(HAT):
             )  # get the layer by its name
 
             # placeholder for the adjustment rate to avoid the error of using it before assignment
-            adjustment_rate_weight = 1
-            adjustment_rate_bias = 1
+            adjustment_rate_weight_layer = 1
+            adjustment_rate_bias_layer = 1
 
             weight_importance, bias_importance = (
                 self.backbone.get_layer_measure_parameter_wise(
@@ -163,36 +167,49 @@ class AdaHAT(HAT):
                 r_layer = self.adjustment_intensity / (
                     self.epsilon + network_sparsity_layer
                 )
-                adjustment_rate_weight = torch.div(
+                adjustment_rate_weight_layer = torch.div(
                     r_layer, (weight_importance + r_layer)
                 )
-                adjustment_rate_bias = torch.div(r_layer, (bias_importance + r_layer))
+                adjustment_rate_bias_layer = torch.div(
+                    r_layer, (bias_importance + r_layer)
+                )
 
             elif self.adjustment_mode == "adahat_no_sum":
 
                 r_layer = self.adjustment_intensity / (
                     self.epsilon + network_sparsity_layer
                 )
-                adjustment_rate_weight = torch.div(r_layer, (self.task_id + r_layer))
-                adjustment_rate_bias = torch.div(r_layer, (self.task_id + r_layer))
+                adjustment_rate_weight_layer = torch.div(
+                    r_layer, (self.task_id + r_layer)
+                )
+                adjustment_rate_bias_layer = torch.div(
+                    r_layer, (self.task_id + r_layer)
+                )
 
             elif self.adjustment_mode == "adahat_no_reg":
 
                 r_layer = self.adjustment_intensity / (self.epsilon + 0.0)
-                adjustment_rate_weight = torch.div(
+                adjustment_rate_weight_layer = torch.div(
                     r_layer, (weight_importance + r_layer)
                 )
-                adjustment_rate_bias = torch.div(r_layer, (bias_importance + r_layer))
+                adjustment_rate_bias_layer = torch.div(
+                    r_layer, (bias_importance + r_layer)
+                )
 
             # apply the adjustment rate to the gradients
-            layer.weight.grad.data *= adjustment_rate_weight
+            layer.weight.grad.data *= adjustment_rate_weight_layer
             if layer.bias is not None:
-                layer.bias.grad.data *= adjustment_rate_bias
+                layer.bias.grad.data *= adjustment_rate_bias_layer
+
+            # store the adjustment rate for logging
+            adjustment_rate_weight[layer_name] = adjustment_rate_weight_layer
+            if layer.bias is not None:
+                adjustment_rate_bias[layer_name] = adjustment_rate_bias_layer
 
             # update network capacity metric
-            capacity.update(adjustment_rate_weight, adjustment_rate_bias)
+            capacity.update(adjustment_rate_weight_layer, adjustment_rate_bias_layer)
 
-        return capacity.compute()
+        return adjustment_rate_weight, adjustment_rate_bias, capacity.compute()
 
     def on_train_end(self) -> None:
         r"""Additionally update summative mask after training the task."""

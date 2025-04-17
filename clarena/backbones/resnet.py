@@ -26,7 +26,10 @@ import torchvision
 from torch import Tensor, nn
 
 from clarena.backbones import CLBackbone, HATMaskBackbone
-from clarena.backbones.constants import RESNET18_STATE_DICT_MAPPING
+from clarena.backbones.constants import (
+    HATMASKRESNET18_STATE_DICT_MAPPING,
+    RESNET18_STATE_DICT_MAPPING,
+)
 
 
 class ResNetBlockSmall(CLBackbone):
@@ -608,7 +611,7 @@ class ResNet18(ResNetBase):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalisation: bool = True,
         bias: bool = False,
-        pretrained: bool = False,
+        pretrained_weights: str | None = None,
     ) -> None:
         r"""Construct and initialise the ResNet-18 backbone network.
 
@@ -618,7 +621,7 @@ class ResNet18(ResNetBase):
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **batch_normalisation** (`bool`): whether to use batch normalisation after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalisation are doing the similar thing with bias.
-        - **pretrained** (`bool`): whether to use the pretrained weights from TorchVision. Default `False`.
+        - **pretrained_weights** (`str`): the name of pretrained weights to be loaded. See [TorchVision docs](https://pytorch.org/vision/main/models.html). If `None`, no pretrained weights are loaded. Default `None`.
         """
         ResNetBase.__init__(
             self,
@@ -633,11 +636,10 @@ class ResNet18(ResNetBase):
             bias=bias,
         )
 
-        if pretrained:
-
+        if pretrained_weights is not None:
             # load the pretrained weights from TorchVision
             torchvision_resnet18_state_dict = torchvision.models.resnet18(
-                weights="IMAGENET1K_V1"
+                weights=pretrained_weights
             ).state_dict()
 
             # mapping from torchvision resnet18 state dict to our ResNet18 state dict
@@ -646,7 +648,7 @@ class ResNet18(ResNetBase):
                 if RESNET18_STATE_DICT_MAPPING[key] is not None:
                     state_dict_converted[RESNET18_STATE_DICT_MAPPING[key]] = value
 
-            self.load_state_dict(state_dict_converted)
+            self.load_state_dict(state_dict_converted, strict=False)
 
 
 class ResNet34(ResNetBase):
@@ -838,6 +840,7 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
             input_channels=input_channels,
             overall_stride=overall_stride,
             activation_layer=activation_layer,
+            batch_normalisation=False,
             bias=bias,
         )
         self.register_hat_mask_module_explicitly(gate=gate)
@@ -966,6 +969,7 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
             input_channels=input_channels,
             overall_stride=overall_stride,
             activation_layer=activation_layer,
+            batch_normalisation=False,
             bias=bias,
         )
         self.register_hat_mask_module_explicitly(gate=gate)
@@ -1330,6 +1334,7 @@ class HATMaskResNet18(HATMaskResNetBase):
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
         bias: bool = False,
+        pretrained_weights: str | None = None,
     ) -> None:
         r"""Construct and initialise the ResNet-18 backbone network with task embedding. Note that batch normalisation is incompatible with HAT mechanism.
 
@@ -1340,6 +1345,7 @@ class HATMaskResNet18(HATMaskResNetBase):
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
+        - **pretrained_weights** (`str`): the name of pretrained weights to be loaded. See [TorchVision docs](https://pytorch.org/vision/main/models.html). If `None`, no pretrained weights are loaded. Default `None`.
         """
         HATMaskResNetBase.__init__(
             self,
@@ -1353,6 +1359,22 @@ class HATMaskResNet18(HATMaskResNetBase):
             activation_layer=activation_layer,
             bias=bias,
         )
+
+        if pretrained_weights is not None:
+            # load the pretrained weights from TorchVision
+            torchvision_resnet18_state_dict = torchvision.models.resnet18(
+                weights=pretrained_weights
+            ).state_dict()
+
+            # mapping from torchvision resnet18 state dict to our HATMaskResNet18 state dict
+            state_dict_converted = {}
+            for key, value in torchvision_resnet18_state_dict.items():
+                if HATMASKRESNET18_STATE_DICT_MAPPING[key] is not None:
+                    state_dict_converted[HATMASKRESNET18_STATE_DICT_MAPPING[key]] = (
+                        value
+                    )
+
+            self.load_state_dict(state_dict_converted, strict=False)
 
 
 class HATMaskResNet34(HATMaskResNetBase):

@@ -19,6 +19,8 @@ from .plot import (
     plot_test_ave_acc_curve_from_csv,
     plot_test_ave_loss_cls_curve_from_csv,
     plot_hat_mask,
+    plot_hat_adjustment_rate,
+    plot_unlearning_test_distance_from_csv,
     plot_test_acc_matrix_from_csv,
     plot_test_loss_cls_matrix_from_csv,
 )

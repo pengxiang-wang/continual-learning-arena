@@ -84,25 +84,27 @@ class HATNetworkCapacity(BaseAggregator):
         r"""State variable created by `add_state()` to store the number of the parameters till this layer."""
 
     def update(
-        self, adjustment_rate_weight: Tensor, adjustment_rate_bias: Tensor
+        self, adjustment_rate_weight_layer: Tensor, adjustment_rate_bias_layer: Tensor
     ) -> None:
         r"""Update and accumulate the sum of adjustment rate values till this layer from the layer.
 
         **Args:**
-        - **adjustment_rate_weight** (`Tensor`): the adjustment rate values of the weight matrix of the layer.
-        - **adjustment_rate_bias** (`Tensor`): the adjustment rate values of the bias vector of the layer.
+        - **adjustment_rate_weight_layer** (`Tensor`): the adjustment rate values of the weight matrix of the layer.
+        - **adjustment_rate_bias_layer** (`Tensor`): the adjustment rate values of the bias vector of the layer.
         """
-        adjustment_rate_weight = torch.as_tensor(
-            adjustment_rate_weight, dtype=self.dtype, device=self.device
+        adjustment_rate_weight_layer = torch.as_tensor(
+            adjustment_rate_weight_layer, dtype=self.dtype, device=self.device
         )
-        adjustment_rate_bias = torch.as_tensor(
-            adjustment_rate_bias, dtype=self.dtype, device=self.device
+        adjustment_rate_bias_layer = torch.as_tensor(
+            adjustment_rate_bias_layer, dtype=self.dtype, device=self.device
         )
 
         self.sum_adjustment_rate += (
-            adjustment_rate_weight.sum() + adjustment_rate_bias.sum()
+            adjustment_rate_weight_layer.sum() + adjustment_rate_bias_layer.sum()
         )
-        self.num_params += adjustment_rate_weight.numel() + adjustment_rate_bias.numel()
+        self.num_params += (
+            adjustment_rate_weight_layer.numel() + adjustment_rate_bias_layer.numel()
+        )
 
     def compute(self) -> Tensor:
         r"""Compute this HAT network capacity till this layer.

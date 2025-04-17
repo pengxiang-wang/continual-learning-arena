@@ -149,20 +149,23 @@ class HAT(CLAlgorithm):
     def clip_grad_by_adjustment(
         self,
         **kwargs,
-    ) -> Tensor:
+    ) -> tuple[dict[str, Tensor], dict[str, Tensor], Tensor]:
         r"""Clip the gradients by the adjustment rate.
 
         Note that as the task embedding fully covers every layer in the backbone network, no parameters are left out of this system. This applies not only the parameters in between layers with task embedding, but also those before the first layer. We designed it seperately in the codes.
 
         Network capacity is measured along with this method. Network capacity is defined as the average adjustment rate over all parameters. See chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
 
-
         **Returns:**
+        - **adjustment_rate_weight** (`dict[str, Tensor]`): the adjustment rate for weights. Key (`str`) is layer name, value (`Tensor`) is the adjustment rate tensor.
+        - **adjustment_rate_bias** (`dict[str, Tensor]`): the adjustment rate for biases. Key (`str`) is layer name, value (`Tensor`) is the adjustment rate tensor.
         - **capacity** (`Tensor`): the calculated network capacity.
         """
 
         # initialise network capacity metric
         capacity = HATNetworkCapacity()
+        adjustment_rate_weight = {}
+        adjustment_rate_bias = {}
 
         # calculate the adjustment rate for gradients of the parameters, both weights and biases (if exists)
         for layer_name in self.backbone.weighted_layer_names:
@@ -172,8 +175,8 @@ class HAT(CLAlgorithm):
             )  # get the layer by its name
 
             # placeholder for the adjustment rate to avoid the error of using it before assignment
-            adjustment_rate_weight = 1
-            adjustment_rate_bias = 1
+            adjustment_rate_weight_layer = 1
+            adjustment_rate_bias_layer = 1
 
             weight_mask, bias_mask = self.backbone.get_layer_measure_parameter_wise(
                 unit_wise_measure=self.cumulative_mask_for_previous_tasks,
@@ -182,42 +185,47 @@ class HAT(CLAlgorithm):
             )
 
             if self.adjustment_mode == "hat":
-                adjustment_rate_weight = 1 - weight_mask
-                adjustment_rate_bias = 1 - bias_mask
+                adjustment_rate_weight_layer = 1 - weight_mask
+                adjustment_rate_bias_layer = 1 - bias_mask
 
             elif self.adjustment_mode == "hat_random":
-                adjustment_rate_weight = torch.rand_like(weight_mask) * weight_mask + (
-                    1 - weight_mask
-                )
-                adjustment_rate_bias = torch.rand_like(bias_mask) * bias_mask + (
+                adjustment_rate_weight_layer = torch.rand_like(
+                    weight_mask
+                ) * weight_mask + (1 - weight_mask)
+                adjustment_rate_bias_layer = torch.rand_like(bias_mask) * bias_mask + (
                     1 - bias_mask
                 )
 
             elif self.adjustment_mode == "hat_const_alpha":
-                adjustment_rate_weight = self.alpha * torch.ones_like(
+                adjustment_rate_weight_layer = self.alpha * torch.ones_like(
                     weight_mask
                 ) * weight_mask + (1 - weight_mask)
-                adjustment_rate_bias = self.alpha * torch.ones_like(
+                adjustment_rate_bias_layer = self.alpha * torch.ones_like(
                     bias_mask
                 ) * bias_mask + (1 - bias_mask)
 
             elif self.adjustment_mode == "hat_const_1":
-                adjustment_rate_weight = torch.ones_like(weight_mask) * weight_mask + (
-                    1 - weight_mask
-                )
-                adjustment_rate_bias = torch.ones_like(bias_mask) * bias_mask + (
+                adjustment_rate_weight_layer = torch.ones_like(
+                    weight_mask
+                ) * weight_mask + (1 - weight_mask)
+                adjustment_rate_bias_layer = torch.ones_like(bias_mask) * bias_mask + (
                     1 - bias_mask
                 )
 
             # apply the adjustment rate to the gradients
-            layer.weight.grad.data *= adjustment_rate_weight
+            layer.weight.grad.data *= adjustment_rate_weight_layer
             if layer.bias is not None:
-                layer.bias.grad.data *= adjustment_rate_bias
+                layer.bias.grad.data *= adjustment_rate_bias_layer
+
+            # store the adjustment rate for logging
+            adjustment_rate_weight[layer_name] = adjustment_rate_weight_layer
+            if layer.bias is not None:
+                adjustment_rate_bias[layer_name] = adjustment_rate_bias_layer
 
             # update network capacity metric
-            capacity.update(adjustment_rate_weight, adjustment_rate_bias)
+            capacity.update(adjustment_rate_weight_layer, adjustment_rate_bias_layer)
 
-        return capacity.compute()
+        return adjustment_rate_weight, adjustment_rate_bias, capacity.compute()
 
     def compensate_task_embedding_gradients(
         self,
@@ -296,29 +304,6 @@ class HAT(CLAlgorithm):
             else (logits, mask, activations)
         )
 
-    # def make_train_forward_func(self, batch_idx: int, num_batches: int) -> Callable:
-    #     r"""Closure to get the pure forward function for training. It is used for Captum APIs to calculate the attributions.
-
-    #     **Args:**
-    #     - **batch_idx** (`int`): the current training batch index.
-    #     - **num_batches** (`int`): the total number of training batches.
-
-    #     **Returns:**
-    #     - **forward_func** (`Callable`): a callable function that  takes the input tensor only and returns the logits tensor only.
-    #     """
-
-    #     def train_forward_func(input: Tensor) -> Tensor:
-    #         logits, _, _ = self.forward(
-    #             input=input,
-    #             stage="train",
-    #             batch_idx=batch_idx,
-    #             num_batches=num_batches,
-    #             task_id=self.task_id,
-    #         )
-    #         return logits
-
-    #     return train_forward_func
-
     def training_step(self, batch: Any, batch_idx: int) -> dict[str, Tensor]:
         r"""Training step for current task `self.task_id`.
 
@@ -358,36 +343,10 @@ class HAT(CLAlgorithm):
         self.manual_backward(loss)  # calculate the gradients
         # HAT hard clip gradients by the cumulative masks. See equation (2) inchapter 2.3 "Network Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a). Network capacity is calculated along with this process. Network capacity is defined as the average adjustment rate over all paramaters. See chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
 
-        # print(
-        #     mask["fc/0"].numel() * mask["fc/1"].numel(),
-        #     self.backbone.fc[1].weight.grad.data.numel(),
-        # )
-
-        # print(mask["fc/0"]).view(1, -1).expand(100, 256).size())
-        # print(torch.abs(mask["fc/1"]).view(-1, 1).expand(100, 256).size())
-        # print(
-        #     (torch.abs(mask["fc/1"]).view(1, -1) * torch.abs(mask["fc/0"]))
-        #     .view(-1, 1)
-        #     .size()
-        # )
-
-        # print(
-        #     (
-        #         torch.abs(
-        #             (mask["fc/0"].view(1, -1).expand(100, 256) > 0.5)
-        #             * (mask["fc/1"].view(-1, 1).expand(100, 256) > 0.5)
-        #         )
-        #         == 0
-        #     )
-        #     .sum()
-        #     .item()
-        #     / (mask["fc/0"].numel() * mask["fc/1"].numel()),
-        #     (torch.abs(self.backbone.fc[1].weight.grad.data) != 0).sum().item()
-        #     / (self.backbone.fc[1].weight.grad.data.numel()),
-        # )
-
-        capacity = self.clip_grad_by_adjustment(
-            network_sparsity=network_sparsity,  # pass a keyword argument network sparsity here to make it compatible with AdaHAT. AdaHAT inherits this `training_step()` method.
+        adjustment_rate_weight, adjustment_rate_bias, capacity = (
+            self.clip_grad_by_adjustment(
+                network_sparsity=network_sparsity,  # pass a keyword argument network sparsity here to make it compatible with AdaHAT. AdaHAT inherits this `training_step()` method.
+            )
         )
         # compensate the gradients of task embedding. See chapter 2.5 "Embedding Gradient Compensation" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         self.compensate_task_embedding_gradients(
@@ -408,12 +367,11 @@ class HAT(CLAlgorithm):
             "activations": activations,
             "logits": logits,
             "mask": mask,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
-            # "forward_func": self.make_train_forward_func(
-            #     batch_idx=batch_idx, num_batches=num_batches
-            # ),  # Return the forward function for Captum to use
             "input": x,  # Return the input batch for Captum to use
             "target": y,  # Return the target batch for Captum to use
-            "capacity": capacity,
+            "adjustment_rate_weight": adjustment_rate_weight,  # Return the adjustment rate for weights and biases for logging
+            "adjustment_rate_bias": adjustment_rate_bias,
+            "capacity": capacity,  # Return the network capacity for logging
         }
 
     def on_train_end(self) -> None:

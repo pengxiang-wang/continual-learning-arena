@@ -6,6 +6,8 @@ __all__ = [
     "plot_test_ave_acc_curve_from_csv",
     "plot_test_ave_loss_cls_curve_from_csv",
     "plot_hat_mask",
+    "plot_hat_adjustment_rate",
+    "plot_unlearning_test_distance_from_csv",
 ]
 
 
@@ -13,6 +15,7 @@ import os
 
 import pandas as pd
 from matplotlib import pyplot as plt
+from matplotlib.colors import LogNorm
 from torch import Tensor
 
 
@@ -221,7 +224,7 @@ def plot_hat_mask(
 
         fig = plt.figure()
         plt.imshow(
-            m.detach().cpu(), aspect=10, cmap="Greys"
+            m.detach().cpu(), aspect="auto", cmap="Greys"
         )  # can only convert to tensors in CPU to numpy arrays
         plt.yticks()  # hide yticks
         plt.colorbar()
@@ -229,6 +232,51 @@ def plot_hat_mask(
             plot_name = f"{layer_name}_task{task_id}_step{step}.png"
         else:
             plot_name = f"{layer_name}_task{task_id}.png"
+        plot_path = os.path.join(plot_dir, plot_name)
+        fig.savefig(plot_path)
+        plt.close(fig)
+
+
+def plot_hat_adjustment_rate(
+    adjustment_rate: dict[str, Tensor],
+    weight_or_bias: str,
+    plot_dir: str,
+    task_id: int,
+    step: int | None = None,
+) -> None:
+    """Plot adjustment rate in [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a)) algorithm. This includes the adjustment rate weight and adjustment rate bias (if applicable).
+
+    **Args:**
+    - **adjustment_rate** (`dict[str, Tensor]`): the adjustment rate. Key (`str`) is layer name, value (`Tensor`) is the adjustment rate tensor. If it's adjustment rate weight, it has size same as weights. If it's adjustment rate bias, it has size same as biases.
+    - **weight_or_bias** (`str`): the type of adjustment rate. It can be either 'weight' or 'bias'. This is to form the plot name.
+    - **plot_dir** (`str`): the directory to save plot. Better same as the output directory of the experiment.
+    - **task_id** (`int`): the task ID of the adjustment rate to be plotted. This is to form the plot name.
+    - **step** (`int`): the training step (batch index) of the adjustment rate to be plotted. This is to form the plot name. Keep `None` for not showing the step in the plot name.
+    """
+
+    for layer_name, a in adjustment_rate.items():
+        layer_name = layer_name.replace(
+            "/", "."
+        )  # the layer name contains '/', which is not allowed in the file name. We replace it back with '.'.
+
+        if weight_or_bias == "bias":
+            a = a.view(
+                1, -1
+            )  # reshape the 1D mask to 2D so can be plotted by image show
+
+        fig = plt.figure()
+        plt.imshow(
+            a.detach().cpu(),
+            aspect="auto",
+            cmap="Wistia",
+            norm=LogNorm(vmin=1e-7, vmax=1e-5),
+        )  # can only convert to tensors in CPU to numpy arrays
+        plt.yticks()  # hide yticks
+        plt.colorbar()
+        if step:
+            plot_name = f"{layer_name}_{weight_or_bias}_task{task_id}_step{step}.png"
+        else:
+            plot_name = f"{layer_name}_{weight_or_bias}_task{task_id}.png"
         plot_path = os.path.join(plot_dir, plot_name)
         fig.savefig(plot_path)
         plt.close(fig)
