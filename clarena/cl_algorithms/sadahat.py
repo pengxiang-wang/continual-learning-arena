@@ -5,6 +5,7 @@ The submodule in `cl_algorithms` for S-AdaHAT algorithm.
 __all__ = ["SAdaHAT"]
 
 import logging
+import math
 from typing import Any
 
 import torch
@@ -59,7 +60,9 @@ class SAdaHAT(AdaHAT):
         filter_unmasked_importance: bool = True,
         step_multiply_training_mask: bool = False,
         task_embedding_init_mode: str = "N01",
-        importance_summing_strategy_exponential_decay_rate: float | None = None,
+        importance_summing_strategy_linear_step: float | None = None,
+        importance_summing_strategy_exponential_rate: float | None = None,
+        importance_summing_strategy_log_base: float | None = None,
     ) -> None:
         r"""Initialise the S-AdaHAT algorithm with the network.
 
@@ -91,10 +94,14 @@ class SAdaHAT(AdaHAT):
             21. 'cbp_adaptative_contribution':
         - **importance_summing_strategy** (`str`): the strategy to sum the neuron-wise importance for previous tasks, should be one of the following:
             1. 'add_latest': add the latest task importance to the summative importance.
-            2. 'add_average': add the average of all tasks importance to the summative importance.
-            3. 'linear_decrease': linearly decrease the importance weight of all tasks.
-            4. 'exponential_decrease': exponentially decrease the importance weight of all tasks.
-            5. 'reciprocal_decrease': reciprocally decrease the importance weight of all tasks.
+            2. 'add_all': add all tasks importance to the summative importance. It is the same as 'linear_decrease'.
+            3. 'add_average': add the average of all tasks importance to the summative importance.
+            4. 'linear_decrease': linearly decrease the importance weight of all tasks. It is the same as 'add_all'. The latest task importance weight is 1, and previous tasks weights linearly increase with `importance_summing_strategy_linear_step`.
+            5. 'quadratic_decrease': quadratically decrease the importance weight of all tasks. The latest task importance weight is 1, and previous tasks weights quadratically increase.
+            6. 'cubic_decrease': cubically decrease the importance weight of all tasks. The latest task importance weight is 1, and previous tasks weights cubically increase.
+            7. 'exponential_decrease': exponentially decrease the importance weight of all tasks. The latest task importance weight is 1, and previous tasks weights exponentially increase with `importance_summing_strategy_exponential_rate`.
+            8. 'log_decrease': logarithmically decrease the importance weight of all tasks. The latest task importance weight is 1, and previous tasks weights logarithmically increase with `importance_summing_strategy_log_base`.
+            9. 'factorial_decrease': factorially decrease the importance weight of all tasks. The latest task importance weight is 1, and previous tasks weights factorially increase.
         - **importance_scheduler_type** (`str`): the scheduler for the importance, i.e. the factor $c_{l,ij}$ multiplied to the parameter importance that refines the importance. It should be one of the following:
             1. 'linear_sparsity_reg': $\left(t + b_L\right) \cdot  \left[R \left( M^t, M^{<t} \right) + b_R \right]$
             2. 'constant_sparsity_reg': $b_L \cdot  \left[R \left( M^t, M^{<t} \right) + b_R \right]$
@@ -120,7 +127,9 @@ class SAdaHAT(AdaHAT):
             3. 'U01': uniform distribution $U(0, 1)$.
             4. 'U-10': uniform distribution $U(-1, 0)$.
             5. 'last': inherit task embedding from last task.
-        - **importance_summing_strategy_exponential_decay_rate** (`float` | `None`): the exponential decay rate for the importance summing strategy. It is used when `importance_summing_strategy` is 'exponential_decrease'.
+        - **importance_summing_strategy_linear_step** (`float` | `None`): the linear step for the importance summing strategy. It is used when `importance_summing_strategy` is 'linear_decrease'. It must be greater than 0.
+        - **importance_summing_strategy_exponential_rate** (`float` | `None`): the exponential rate for the importance summing strategy. It is used when `importance_summing_strategy` is 'exponential_decrease'. It must be greater than 1.
+        - **importance_summing_strategy_log_base** (`float` | `None`): the base for the logarithm in the importance summing strategy. It is used when `importance_summing_strategy` is 'log_decrease'. It must be greater than 1.
         """
         AdaHAT.__init__(
             self,
@@ -150,11 +159,21 @@ class SAdaHAT(AdaHAT):
         r"""Store the flag to filter unmasked importance values (set them to 0) at the end of task training. """
         self.step_multiply_training_mask: bool = step_multiply_training_mask
         r"""Store the flag to multiply the training mask to the importance at each training step. """
-        if importance_summing_strategy_exponential_decay_rate is not None:
-            self.importance_summing_strategy_exponential_decay_rate: float = (
-                importance_summing_strategy_exponential_decay_rate
+        if importance_summing_strategy_linear_step is not None:
+            self.importance_summing_strategy_linear_step: float = (
+                importance_summing_strategy_linear_step
             )
-            r"""Store the exponential decay rate for the importance summing strategy. It is used when `importance_summing_strategy` is 'exponential_decrease'. """
+            r"""Store the linear step for the importance summing strategy. It is used when `importance_summing_strategy` is 'linear_decrease'. """
+        if importance_summing_strategy_exponential_rate is not None:
+            self.importance_summing_strategy_exponential_rate: float = (
+                importance_summing_strategy_exponential_rate
+            )
+            r"""Store the exponential rate for the importance summing strategy. It is used when `importance_summing_strategy` is 'exponential_decrease'. """
+        if importance_summing_strategy_log_base is not None:
+            self.importance_summing_strategy_log_base: float = (
+                importance_summing_strategy_log_base
+            )
+            r"""Store the base for the logarithm in the importance summing strategy. It is used when `importance_summing_strategy` is 'log_decrease'. """
 
         # base values
         self.base_importance: float = base_importance
@@ -550,6 +569,13 @@ class SAdaHAT(AdaHAT):
                 self.summative_importance_for_previous_tasks[
                     layer_name
                 ] += self.importances[f"{self.task_id}"][layer_name]
+
+            elif self.importance_summing_strategy == "add_all":
+                for t in range(1, self.task_id + 1):
+                    self.summative_importance_for_previous_tasks[
+                        layer_name
+                    ] += self.importances[f"{t}"][layer_name]
+
             elif self.importance_summing_strategy == "add_average":
                 for t in range(1, self.task_id + 1):
                     self.summative_importance_for_previous_tasks[layer_name] += (
@@ -565,39 +591,33 @@ class SAdaHAT(AdaHAT):
                 )  # starting adding from 0
 
                 if self.importance_summing_strategy == "linear_decrease":
+                    s = self.importance_summing_strategy_linear_step
                     for t in range(1, self.task_id + 1):
+                        w_t = s * (self.task_id - t) + 1
 
-                        w_t = 2 * (self.task_id - t + 1) / (self.task_id + 1)
-
-                        self.summative_importance_for_previous_tasks[layer_name] += (
-                            self.importances[f"{t}"][layer_name] * w_t
-                        )
+                elif self.importance_summing_strategy == "quadratic_decrease":
+                    for t in range(1, self.task_id + 1):
+                        w_t = (self.task_id - t + 1) ** 2
+                elif self.importance_summing_strategy == "cubic_decrease":
+                    for t in range(1, self.task_id + 1):
+                        w_t = (self.task_id - t + 1) ** 3
                 elif self.importance_summing_strategy == "exponential_decrease":
                     for t in range(1, self.task_id + 1):
-                        r = self.importance_summing_strategy_exponential_decay_rate
+                        r = self.importance_summing_strategy_exponential_rate
 
-                        w_t = (
-                            (1 - r)
-                            * (r ** (t - 1))
-                            * self.task_id
-                            / (1 - (r**self.task_id))
-                        )
-
-                        self.summative_importance_for_previous_tasks[layer_name] += (
-                            self.importances[f"{t}"][layer_name] * w_t
-                        )
-                elif self.importance_summing_strategy == "reciprocal_decrease":
+                        w_t = r ** (self.task_id - t + 1)
+                elif self.importance_summing_strategy == "log_decrease":
+                    a = self.importance_summing_strategy_log_base
                     for t in range(1, self.task_id + 1):
-
-                        h = sum(1 / i for i in range(1, self.task_id + 1))
-
-                        w_t = (1 / t) * self.task_id / h
-
-                        self.summative_importance_for_previous_tasks[layer_name] += (
-                            self.importances[f"{t}"][layer_name] * w_t
-                        )
+                        w_t = math.log(self.task_id - t, a) + 1
+                elif self.importance_summing_strategy == "factorial_decrease":
+                    for t in range(1, self.task_id + 1):
+                        w_t = math.factorial(self.task_id - t + 1)
                 else:
                     raise ValueError
+                self.summative_importance_for_previous_tasks[layer_name] += (
+                    self.importances[f"{t}"][layer_name] * w_t
+                )
 
     def get_importance_step_layer_weight_abs_sum(
         self: str,
