@@ -1,27 +1,27 @@
 r"""
-The submodule in `cl_datasets` for Permuted CIFAR-10 dataset.
+The submodule in `cl_datasets` for Permuted CUB-200-2011 dataset.
 """
 
-__all__ = ["PermutedCIFAR10"]
+__all__ = ["PermutedCUB2002011"]
 
 import logging
 from typing import Callable
 
 import torch
 from torch.utils.data import Dataset, random_split
-from torchvision.datasets import CIFAR10
 from torchvision.transforms import transforms
 
 from clarena.cl_datasets import CLPermutedDataset
+from clarena.cl_datasets.original import CUB2002011
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
-class PermutedCIFAR10(CLPermutedDataset):
-    r"""Permuted CIFAR-10 dataset. The [original CIFAR-10 dataset](https://www.cs.toronto.edu/~kriz/cifar.html) is a subset of the 80 million tiny images dataset. It consists of 60,000 32x32 colour images in 10 classes, with 6000 images per class. There are 50,000 training examples and 10,000 test examples."""
+class PermutedCUB2002011(CLPermutedDataset):
+    r"""Permuted CUB-200-2011 dataset. [CUB(Caltech-UCSD Birds)-200-2011)](https://www.vision.caltech.edu/datasets/cub_200_2011/) is a bird image dataset. It consists of 120,000 64x64 colour images in 200 classes, with 500 training, 50 validation and 50 test examples per class."""
 
-    original_dataset_python_class: type[Dataset] = CIFAR10
+    original_dataset_python_class: type[Dataset] = CUB2002011
     r"""The original dataset class."""
 
     def __init__(
@@ -49,10 +49,10 @@ class PermutedCIFAR10(CLPermutedDataset):
         permutation_mode: str = "first_channel_only",
         permutation_seeds: list[int] | None = None,
     ) -> None:
-        r"""Initialise the Permuted CIFAR-10 dataset object providing the root where data files live.
+        r"""Initialise the Permuted CUB-200-2011 dataset object providing the root where data files live.
 
         **Args:**
-        - **root** (`str`): the root directory where the original CIFAR-10 data 'cifar-10-python/' live.
+        - **root** (`str`): the root directory where the original CUB-200-2011 data 'CUB_200_2011/' live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
         - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
         - **batch_size** (`int` | `list[int]`): The batch size in train, val, test dataloader. If `list[str]`, it should be a list of integers, each integer is the batch size for each task.
@@ -86,13 +86,13 @@ class PermutedCIFAR10(CLPermutedDataset):
         """Store the percentage to randomly split some of the training data into validation data."""
 
     def prepare_data(self) -> None:
-        r"""Download the original CIFAR dataset if haven't."""
+        r"""Download the original CUB-200-2011 dataset if haven't."""
         # just download
-        CIFAR10(root=self.root_t, train=True, download=True)
-        CIFAR10(root=self.root_t, train=False, download=True)
+        CUB2002011(root=self.root_t, train=True, download=True)
+        CUB2002011(root=self.root_t, train=False, download=True)
 
         pylogger.debug(
-            "The original CIFAR dataset has been downloaded to %s.", self.root_t
+            "The original CUB-200-2011 dataset has been downloaded to %s.", self.root_t
         )
 
     def train_and_val_dataset(self) -> tuple[Dataset, Dataset]:
@@ -101,7 +101,7 @@ class PermutedCIFAR10(CLPermutedDataset):
         **Returns:**
         - **train_and_val_dataset** (`tuple[Dataset, Dataset]`): the train and validation dataset of task `self.task_id`.
         """
-        dataset_train_and_val = CIFAR10(
+        dataset_train_and_val = CUB2002011(
             root=self.root_t,
             train=True,
             transform=self.train_and_val_transforms(),
@@ -122,7 +122,7 @@ class PermutedCIFAR10(CLPermutedDataset):
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
 
-        return CIFAR10(
+        return CUB2002011(
             root=self.root_t,
             train=False,
             transform=self.test_transforms(),

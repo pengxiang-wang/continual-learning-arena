@@ -19,7 +19,7 @@ pylogger = logging.getLogger(__name__)
 
 
 class PermutedMNIST(CLPermutedDataset):
-    r"""Permuted MNIST dataset. The [original MNIST dataset](http://yann.lecun.com/exdb/mnist/) is a collection of handwritten digits. It consists of 70,000 28x28 B&W images in 10 classes (correspond to 10 digits), with 7000 images per class. There are 60,000 training examples and 10,000 test examples."""
+    r"""Permuted MNIST dataset. The [original MNIST dataset](http://yann.lecun.com/exdb/mnist/) is a collection of handwritten digits. It consists of 70,000 28x28 grayscale images in 10 classes (correspond to 10 digits), with 7000 images per class. There are 60,000 training examples and 10,000 test examples."""
 
     original_dataset_python_class: type[Dataset] = MNIST
     r"""The original dataset class."""
@@ -52,7 +52,7 @@ class PermutedMNIST(CLPermutedDataset):
         r"""Initialise the Permuted MNIST dataset object providing the root where data files live.
 
         **Args:**
-        - **root** (`str`): the root directory where the original CIFAR-100 data 'MNIST/' live.
+        - **root** (`str`): the root directory where the original MNIST data 'MNIST/' live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
         - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
         - **batch_size** (`int` | `list[int]`): The batch size in train, val, test dataloader. If `list[str]`, it should be a list of integers, each integer is the batch size for each task.

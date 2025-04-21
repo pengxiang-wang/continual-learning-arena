@@ -48,9 +48,9 @@ class CUB2002011(VisionDataset):
         r"""Initialise the CUB-200-2011 dataset.
 
         **Args:**
-        - **root** (`str`): Root directory of the dataset.
+        - **root** (`str` | `Path`): Root directory of the dataset.
         - **train** (`bool` | `None`): If True, creates dataset from training set, otherwise creates from test set.
-        - **transform** (`callable` | `None`): A function/transform that  takes in an PIL image and returns a transformed version. E.g, ``transforms.RandomCrop``
+        - **transform** (`callable` | `None`): A function/transform that  takes in an PIL image and returns a transformed version. E.g, `transforms.RandomCrop`
         - **target_transform** (`callable` | `None`): A function/transform that takes in the target and transforms it.
         - **download** (`bool`): If true, downloads the dataset from the internet and puts it in root directory. If dataset is already downloaded, it is not downloaded again.
         """

@@ -27,7 +27,19 @@ from .base import (
 )
 from .combined_torchvision import CombinedTorchvision
 from .permuted_mnist import PermutedMNIST
+from .permuted_emnist import PermutedEMNIST
+from .permuted_fashionmnist import PermutedFashionMNIST
+from .permuted_kmnist import PermutedKMNIST
+from .permuted_notmnist import PermutedNotMNIST
+from .permuted_sign_language_mnist import PermutedSignLanguageMNIST
+from .permuted_svhn import PermutedSVHN
 from .permuted_cifar10 import PermutedCIFAR10
+from .permuted_cifar100 import PermutedCIFAR100
+from .permuted_tinyimagenet import PermutedTinyImageNet
+from .permuted_cub2002011 import PermutedCUB2002011
+from .permuted_gtsrb import PermutedGTSRB
+from .split_cifar10 import SplitCIFAR10
+from .split_mnist import SplitMNIST
 from .split_cifar100 import SplitCIFAR100
 from .split_tinyimagenet import SplitTinyImageNet
 from .split_cub2002011 import SplitCUB2002011
@@ -41,7 +53,19 @@ __all__ = [
     "Permute",
     "combined_torchvision",
     "permuted_mnist",
+    "permuted_emnist",
+    "permuted_fashionmnist",
+    "permuted_sign_language_mnist",
+    "permuted_kmnist",
+    "permuted_notmnist",
+    "permuted_svhn",
     "permuted_cifar10",
+    "permuted_cifar100",
+    "permuted_tinyimagenet",
+    "permuted_cub2002011",
+    "permuted_gtsrb",
+    "split_mnist",
+    "split_cifar10",
     "split_cifar100",
     "split_tinyimagenet",
     "split_cub2002011",

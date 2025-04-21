@@ -536,8 +536,8 @@ class SAdaHAT(AdaHAT):
                 self.importances[f"{self.task_id}"][layer_name] + importance_step
             )
 
-            # update number of steps counter
-            self.num_steps_t += 1
+        # update number of steps counter
+        self.num_steps_t += 1
 
     def on_train_end(self) -> None:
         r"""Additionally calculate neuron-wise importance for previous tasks at the end of a task training."""
