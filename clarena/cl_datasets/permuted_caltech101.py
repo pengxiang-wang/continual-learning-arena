@@ -1,27 +1,27 @@
 r"""
-The submodule in `cl_datasets` for Permuted CUB-200-2011 dataset.
+The submodule in `cl_datasets` for Permuted Caltech 101 dataset.
 """
 
-__all__ = ["PermutedCUB2002011"]
+__all__ = ["PermutedCaltech101"]
 
 import logging
 from typing import Callable
 
 import torch
 from torch.utils.data import Dataset, random_split
+from torchvision.datasets import Caltech101
 from torchvision.transforms import transforms
 
 from clarena.cl_datasets import CLPermutedDataset
-from clarena.cl_datasets.original import CUB2002011
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
-class PermutedCUB2002011(CLPermutedDataset):
-    r"""Permuted CUB-200-2011 dataset. [CUB(Caltech-UCSD Birds)-200-2011)](https://www.vision.caltech.edu/datasets/cub_200_2011/) is a bird image dataset. It consists of 120,000 64x64 colour images in 200 classes, with 500 training, 50 validation and 50 test examples per class."""
+class PermutedCaltech101(CLPermutedDataset):
+    r"""Permuted Caltech 101 dataset. The [original Caltech 101 dataset](http://yann.lecun.com/exdb/mnist/) is a collection of pictures of objects. It consists of 9,146 images in 101 classes (correspond to 101 objects), with 40-800 images per class."""
 
-    original_dataset_python_class: type[Dataset] = CUB2002011
+    original_dataset_python_class: type[Dataset] = Caltech101
     r"""The original dataset class."""
 
     def __init__(
@@ -29,6 +29,7 @@ class PermutedCUB2002011(CLPermutedDataset):
         root: str,
         num_tasks: int,
         validation_percentage: float,
+        test_percentage: float,
         batch_size: int | list[int] = 1,
         num_workers: int | list[int] = 0,
         custom_transforms: (
@@ -49,15 +50,17 @@ class PermutedCUB2002011(CLPermutedDataset):
         permutation_mode: str = "first_channel_only",
         permutation_seeds: list[int] | None = None,
     ) -> None:
-        r"""Initialise the Permuted CUB-200-2011 dataset object providing the root where data files live.
+        r"""Initialise the Permuted Caltech dataset object providing the root where data files live.
 
         **Args:**
-        - **root** (`str`): the root directory where the original CUB-200-2011 data 'CUB_200_2011/' live.
+        - **root** (`str`): the root directory where the original Caltech data 'Caltech/' live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
         - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
+        - **test_percentage** (`float`): the percentage to randomly split some of the entire data into test data.
         - **batch_size** (`int` | `list[int]`): The batch size in train, val, test dataloader. If `list[str]`, it should be a list of integers, each integer is the batch size for each task.
         - **num_workers** (`int` | `list[int]`): the number of workers for dataloaders. If `list[str]`, it should be a list of integers, each integer is the num of workers for each task.
         - **custom_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included. If it is a list, each item is the custom transforms for each task.
+        - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
         - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
         - **custom_target_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included. If it is a list, each item is the custom transforms for each task.
@@ -84,16 +87,18 @@ class PermutedCUB2002011(CLPermutedDataset):
 
         self.validation_percentage: float = validation_percentage
         """Store the percentage to randomly split some of the training data into validation data."""
+        self.test_percentage: float = test_percentage
+        """Store the percentage to randomly split some of the entire data into test data."""
 
     def prepare_data(self) -> None:
-        r"""Download the original CUB-200-2011 dataset if haven't."""
+        r"""Download the original Caltech 101 dataset if haven't."""
+
         if self.task_id == 1:
             # just download the original dataset once
-            CUB2002011(root=self.root_t, train=True, download=True)
-            CUB2002011(root=self.root_t, train=False, download=True)
+            Caltech101(root=self.root_t, download=True)
 
             pylogger.debug(
-                "The original CUB-200-2011 dataset has been downloaded to %s.",
+                "The original Caltech 101 dataset has been downloaded to %s.",
                 self.root_t,
             )
 
@@ -103,13 +108,25 @@ class PermutedCUB2002011(CLPermutedDataset):
         **Returns:**
         - **train_and_val_dataset** (`tuple[Dataset, Dataset]`): the train and validation dataset of task `self.task_id`.
         """
-        dataset_train_and_val = CUB2002011(
+        dataset_all = Caltech101(
             root=self.root_t,
-            train=True,
             transform=self.train_and_val_transforms(),
             download=False,
         )
-        dataset_train_and_val.target_transform = self.target_transforms()
+        dataset_all.target_transform = (
+            self.target_transforms()
+        )  # must be set here before random split, otherwise the target transform will not be applied to the dataset
+
+        dataset_train_and_val, _ = random_split(
+            dataset_all,
+            lengths=[
+                1 - self.test_percentage,
+                self.test_percentage,
+            ],
+            generator=torch.Generator().manual_seed(
+                42
+            ),  # this must be set fixed to make sure the datasets across experiments are the same. Don't handle it to global seed as it might vary across experiments
+        )
 
         return random_split(
             dataset_train_and_val,
@@ -125,12 +142,20 @@ class PermutedCUB2002011(CLPermutedDataset):
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
-        dataset_test = CUB2002011(
+        dataset_all = Caltech101(
             root=self.root_t,
-            train=False,
-            transform=self.test_transforms(),
+            transform=self.train_and_val_transforms(),
             download=False,
         )
-        dataset_test.target_transform = self.target_transforms()
+
+        dataset_all.target_transform = (
+            self.target_transforms()
+        )  # must be set here before random split, otherwise the target transform will not be applied to the dataset
+
+        _, dataset_test = random_split(
+            dataset_all,
+            lengths=[1 - self.test_percentage, self.test_percentage],
+            generator=torch.Generator().manual_seed(42),
+        )
 
         return dataset_test

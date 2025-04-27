@@ -191,7 +191,6 @@ class CLAlgorithm(LightningModule):
         """
         feature = 0
 
-        print(f"self.seen_task_ids: {self.seen_task_ids}")
         for i in self.seen_task_ids:
             feature_i = self.backbone(input, stage="train", task_id=i)[0]
             feature += feature_i

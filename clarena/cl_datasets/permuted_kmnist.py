@@ -88,14 +88,15 @@ class PermutedKMNIST(CLPermutedDataset):
 
     def prepare_data(self) -> None:
         r"""Download the original Kuzushiji-MNIST dataset if haven't."""
-        # just download
-        KMNIST(root=self.root_t, train=True, download=True)
-        KMNIST(root=self.root_t, train=False, download=True)
+        if self.task_id == 1:
+            # just download the original dataset once
+            KMNIST(root=self.root_t, train=True, download=True)
+            KMNIST(root=self.root_t, train=False, download=True)
 
-        pylogger.debug(
-            "The original Kuzushiji-MNIST dataset has been downloaded to %s.",
-            self.root_t,
-        )
+            pylogger.debug(
+                "The original Kuzushiji-MNIST dataset has been downloaded to %s.",
+                self.root_t,
+            )
 
     def train_and_val_dataset(self) -> tuple[Dataset, Dataset]:
         """Get the training and validation dataset of task `self.task_id`.
@@ -109,6 +110,8 @@ class PermutedKMNIST(CLPermutedDataset):
             transform=self.train_and_val_transforms(),
             download=False,
         )
+        dataset_train_and_val.target_transform = self.target_transforms()
+
         return random_split(
             dataset_train_and_val,
             lengths=[1 - self.validation_percentage, self.validation_percentage],
@@ -123,10 +126,12 @@ class PermutedKMNIST(CLPermutedDataset):
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
-
-        return KMNIST(
+        dataset_test = KMNIST(
             root=self.root_t,
             train=False,
             transform=self.test_transforms(),
             download=False,
         )
+        dataset_test.target_transform = self.target_transforms()
+
+        return dataset_test

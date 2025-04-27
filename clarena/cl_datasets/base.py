@@ -15,7 +15,10 @@ from omegaconf import ListConfig
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-from clarena.cl_datasets.constants import DATASET_CONSTANTS_MAPPING, DatasetConstants
+from clarena.cl_datasets.original.constants import (
+    DATASET_CONSTANTS_MAPPING,
+    DatasetConstants,
+)
 from clarena.utils import str_to_class
 
 # always get logger for built-in logging in each module
@@ -149,6 +152,8 @@ class CLDataset(LightningDataModule):
 
         self.num_classes_t: int
         r"""The number of classes in each task. """
+        self.class_map_t: dict[int, str | int]
+        r"""Store the class map for the current task `self.task_id`. The key is the integer class label, and the value is the original class label. It is used to get the original class label from the integer class label."""
         self.cl_class_map_t: dict[str | int, int]
         r"""Store the CL class map for the current task `self.task_id`. """
         self.cl_class_mapping_t: Callable
@@ -311,11 +316,10 @@ class CLDataset(LightningDataModule):
             )
         )  # the order of transforms matters
 
-    def target_transforms(self) -> transforms.Compose:
+    def target_transforms(
+        self,
+    ) -> transforms.Compose:
         r"""The target transform for the dataset. It is a handy tool to use in subclasses when constructing the dataset.
-
-        **Args:**
-        - **target** (`Tensor`): the target tensor.
 
         **Returns:**
         - **target_transforms** (`transforms.Compose`): the transformed target tensor.
@@ -509,10 +513,10 @@ class CLPermutedDataset(CLDataset):
             - If `self.cl_paradigm` is 'CIL', the mapped class labels of a task should be continuous integers from the number of classes of previous tasks to the number of classes of the current task.
         """
         if self.cl_paradigm == "TIL":
-            return {i: i for i in range(self.num_classes_t)}
+            return {self.class_map_t[i]: i for i in range(self.num_classes_t)}
         if self.cl_paradigm == "CIL":
             return {
-                i: i + (task_id - 1) * self.num_classes_t
+                self.class_map_t[i]: i + (task_id - 1) * self.num_classes_t
                 for i in range(self.num_classes_t)
             }
 
@@ -525,6 +529,9 @@ class CLPermutedDataset(CLDataset):
         self.num_classes_t = (
             self.original_dataset_constants.NUM_CLASSES
         )  # the same with the original dataset
+        self.class_map_t = (
+            self.original_dataset_constants.CLASS_MAP
+        )  # the same with the original dataset
 
         CLDataset.setup_task_id(self, task_id)
 
@@ -535,10 +542,31 @@ class CLPermutedDataset(CLDataset):
             self.original_dataset_constants.STD
         )  # the same with the original dataset
 
+        num_channels = (
+            self.original_dataset_constants.NUM_CHANNELS
+            if self.repeat_channels_t is None
+            else self.repeat_channels_t
+        )
+
+        if (
+            hasattr(self.original_dataset_constants, "IMG_SIZE")
+            or self.resize_t is not None
+        ):
+            img_size = (
+                self.original_dataset_constants.IMG_SIZE
+                if self.resize_t is None
+                else torch.Size(self.resize_t)
+            )
+        else:
+            raise AttributeError(
+                "The original dataset has different image sizes. Please resize the images to a fixed size by specifying hyperparameter: resize."
+            )
+
         # set up the permutation transform
         self.permutation_seed_t = self.permutation_seeds[task_id - 1]
         self.permute_transform_t = Permute(
-            img_size=self.original_dataset_constants.IMG_SIZE,
+            num_channels=num_channels,
+            img_size=img_size,
             mode=self.permutation_mode,
             seed=self.permutation_seed_t,
         )
@@ -702,14 +730,16 @@ class CLSplitDataset(CLDataset):
         """
         if self.cl_paradigm == "TIL":
             return {
-                self.class_split[task_id - 1][i]: i for i in range(self.num_classes_t)
+                self.class_map_t[self.class_split[task_id - 1][i]]: i
+                for i in range(self.num_classes_t)
             }
         if self.cl_paradigm == "CIL":
             num_classes_previous = sum(
                 [len(self.class_split[i]) for i in range(self.task_id - 1)]
             )
             return {
-                self.class_split[task_id - 1][i]: num_classes_previous + i
+                self.class_map_t[self.class_split[task_id - 1][i]]: num_classes_previous
+                + i
                 for i in range(self.num_classes_t)
             }
 
@@ -721,6 +751,9 @@ class CLSplitDataset(CLDataset):
         """
         self.num_classes_t = len(
             self.class_split[task_id - 1]
+        )  # the number of classes in the current task, i.e. the length of the class split
+        self.class_map_t = (
+            self.original_dataset_constants.CLASS_MAP
         )  # the same with the original dataset
 
         CLDataset.setup_task_id(self, task_id)
@@ -751,7 +784,6 @@ class CLCombinedDataset(CLDataset):
         self,
         datasets: list[str],
         root: list[str],
-        num_classes: list[int],
         batch_size: int | list[int] = 1,
         num_workers: int | list[int] = 0,
         custom_transforms: (
@@ -775,7 +807,6 @@ class CLCombinedDataset(CLDataset):
         **Args:**
         - **datasets** (`list[str]`): the list of dataset class paths for each task. Each element in the list must be a string referring to a valid PyTorch Dataset class.
         - **root** (`list[str]`): the list of root directory where the original data files for constructing the CL dataset physically live.
-        - **num_classes** (`list[int]`): the list of number of classes for each task. Each element in the list is an integer.
         - **batch_size** (`int` | `list[int]`): The batch size in train, val, test dataloader. If `list[str]`, it should be a list of integers, each integer is the batch size for each task.
         - **num_workers** (`int` | `list[int]`): the number of workers for dataloaders. If `list[str]`, it should be a list of integers, each integer is the num of workers for each task.
         - **custom_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included. If it is a list, each item is the custom transforms for each task.
@@ -819,7 +850,7 @@ class CLCombinedDataset(CLDataset):
         """
 
         if self.cl_paradigm == "TIL":
-            return {i: i for i in range(self.num_classes_t)}
+            return {self.class_map_t[i]: i for i in range(self.num_classes_t)}
         if self.cl_paradigm == "CIL":
             num_classes_previous = sum(
                 [
@@ -829,7 +860,10 @@ class CLCombinedDataset(CLDataset):
                     for i in range(self.task_id - 1)
                 ]
             )
-            return {i: num_classes_previous + i for i in range(self.num_classes_t)}
+            return {
+                self.class_map_t[i]: num_classes_previous + i
+                for i in range(self.num_classes_t)
+            }
 
     def setup_task_id(self, task_id: int) -> None:
         r"""Set up which task's dataset the CL experiment is on. This must be done before `setup()` method is called.
@@ -845,24 +879,17 @@ class CLCombinedDataset(CLDataset):
         self.original_dataset_constants_t: type[DatasetConstants] = (
             DATASET_CONSTANTS_MAPPING[self.original_dataset_python_class_t]
         )
-        self.num_classes_t = self.original_dataset_constants_t.NUM_CLASSES
+        self.num_classes_t = (
+            self.original_dataset_constants_t.NUM_CLASSES
+        )  # the same with the task's original dataset
+        self.class_map_t = (
+            self.original_dataset_constants_t.CLASS_MAP
+        )  # the same with the task's original dataset
 
         CLDataset.setup_task_id(self, task_id)
 
         self.mean_t = self.original_dataset_constants_t.MEAN
         self.std_t = self.original_dataset_constants_t.STD
-
-    @abstractmethod
-    def get_subset_of_random_k_samples(self, dataset: Dataset, k: int) -> Dataset:
-        r"""Get a subset of `k` samples from the dataset. It must be implemented by subclasses.
-
-        **Args:**
-        - **dataset** (`Dataset`): the dataset to get a subset from.
-        - **k** (`int`): the number of samples to get.
-
-        **Returns:**
-        - **subset** (`Dataset`): the subset of `k` samples from the dataset.
-        """
 
 
 class CLClassMapping:
@@ -886,6 +913,9 @@ class CLClassMapping:
         - **transformed_target** (`Tensor`): the transformed target tensor.
         """
 
+        target = int(
+            target
+        )  # convert to int if it is a tensor to avoid keyerror in map
         return self.cl_class_map[target]
 
 
@@ -897,6 +927,7 @@ class Permute:
 
     def __init__(
         self,
+        num_channels: int,
         img_size: torch.Size,
         mode: str = "first_channel_only",
         seed: int | None = None,
@@ -904,6 +935,7 @@ class Permute:
         r"""Initialise the Permute transform object. The permutation order is constructed in the initialisation to save runtime.
 
         **Args:**
+        - **num_channels** (`int`): the number of channels in the image.
         - **img_size** (`torch.Size`): the size of the image to be permuted.
         - **mode** (`str`): the mode of permutation, shouble be one of the following:
             - 'all': permute all pixels.
@@ -921,9 +953,9 @@ class Permute:
 
         # calculate the number of pixels from the image size
         if self.mode == "all":
-            num_pixels = img_size[0] * img_size[1] * img_size[2]
+            num_pixels = num_channels * img_size[0] * img_size[1]
         elif self.mode == "by_channel" or "first_channel_only":
-            num_pixels = img_size[1] * img_size[2]
+            num_pixels = img_size[0] * img_size[1]
 
         self.permute: torch.Tensor = torch.randperm(
             num_pixels, generator=torch_generator

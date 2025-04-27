@@ -79,12 +79,15 @@ class SplitCUB2002011(CLSplitDataset):
 
     def prepare_data(self) -> None:
         r"""Download the original CUB-200-2011 dataset if haven't."""
-        CUB2002011(root=self.root_t, train=True, download=True)
-        CUB2002011(root=self.root_t, train=False, download=True)
+        if self.task_id == 1:
+            # just download the original dataset once
+            CUB2002011(root=self.root_t, train=True, download=True)
+            CUB2002011(root=self.root_t, train=False, download=True)
 
-        pylogger.debug(
-            "The original CUB-200-2011 dataset has been downloaded to %s.", self.root_t
-        )
+            pylogger.debug(
+                "The original CUB-200-2011 dataset has been downloaded to %s.",
+                self.root_t,
+            )
 
     def get_subset_of_classes(self, dataset: Dataset) -> Dataset:
         r"""Get a subset of classes from the dataset of current classes of `self.task_id`. It is used when constructing the split. It must be implemented by subclasses.
@@ -135,7 +138,6 @@ class SplitCUB2002011(CLSplitDataset):
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
-        print(self.test_transforms())
 
         dataset_test = self.get_subset_of_classes(
             CUB2002011(

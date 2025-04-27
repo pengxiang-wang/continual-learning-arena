@@ -10,7 +10,7 @@ from clarena.backbones import CLBackbone, HATMaskBackbone
 
 
 class MLP(CLBackbone):
-    """**Multi-layer perceptron (MLP)** a.k.a. fully-connected network.
+    """**Multi-layer perceptron (MLP)** a.k.a. fully-connected netwwork.
 
     MLP is an dense network architecture, which has several fully-connected layers, each followed by an activation function. The last layer connects to the CL output heads.
     """

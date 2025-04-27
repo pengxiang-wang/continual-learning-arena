@@ -1,8 +1,8 @@
 r"""
-The submodule in `cl_datasets` for Permuted CUB-200-2011 dataset.
+The submodule in `cl_datasets` for Permuted Linnaeus 5 dataset.
 """
 
-__all__ = ["PermutedCUB2002011"]
+__all__ = ["PermutedLinnaeus5"]
 
 import logging
 from typing import Callable
@@ -12,21 +12,25 @@ from torch.utils.data import Dataset, random_split
 from torchvision.transforms import transforms
 
 from clarena.cl_datasets import CLPermutedDataset
-from clarena.cl_datasets.original import CUB2002011
+from clarena.cl_datasets.original import (
+    Linnaeus5,
+    Linnaeus5_32,
+    Linnaeus5_64,
+    Linnaeus5_128,
+    Linnaeus5_256,
+)
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
-class PermutedCUB2002011(CLPermutedDataset):
-    r"""Permuted CUB-200-2011 dataset. [CUB(Caltech-UCSD Birds)-200-2011)](https://www.vision.caltech.edu/datasets/cub_200_2011/) is a bird image dataset. It consists of 120,000 64x64 colour images in 200 classes, with 500 training, 50 validation and 50 test examples per class."""
-
-    original_dataset_python_class: type[Dataset] = CUB2002011
-    r"""The original dataset class."""
+class PermutedLinnaeus5(CLPermutedDataset):
+    r"""Permuted Linnaeus 5 dataset. The [original Linnaeus 5 dataset](https://chaladze.com/l5/) is a collection of flower images across 5 classes. It includes four versions with resized resolutions: 256x256, 128x128, 64x64, and 32x32."""
 
     def __init__(
         self,
         root: str,
+        resolution: str,
         num_tasks: int,
         validation_percentage: float,
         batch_size: int | list[int] = 1,
@@ -49,15 +53,17 @@ class PermutedCUB2002011(CLPermutedDataset):
         permutation_mode: str = "first_channel_only",
         permutation_seeds: list[int] | None = None,
     ) -> None:
-        r"""Initialise the Permuted CUB-200-2011 dataset object providing the root where data files live.
+        r"""Initialise the Permuted Linnaeus 5 dataset object providing the root where data files live.
 
         **Args:**
-        - **root** (`str`): the root directory where the original CUB-200-2011 data 'CUB_200_2011/' live.
+        - **root** (`str`): the root directory where the original Linnaeus 5 data 'Linnaeus5/' live.
+        - **resolution** (`str`): Image resolution, one of ["256", "128", "64", "32"].
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
         - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
         - **batch_size** (`int` | `list[int]`): The batch size in train, val, test dataloader. If `list[str]`, it should be a list of integers, each integer is the batch size for each task.
         - **num_workers** (`int` | `list[int]`): the number of workers for dataloaders. If `list[str]`, it should be a list of integers, each integer is the num of workers for each task.
         - **custom_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included. If it is a list, each item is the custom transforms for each task.
+        - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
         - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
         - **custom_target_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included. If it is a list, each item is the custom transforms for each task.
@@ -67,6 +73,16 @@ class PermutedCUB2002011(CLPermutedDataset):
             3. 'first_channel_only': permute only the first channel.
         - **permutation_seeds** (`list[int]` or `None`): the seeds for permutation operations used to construct tasks. Make sure it has the same number of seeds as `num_tasks`. Default is None, which creates a list of seeds from 1 to `num_tasks`.
         """
+        if resolution == "32":
+            self.original_dataset_python_class: type[Dataset] = Linnaeus5_32
+        elif resolution == "64":
+            self.original_dataset_python_class: type[Dataset] = Linnaeus5_64
+        elif resolution == "128":
+            self.original_dataset_python_class: type[Dataset] = Linnaeus5_128
+        elif resolution == "256":
+            self.original_dataset_python_class: type[Dataset] = Linnaeus5_256
+            r"""The original dataset class."""
+
         CLPermutedDataset.__init__(
             self,
             root=root,
@@ -82,18 +98,25 @@ class PermutedCUB2002011(CLPermutedDataset):
             permutation_seeds=permutation_seeds,
         )
 
+        self.resolution: str = resolution
+        r"""Store the resolution of the original dataset."""
+
         self.validation_percentage: float = validation_percentage
-        """Store the percentage to randomly split some of the training data into validation data."""
+        r"""Store the percentage to randomly split some of the training data into validation data."""
 
     def prepare_data(self) -> None:
-        r"""Download the original CUB-200-2011 dataset if haven't."""
+        r"""Download the original Linnaeus 5 dataset if haven't."""
         if self.task_id == 1:
             # just download the original dataset once
-            CUB2002011(root=self.root_t, train=True, download=True)
-            CUB2002011(root=self.root_t, train=False, download=True)
+            Linnaeus5(
+                root=self.root_t, resolution=self.resolution, train=True, download=True
+            )
+            Linnaeus5(
+                root=self.root_t, resolution=self.resolution, train=False, download=True
+            )
 
             pylogger.debug(
-                "The original CUB-200-2011 dataset has been downloaded to %s.",
+                "The original Linnaeus 5 dataset has been downloaded to %s.",
                 self.root_t,
             )
 
@@ -103,8 +126,9 @@ class PermutedCUB2002011(CLPermutedDataset):
         **Returns:**
         - **train_and_val_dataset** (`tuple[Dataset, Dataset]`): the train and validation dataset of task `self.task_id`.
         """
-        dataset_train_and_val = CUB2002011(
+        dataset_train_and_val = Linnaeus5(
             root=self.root_t,
+            resolution=self.resolution,
             train=True,
             transform=self.train_and_val_transforms(),
             download=False,
@@ -125,8 +149,9 @@ class PermutedCUB2002011(CLPermutedDataset):
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
-        dataset_test = CUB2002011(
+        dataset_test = Linnaeus5(
             root=self.root_t,
+            resolution=self.resolution,
             train=False,
             transform=self.test_transforms(),
             download=False,

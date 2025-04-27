@@ -88,13 +88,14 @@ class PermutedSVHN(CLPermutedDataset):
 
     def prepare_data(self) -> None:
         r"""Download the original SVHN dataset if haven't."""
-        # just download
-        SVHN(root=self.root_t, split="train", download=True)
-        SVHN(root=self.root_t, split="test", download=True)
+        if self.task_id == 1:
+            # just download the original dataset once
+            SVHN(root=self.root_t, split="train", download=True)
+            SVHN(root=self.root_t, split="test", download=True)
 
-        pylogger.debug(
-            "The original SVHN dataset has been downloaded to %s.", self.root_t
-        )
+            pylogger.debug(
+                "The original SVHN dataset has been downloaded to %s.", self.root_t
+            )
 
     def train_and_val_dataset(self) -> tuple[Dataset, Dataset]:
         """Get the training and validation dataset of task `self.task_id`.
@@ -108,6 +109,8 @@ class PermutedSVHN(CLPermutedDataset):
             transform=self.train_and_val_transforms(),
             download=False,
         )
+        dataset_train_and_val.target_transform = self.target_transforms()
+
         return random_split(
             dataset_train_and_val,
             lengths=[1 - self.validation_percentage, self.validation_percentage],
@@ -122,10 +125,12 @@ class PermutedSVHN(CLPermutedDataset):
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
-
-        return SVHN(
+        dataset_test = SVHN(
             root=self.root_t,
             split="test",
             transform=self.test_transforms(),
             download=False,
         )
+        dataset_test.target_transform = self.target_transforms()
+
+        return dataset_test

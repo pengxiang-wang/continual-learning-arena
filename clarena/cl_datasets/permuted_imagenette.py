@@ -1,30 +1,34 @@
 r"""
-The submodule in `cl_datasets` for conbined torchvision datasets.
+The submodule in `cl_datasets` for Permuted Imagenette dataset.
 """
 
-__all__ = ["CombinedTorchvision"]
+__all__ = ["PermutedImagenette"]
 
 import logging
 from typing import Callable
 
 import torch
 from torch.utils.data import Dataset, random_split
-from torchvision import transforms
+from torchvision.datasets import Imagenette
+from torchvision.transforms import transforms
 
-from clarena.cl_datasets import CLCombinedDataset
+from clarena.cl_datasets import CLPermutedDataset
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
-class CombinedTorchvision(CLCombinedDataset):
-    r"""The base class of continual learning datasets which are constructed as combinations of several original datasets (one dataset for one task) from [torchvision](https://pytorch.org/vision/0.8/datasets.html), inherited from `CLCombinedDataset`."""
+class PermutedImagenette(CLPermutedDataset):
+    r"""Permuted MNIST dataset. The [original Imagenette dataset](https://www.nist.gov/itl/products-and-services/Imagenette-dataset/) is a collection of handwritten letters and digits (including A-Z, a-z, 0-9). It consists of 814,255 28x28 grayscale images in 62 classes."""
+
+    original_dataset_python_class: type[Dataset] = Imagenette
+    r"""The original dataset class."""
 
     def __init__(
         self,
-        datasets: list[str],
-        root: list[str],
-        num_classes: list[int],
+        root: str,
+        size: str,
+        num_tasks: int,
         validation_percentage: float,
         batch_size: int | list[int] = 1,
         num_workers: int | list[int] = 0,
@@ -43,13 +47,15 @@ class CombinedTorchvision(CLCombinedDataset):
             | None
             | list[Callable | transforms.Compose | None]
         ) = None,
+        permutation_mode: str = "first_channel_only",
+        permutation_seeds: list[int] | None = None,
     ) -> None:
-        r"""Initialise the Combined Torchvision dataset object providing the root where data files live.
+        r"""Initialise the Permuted Imagenette dataset object providing the root where data files live.
 
         **Args:**
-        - **datasets** (`list[str]`): the list of dataset class paths for each task. Each element in the list must be a string referring to a valid PyTorch Dataset class.
-        - **root** (`list[str]`): the list of root directory where the original data files for constructing the CL dataset physically live.
-        - **num_classes** (`list[int]`): the list of number of classes for each task. Each element in the list is an integer.
+        - **root** (`str`): the root directory where the original Imagenette data 'Imagenette/' live.
+        - **size** (`str`): image size type. Supports "full" (default), "320px", and "160px".
+        - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
         - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
         - **batch_size** (`int` | `list[int]`): The batch size in train, val, test dataloader. If `list[str]`, it should be a list of integers, each integer is the batch size for each task.
         - **num_workers** (`int` | `list[int]`): the number of workers for dataloaders. If `list[str]`, it should be a list of integers, each integer is the num of workers for each task.
@@ -58,12 +64,17 @@ class CombinedTorchvision(CLCombinedDataset):
         - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
         - **custom_target_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included. If it is a list, each item is the custom transforms for each task.
+        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
+            1. 'all': permute all pixels.
+            2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
+            3. 'first_channel_only': permute only the first channel.
+        - **permutation_seeds** (`list[int]` or `None`): the seeds for permutation operations used to construct tasks. Make sure it has the same number of seeds as `num_tasks`. Default is None, which creates a list of seeds from 1 to `num_tasks`.
         """
-        CLCombinedDataset.__init__(
+
+        CLPermutedDataset.__init__(
             self,
-            datasets=datasets,
             root=root,
-            num_classes=num_classes,
+            num_tasks=num_tasks,
             batch_size=batch_size,
             num_workers=num_workers,
             custom_transforms=custom_transforms,
@@ -71,26 +82,27 @@ class CombinedTorchvision(CLCombinedDataset):
             to_tensor=to_tensor,
             resize=resize,
             custom_target_transforms=custom_target_transforms,
+            permutation_mode=permutation_mode,
+            permutation_seeds=permutation_seeds,
         )
+
+        self.size: str = size
+        r"""Store the size type of image."""
 
         self.validation_percentage: float = validation_percentage
-        """Store the percentage to randomly split some of the training data into validation data."""
+        r"""Store the percentage to randomly split some of the training data into validation data."""
 
     def prepare_data(self) -> None:
-        r"""Download the original datasets if haven't."""
-        # torchvision datasets have same APIs
-        self.original_dataset_python_class_t(
-            root=self.root_t, train=True, download=True
-        )
-        self.original_dataset_python_class_t(
-            root=self.root_t, train=False, download=True
-        )
+        r"""Download the original Imagenette dataset if haven't."""
+        if self.task_id == 1:
+            # just download the original dataset once
+            Imagenette(root=self.root_t, split="train", size=self.size, download=True)
+            Imagenette(root=self.root_t, split="val", size=self.size, download=True)
 
-        pylogger.debug(
-            "The original %s dataset has been downloaded to %s.",
-            self.original_dataset_python_class_t,
-            self.root_t,
-        )
+            pylogger.debug(
+                "The original Imagenette dataset has been downloaded to %s.",
+                self.root_t,
+            )
 
     def train_and_val_dataset(self) -> tuple[Dataset, Dataset]:
         """Get the training and validation dataset of task `self.task_id`.
@@ -98,13 +110,14 @@ class CombinedTorchvision(CLCombinedDataset):
         **Returns:**
         - **train_and_val_dataset** (`tuple[Dataset, Dataset]`): the train and validation dataset of task `self.task_id`.
         """
-
-        dataset_train_and_val = self.original_dataset_python_class_t(
+        dataset_train_and_val = Imagenette(
             root=self.root_t,
-            train=True,
+            split="train",
+            size=self.size,
             transform=self.train_and_val_transforms(),
             download=False,
         )
+        dataset_train_and_val.target_transform = self.target_transforms()
 
         return random_split(
             dataset_train_and_val,
@@ -121,9 +134,13 @@ class CombinedTorchvision(CLCombinedDataset):
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
 
-        return self.original_dataset_python_class_t(
+        dataset_test = Imagenette(
             root=self.root_t,
-            train=False,
+            split="test",
+            size=self.size,
             transform=self.test_transforms(),
             download=False,
         )
+        dataset_test.target_transform = self.target_transforms()
+
+        return dataset_test

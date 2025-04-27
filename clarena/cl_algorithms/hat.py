@@ -25,7 +25,6 @@ class HAT(CLAlgorithm):
     r"""HAT (Hard Attention to the Task) algorithm.
 
     [HAT (Hard Attention to the Task, 2018)](http://proceedings.mlr.press/v80/serra18a) is an architecture-based continual learning approach that uses learnable hard attention masks to select the task-specific parameters.
-
     """
 
     def __init__(

@@ -87,13 +87,14 @@ class PermutedCIFAR100(CLPermutedDataset):
 
     def prepare_data(self) -> None:
         r"""Download the original CIFAR dataset if haven't."""
-        # just download
-        CIFAR100(root=self.root_t, train=True, download=True)
-        CIFAR100(root=self.root_t, train=False, download=True)
+        if self.task_id == 1:
+            # just download the original dataset once
+            CIFAR100(root=self.root_t, train=True, download=True)
+            CIFAR100(root=self.root_t, train=False, download=True)
 
-        pylogger.debug(
-            "The original CIFAR dataset has been downloaded to %s.", self.root_t
-        )
+            pylogger.debug(
+                "The original CIFAR dataset has been downloaded to %s.", self.root_t
+            )
 
     def train_and_val_dataset(self) -> tuple[Dataset, Dataset]:
         """Get the training and validation dataset of task `self.task_id`.
@@ -107,6 +108,8 @@ class PermutedCIFAR100(CLPermutedDataset):
             transform=self.train_and_val_transforms(),
             download=False,
         )
+        dataset_train_and_val.target_transform = self.target_transforms()
+
         return random_split(
             dataset_train_and_val,
             lengths=[1 - self.validation_percentage, self.validation_percentage],
@@ -121,10 +124,12 @@ class PermutedCIFAR100(CLPermutedDataset):
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
-
-        return CIFAR100(
+        dataset_test = CIFAR100(
             root=self.root_t,
             train=False,
             transform=self.test_transforms(),
             download=False,
         )
+        dataset_test.target_transform = self.target_transforms()
+
+        return dataset_test

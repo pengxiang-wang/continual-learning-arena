@@ -102,6 +102,8 @@ class PermutedSignLanguageMNIST(CLPermutedDataset):
             transform=self.train_and_val_transforms(),
             download=False,
         )
+        dataset_train_and_val.target_transform = self.target_transforms()
+
         return random_split(
             dataset_train_and_val,
             lengths=[1 - self.validation_percentage, self.validation_percentage],
@@ -117,9 +119,12 @@ class PermutedSignLanguageMNIST(CLPermutedDataset):
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
 
-        return SignLanguageMNIST(
+        dataset_test = SignLanguageMNIST(
             root=self.root_t,
             train=False,
             transform=self.test_transforms(),
             download=False,
         )
+        dataset_test.target_transform = self.target_transforms()
+
+        return dataset_test

@@ -60,15 +60,13 @@ class SignLanguageMNIST(VisionDataset):
 
         if download:
             raise NotImplementedError(
-                "Automatic download is not supported. Please manually download the dataset "
-                "from https://www.kaggle.com/datamunge/sign-language-mnist and place it in the correct folder."
+                "Automatic download is not supported. Please manually download the entire data folder 'archive' from https://www.kaggle.com/datamunge/sign-language-mnist and extract it in the correct folder."
             )
 
         csv_path = os.path.join(self.root, self.base_folder, self.csv_file)
         if not os.path.isfile(csv_path):
             raise RuntimeError(
-                f"{self.csv_file} not found in {self.root}/{self.base_folder}. Please download it manually from "
-                "https://www.kaggle.com/datamunge/sign-language-mnist and place it in the correct folder."
+                f"{self.csv_file} not found in {self.root}/{self.base_folder}. Please manually download the entire data folder 'archive' from https://www.kaggle.com/datamunge/sign-language-mnist and extract it in the correct folder."
             )
 
         self.data = pd.read_csv(csv_path)

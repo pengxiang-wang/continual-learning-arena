@@ -13,7 +13,7 @@ from torchvision.datasets import EMNIST
 from torchvision.transforms import transforms
 
 from clarena.cl_datasets import CLPermutedDataset
-from clarena.cl_datasets.original.emnist import (
+from clarena.cl_datasets.original import (
     EMNISTBalanced,
     EMNISTByClass,
     EMNISTByMerge,
@@ -103,20 +103,21 @@ class PermutedEMNIST(CLPermutedDataset):
         )
 
         self.split: str = split
-        """Store the split of the original EMNIST dataset. It can be `byclass`, `bymerge`, `balanced`, `letters`, `digits` or `mnist`."""
+        r"""Store the split of the original EMNIST dataset. It can be `byclass`, `bymerge`, `balanced`, `letters`, `digits` or `mnist`."""
 
         self.validation_percentage: float = validation_percentage
-        """Store the percentage to randomly split some of the training data into validation data."""
+        r"""Store the percentage to randomly split some of the training data into validation data."""
 
     def prepare_data(self) -> None:
         r"""Download the original EMNIST dataset if haven't."""
-        # just download
-        EMNIST(root=self.root_t, split=self.split, train=True, download=True)
-        EMNIST(root=self.root_t, split=self.split, train=False, download=True)
+        if self.task_id == 1:
+            # just download the original dataset once
+            EMNIST(root=self.root_t, split=self.split, train=True, download=True)
+            EMNIST(root=self.root_t, split=self.split, train=False, download=True)
 
-        pylogger.debug(
-            "The original EMNIST dataset has been downloaded to %s.", self.root_t
-        )
+            pylogger.debug(
+                "The original EMNIST dataset has been downloaded to %s.", self.root_t
+            )
 
     def train_and_val_dataset(self) -> tuple[Dataset, Dataset]:
         """Get the training and validation dataset of task `self.task_id`.
@@ -131,6 +132,8 @@ class PermutedEMNIST(CLPermutedDataset):
             transform=self.train_and_val_transforms(),
             download=False,
         )
+        dataset_train_and_val.target_transform = self.target_transforms()
+
         return random_split(
             dataset_train_and_val,
             lengths=[1 - self.validation_percentage, self.validation_percentage],
@@ -146,10 +149,13 @@ class PermutedEMNIST(CLPermutedDataset):
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
 
-        return EMNIST(
+        dataset_test = EMNIST(
             root=self.root_t,
             split=self.split,
             train=False,
             transform=self.test_transforms(),
             download=False,
         )
+        dataset_test.target_transform = self.target_transforms()
+
+        return dataset_test

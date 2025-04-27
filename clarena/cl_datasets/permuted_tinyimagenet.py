@@ -87,12 +87,14 @@ class PermutedTinyImageNet(CLPermutedDataset):
 
     def prepare_data(self) -> None:
         r"""Download the original TinyImageNet dataset if haven't."""
-        # just download
-        TinyImageNet(root=self.root_t)
+        if self.task_id == 1:
+            # just download the original dataset once
+            TinyImageNet(root=self.root_t)
 
-        pylogger.debug(
-            "The original TinyImageNet dataset has been downloaded to %s.", self.root_t
-        )
+            pylogger.debug(
+                "The original TinyImageNet dataset has been downloaded to %s.",
+                self.root_t,
+            )
 
     def train_and_val_dataset(self) -> tuple[Dataset, Dataset]:
         """Get the training and validation dataset of task `self.task_id`.
@@ -105,6 +107,8 @@ class PermutedTinyImageNet(CLPermutedDataset):
             split="train",
             transform=self.train_and_val_transforms(),
         )
+        dataset_train_and_val.target_transform = self.target_transforms()
+
         return random_split(
             dataset_train_and_val,
             lengths=[1 - self.validation_percentage, self.validation_percentage],
@@ -119,9 +123,12 @@ class PermutedTinyImageNet(CLPermutedDataset):
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
-
-        return TinyImageNet(
+        dataset_test = TinyImageNet(
             root=self.root_t,
             split="val",
             transform=self.test_transforms(),
         )
+
+        dataset_test.target_transform = self.target_transforms()
+
+        return dataset_test

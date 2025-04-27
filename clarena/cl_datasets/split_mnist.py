@@ -80,13 +80,14 @@ class SplitMNIST(CLSplitDataset):
 
     def prepare_data(self) -> None:
         r"""Download the original MNIST dataset if haven't."""
-        # just download
-        MNIST(root=self.root_t, train=True, download=True)
-        MNIST(root=self.root_t, train=False, download=True)
+        if self.task_id == 1:
+            # just download the original dataset once
+            MNIST(root=self.root_t, train=True, download=True)
+            MNIST(root=self.root_t, train=False, download=True)
 
-        pylogger.debug(
-            "The original MNIST dataset has been downloaded to %s.", self.root
-        )
+            pylogger.debug(
+                "The original MNIST dataset has been downloaded to %s.", self.root
+            )
 
     def get_subset_of_classes(self, dataset: Dataset) -> Dataset:
         r"""Get a subset of classes from the dataset of current classes of `self.task_id`. It is used when constructing the split. It must be implemented by subclasses.

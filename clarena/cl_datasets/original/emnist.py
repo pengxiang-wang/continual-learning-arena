@@ -2,7 +2,13 @@ r"""
 The submodule in `cl_datasets.original` for the original EMNIST dataset.
 """
 
-__all__ = ["EMNISTByClass"]
+__all__ = [
+    "EMNISTByClass",
+    "EMNISTByMerge",
+    "EMNISTBalanced",
+    "EMNISTLetters",
+    "EMNISTDigits",
+]
 
 import logging
 from pathlib import Path

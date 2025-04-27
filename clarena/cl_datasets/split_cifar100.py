@@ -80,13 +80,14 @@ class SplitCIFAR100(CLSplitDataset):
 
     def prepare_data(self) -> None:
         r"""Download the original CIFAR-100 dataset if haven't."""
-        # just download
-        CIFAR100(root=self.root_t, train=True, download=True)
-        CIFAR100(root=self.root_t, train=False, download=True)
+        if self.task_id == 1:
+            # just download the original dataset once
+            CIFAR100(root=self.root_t, train=True, download=True)
+            CIFAR100(root=self.root_t, train=False, download=True)
 
-        pylogger.debug(
-            "The original CIFAR-100 dataset has been downloaded to %s.", self.root
-        )
+            pylogger.debug(
+                "The original CIFAR-100 dataset has been downloaded to %s.", self.root
+            )
 
     def get_subset_of_classes(self, dataset: Dataset) -> Dataset:
         r"""Get a subset of classes from the dataset of current classes of `self.task_id`. It is used when constructing the split. It must be implemented by subclasses.

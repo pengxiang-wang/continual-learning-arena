@@ -80,11 +80,14 @@ class SplitTinyImageNet(CLSplitDataset):
 
     def prepare_data(self) -> None:
         r"""Download the original TinyImagenet dataset if haven't."""
-        TinyImageNet(self.root_t)
+        if self.task_id == 1:
+            # just download the original dataset once
+            TinyImageNet(self.root_t)
 
-        pylogger.debug(
-            "The original TinyImageNet dataset has been downloaded to %s.", self.root_t
-        )
+            pylogger.debug(
+                "The original TinyImageNet dataset has been downloaded to %s.",
+                self.root_t,
+            )
 
     def get_subset_of_classes(self, dataset: ImageFolder) -> ImageFolder:
         r"""Get a subset of classes from the dataset of current classes of `self.task_id`. It is used when constructing the split.
