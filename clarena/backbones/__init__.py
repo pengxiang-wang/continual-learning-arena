@@ -2,9 +2,9 @@ r"""
 
 # Backbone Networks for Continual Learning
 
-This submodule provides the **backbone neural network architectures for continual learning**. 
+This submodule provides the **backbone neural network architectures for continual learning**.
 
-Please note that this is an API documentation. Please refer to the main documentation pages for more information about the backbone networks and how to 
+Please note that this is an API documentation. Please refer to the main documentation pages for more information about the backbone networks and how to
 configure and implement them:
 
 - [**Configure Backbone Network**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiment/backbone-network)
@@ -21,18 +21,21 @@ The backbones are implemented as subclasses of `CLBackbone` classes, which are t
 """
 
 from .base import CLBackbone, HATMaskBackbone
-from .mlp import MLP, HATMaskMLP
+from .mlp import MLP
 from .resnet import (
-    HATMaskResNet18,
-    HATMaskResNet34,
-    HATMaskResNet50,
-    HATMaskResNet101,
-    HATMaskResNet152,
     ResNet18,
     ResNet34,
     ResNet50,
     ResNet101,
     ResNet152,
+)
+from .hatmask_mlp import HATMaskMLP
+from .hatmask_resnet import (
+    HATMaskResNet18,
+    HATMaskResNet34,
+    HATMaskResNet50,
+    HATMaskResNet101,
+    HATMaskResNet152,
 )
 
 __all__ = ["CLBackbone", "HATMaskBackbone", "mlp", "resnet"]

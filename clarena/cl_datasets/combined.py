@@ -149,7 +149,7 @@ class Combined(CLCombinedDataset):
         r"""Initialise the Combined Torchvision dataset object providing the root where data files live.
 
         **Args:**
-        - **datasets** (`list[str]`): the list of dataset class paths for each task. Each element in the list must be a string referring to a valid PyTorch Dataset class.
+        - **datasets** (`list[str]`): the list of dataset class paths for each task. Each element in the list must be a string referring to a valid PyTorch Dataset class. It needs to be one in `self.AVAILABLE_DATASETS`.
         - **root** (`list[str]`): the list of root directory where the original data files for constructing the CL dataset physically live.
         - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data (only if validation set is not provided in the dataset).
         - **test_percentage** (`float`): the percentage to randomly split some of the entire data into test data (only if test set is not provided in the dataset).
@@ -190,7 +190,24 @@ class Combined(CLCombinedDataset):
             # torchvision datasets might have different APIs
             try:
                 # collect the error and raise it at the end to avoid stopping the whole download process
-                if dataset_class in [Caltech101, Caltech256, EuroSAT, SEMEION, SUN397]:
+
+                if dataset_class in [
+                    ArabicHandwrittenDigits,
+                    KannadaMNIST,
+                    SignLanguageMNIST,
+                ]:
+                    # these datasets have no automatic download function, we require users to download them manually
+                    # the following code is just to check if the dataset is already downloaded
+                    dataset_class(root=root, train=True, download=False)
+                    dataset_class(root=root, train=False, download=False)
+
+                elif dataset_class in [
+                    Caltech101,
+                    Caltech256,
+                    EuroSAT,
+                    SEMEION,
+                    SUN397,
+                ]:
                     # dataset classes that don't have any train, val, test split
                     dataset_class(root=root, download=True)
 

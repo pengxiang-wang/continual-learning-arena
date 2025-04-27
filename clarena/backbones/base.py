@@ -400,3 +400,26 @@ class HATMaskBackbone(CLBackbone):
             num_batches=num_batches,
             test_mask=test_mask,
         )
+
+
+class WSNMaskBackbone(CLBackbone):
+    r"""The backbone network for WSN algorithm with learnable parameter masks.
+
+    [WSN (Winning Subnetworks, 2022)](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf) is an architecture-based continual learning algorithm. It trains learnable parameter-wise importance and select the most important $c\%$ of the network parameters to be used for each task.
+    """
+
+    def __init__(self, output_dim: int | None, gate: str) -> None:
+        r"""Initialise the WSN mask backbone network with task embeddings and masks.
+
+        **Args:**
+        - **output_dim** (`int`): The output dimension which connects to CL output heads. The `input_dim` of output heads are expected to be the same as this `output_dim`. In some cases, this class is used for a block in the backbone network, which doesn't have the output dimension. In this case, it can be `None`.
+        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+            - `sigmoid`: the sigmoid function.
+        """
+        CLBackbone.__init__(self, output_dim=output_dim)
+
+        self.register_hat_mask_module_explicitly(
+            gate=gate
+        )  # we moved the registration of the modules to a separate method to solve a problem of multiple inheritance in terms of `nn.Module`
+
+        HATMaskBackbone.sanity_check(self)
