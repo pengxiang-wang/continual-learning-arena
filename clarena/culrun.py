@@ -1,4 +1,14 @@
-"""Main module containing entrance to run a continual unlearning experiment."""
+r"""Entrance to run a continual unlearning experiment.
+
+Continual unlearning is a paradigm that injects unlearning requests into the continual learning process. Unlearning requests must be specified in the configuration.
+
+The model is evaluated in two parts:
+
+1. Continual learning performance on the tasks that are not unlearned.
+2. Unlearning performance on the tasks that are unlearned.
+
+Note that the second part cannot be done in this module run as it involves training a reference model (on not unlearned tasks) to compare with the unlearned model. For the unlearning performance, please go to the `culrunref.py` and `uleval.py` module.
+"""
 
 import argparse
 import os

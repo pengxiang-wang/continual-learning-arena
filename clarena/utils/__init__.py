@@ -13,7 +13,7 @@ This submodule provides utilities that are used in CLArena, which includes:
 
 """
 
-from .cfg import preprocess_config
+from .cfg import preprocess_config, construct_unlearning_ref_config
 from .metrics import HATNetworkCapacity, MeanMetricBatch
 from .plot import (
     plot_test_ave_acc_curve_from_csv,

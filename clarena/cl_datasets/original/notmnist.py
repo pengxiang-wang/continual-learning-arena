@@ -1,10 +1,3 @@
-r"""
-The submodule in `cl_datasets.original` for the original NotMNIST dataset.
-"""
-
-__all__ = ["NotMNIST"]
-
-
 import logging
 import os
 import tarfile
@@ -17,7 +10,6 @@ from torchvision.datasets import VisionDataset
 from torchvision.datasets.folder import default_loader
 from torchvision.datasets.utils import download_url
 
-# always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
@@ -25,28 +17,16 @@ class NotMNIST(VisionDataset):
     r"""NotMNIST dataset. The [original NotMNIST dataset](https://yaroslavvb.blogspot.com/2011/09/notmnist-dataset.html) is a collection of letters (including A-J). It consists 28x28 grayscale images in 10 classes. The larger dataset contains 500,000 images, while the smaller dataset contains around 19,000 images. This class loads the larger dataset as training and the smaller dataset as test set."""
 
     small_base_folder: str = "notMNIST_small"
-    r"""The folder name where the main small dataset (images) are stored."""
-
     large_base_folder: str = "notMNIST_large"
-    r"""The folder name where the main large dataset (images) are stored."""
 
     small_url: str = "http://yaroslavvb.com/upload/notMNIST/notMNIST_small.tar.gz"
-    r"""The URL to download the smaller NotMNIST dataset."""
-
     large_url: str = "http://yaroslavvb.com/upload/notMNIST/notMNIST_large.tar.gz"
-    r"""The URL to download the larger NotMNIST dataset."""
 
     small_filename: str = "notMNIST_small.tar.gz"
-    r"""The filename of the smaller dataset tar file."""
-
     large_filename: str = "notMNIST_large.tar.gz"
-    r"""The filename of the larger dataset tar file."""
 
     small_tgz_md5: str = "c9890a473a9769fda4bdf314aaf500dd"
-    r"""The md5 hash of the dataset smaller tar file."""
-
     large_tgz_md5: str = "70a95b805ecfb6592c48e196df7c1499"
-    r"""The md5 hash of the dataset larger tar file."""
 
     def __init__(
         self,
@@ -70,28 +50,18 @@ class NotMNIST(VisionDataset):
         )
 
         self.data: pd.DataFrame
-        r"""Store the metadata of the dataset. The metadata includes the image file paths and the class labels."""
         self.class_names: list[str] = list("ABCDEFGHIJ")
-        r"""Store the class names of the dataset."""
-
         self.loader: str = default_loader
-        r"""Store the loader function to load the images."""
-
         self.train: bool = train
-        r"""Store the flag to indicate whether to load training or test dataset."""
         self.url: str = self.large_url if self.train else self.small_url
-        r"""Store the URL to download the dataset from."""
         self.base_folder: str = (
             self.large_base_folder if self.train else self.small_base_folder
         )
-        r"""Store the folder name where the main data (images) are stored."""
         self.filename: str = self.large_filename if self.train else self.small_filename
-        r"""Store the filename of the dataset."""
         self.tgz_md5: str = self.large_tgz_md5 if self.train else self.small_tgz_md5
-        r"""Store the md5 hash of the dataset tar file."""
 
         if download:
-            self.download()  # download the dataset if not already downloaded
+            self.download()
 
         if not self._check_integrity():
             raise RuntimeError(
@@ -100,6 +70,10 @@ class NotMNIST(VisionDataset):
 
     def _load_data(self) -> None:
         r"""Load the dataset."""
+        cache_file = os.path.join(self.root, f"{self.base_folder}_metadata.csv")
+        if os.path.exists(cache_file):
+            self.data = pd.read_csv(cache_file)
+            return
 
         data_dir = os.path.join(self.root, self.base_folder)
         samples = []
@@ -120,6 +94,7 @@ class NotMNIST(VisionDataset):
                     continue
 
         self.data = pd.DataFrame(samples, columns=["filepath", "target"])
+        self.data.to_csv(cache_file, index=False)
 
     def _check_integrity(self) -> bool:
         r"""Sanity check if dataset not found or corrupted. Do loading data at the same time.
@@ -142,17 +117,14 @@ class NotMNIST(VisionDataset):
         r"""Download the NotMNIST data if it doesn't exist already."""
 
         if self._check_integrity():
-            pylogger.info("Files already downloaded and verified.")
+            pylogger.debug("Files already downloaded and verified.")
             return
 
-        # Choose the appropriate URL and filename
         filename = os.path.basename(self.url)
         archive_path = os.path.join(self.root, filename)
 
-        # Download and verify the archive
         download_url(self.url, self.root, filename=filename, md5=self.tgz_md5)
 
-        # Extract the contents of the archive
         with tarfile.open(archive_path, "r:gz") as tar:
             tar.extractall(path=self.root)
 

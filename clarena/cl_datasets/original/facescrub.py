@@ -73,12 +73,12 @@ class FaceScrub10(VisionDataset):
         archive_path = os.path.join(self.root, self.filename)
 
         if not os.path.exists(archive_path):
-            pylogger.info(f"Downloading from {self.url}")
+            pylogger.debug(f"Downloading from {self.url}")
             urllib.request.urlretrieve(self.url, archive_path)
 
         with zipfile.ZipFile(archive_path, "r") as zip_ref:
             zip_ref.extractall(self.root)
-        pylogger.info("Downloaded and extracted dataset.")
+        pylogger.debug("Downloaded and extracted dataset.")
 
     def _load_data(self) -> None:
         """Load features and labels from pickle."""
@@ -163,12 +163,12 @@ class FaceScrub20(VisionDataset):
         archive_path = os.path.join(self.root, self.filename)
 
         if not os.path.exists(archive_path):
-            pylogger.info(f"Downloading from {self.url}")
+            pylogger.debug(f"Downloading from {self.url}")
             urllib.request.urlretrieve(self.url, archive_path)
 
         with zipfile.ZipFile(archive_path, "r") as zip_ref:
             zip_ref.extractall(self.root)
-        pylogger.info("Downloaded and extracted dataset.")
+        pylogger.debug("Downloaded and extracted dataset.")
 
     def _load_data(self) -> None:
         """Load features and labels from pickle."""
@@ -253,12 +253,12 @@ class FaceScrub50(VisionDataset):
         archive_path = os.path.join(self.root, self.filename)
 
         if not os.path.exists(archive_path):
-            pylogger.info(f"Downloading from {self.url}")
+            pylogger.debug(f"Downloading from {self.url}")
             urllib.request.urlretrieve(self.url, archive_path)
 
         with zipfile.ZipFile(archive_path, "r") as zip_ref:
             zip_ref.extractall(self.root)
-        pylogger.info("Downloaded and extracted dataset.")
+        pylogger.debug("Downloaded and extracted dataset.")
 
     def _load_data(self) -> None:
         """Load features and labels from pickle."""
@@ -346,12 +346,12 @@ class FaceScrub100(VisionDataset):
         archive_path = os.path.join(self.root, self.filename)
 
         if not os.path.exists(archive_path):
-            pylogger.info(f"Downloading from {self.url} to {archive_path}")
+            pylogger.debug(f"Downloading from {self.url} to {archive_path}")
             urllib.request.urlretrieve(self.url, archive_path)
 
         with zipfile.ZipFile(archive_path, "r") as zip_ref:
             zip_ref.extractall(self.root)
-        pylogger.info("Extraction completed.")
+        pylogger.debug("Extraction completed.")
 
     def _load_data(self) -> None:
         """Load the dataset from the pickle files."""

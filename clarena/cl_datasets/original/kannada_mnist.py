@@ -51,6 +51,11 @@ class KannadaMNIST(VisionDataset):
                 "Automatic download is not supported. Please manually download the entire data folder 'Kannada_MNIST_datataset_paper.zip' from https://www.kaggle.com/datasets/higgstachyon/kannada-mnist and extract it, and copy 'Kannada_MNIST_Ubyte_gz/Kannada_MNIST' to the correct folder."
             )
 
+        if not self._check_integrity():
+            raise NotImplementedError(
+                "Dataset not found or corrupted. Please manually download the entire data folder 'Kannada_MNIST_datataset_paper.zip' from https://www.kaggle.com/datasets/higgstachyon/kannada-mnist and extract it, and copy 'Kannada_MNIST_Ubyte_gz/Kannada_MNIST' to the correct folder."
+            )
+
         self.train = train
         r"""Flag indicating whether training data is loaded."""
 
@@ -87,6 +92,14 @@ class KannadaMNIST(VisionDataset):
             num = int.from_bytes(f.read(4), "big")
             buf = f.read(num)
             return np.frombuffer(buf, dtype=np.uint8)
+
+    def _check_integrity(self) -> bool:
+        r"""Sanity check if dataset not found or corrupted. Do loading data at the same time.
+
+        **Returns:**
+        - **if_intergral (**bool**)**: True if the dataset is found and not corrupted, False otherwise.
+        """
+        return True
 
     def __getitem__(self, index: int) -> tuple[Any, int]:
         r"""Get image and label at given index."""

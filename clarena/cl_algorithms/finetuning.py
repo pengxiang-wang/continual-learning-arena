@@ -29,7 +29,7 @@ class Finetuning(CLAlgorithm):
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL,
     ) -> None:
-        r"""Initialise the Finetuning algorithm with the network. It has no additional hyperparamaters.
+        r"""Initialise the Finetuning algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.

@@ -35,7 +35,7 @@ class CBP(Finetuning):
         maturity_threshold: int,
         utility_decay_rate: float,
     ) -> None:
-        r"""Initialise the Finetuning algorithm with the network. It has no additional hyperparamaters.
+        r"""Initialise the Finetuning algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
@@ -54,7 +54,7 @@ class CBP(Finetuning):
         r"""Store the utility decay rate of units. """
 
         self.contribution_utility: dict[str, Tensor] = {}
-        r"""Store the contribution utility of units. See equation (1) in the [continual backpropagation paper](https://www.nature.com/articles/s41586-024-07711-7). Keys are layer names and values are the utility tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units). """
+        r"""Store the contribution utility of units. See equation (1) in the [continual backpropagation paper](https://www.nature.com/articles/s41586-024-07711-7). Keys are layer names and values are the utility tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units, ). """
         self.num_replacements: dict[str, int] = {}
         r"""Store the number of replacements of units in each layer. Keys are layer names and values are the number of replacements for the layer. """
         self.age: dict[str, Tensor] = {}

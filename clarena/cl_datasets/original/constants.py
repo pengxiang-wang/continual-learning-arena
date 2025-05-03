@@ -1724,16 +1724,16 @@ class NotMNISTConstants(DatasetConstants):
     r"""The standard deviation values of each channel. """
 
     CLASS_MAP: dict[int, int] = {
-        0: 0,  # letter A
-        1: 1,  # letter B
-        2: 2,  # letter C
-        3: 3,  # letter D
-        4: 4,  # letter E
-        5: 5,  # letter F
-        6: 6,  # letter G
-        7: 7,  # letter H
-        8: 8,  # letter I
-        9: 9,  # letter J
+        0: 1,  # letter A
+        1: 2,  # letter B
+        2: 3,  # letter C
+        3: 4,  # letter D
+        4: 5,  # letter E
+        5: 6,  # letter F
+        6: 7,  # letter G
+        7: 8,  # letter H
+        8: 9,  # letter I
+        9: 10,  # letter J
     }
     r"""The mapping from class index to original label name. They correspond to the letters A-J."""
 

@@ -70,7 +70,7 @@
 #             repeat_channels=None,
 #             to_tensor=True,  # fake data are PIL images
 #             resize=None,
-#             custom_target_transforms=custom_target_transforms,
+#
 #         )
 
 #         self.validation_percentage: float = validation_percentage
@@ -81,6 +81,8 @@
 #     def prepare_data(self) -> None:
 #         r"""Download the original fake dataset if haven't."""
 #         # just download the original dataset once
+# if self.task_id != 1:
+# return  # download all original datasets only at the beginning of first task
 #         FakeData(root=self.root_t, download=True)
 
 #         pylogger.debug(

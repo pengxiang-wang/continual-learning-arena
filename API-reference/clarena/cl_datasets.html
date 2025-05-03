@@ -436,7 +436,7 @@
 </span><span id="CLDataset-111"><a href="#CLDataset-111"><span class="linenos">111</span></a>
 </span><span id="CLDataset-112"><a href="#CLDataset-112"><span class="linenos">112</span></a><span class="sd">        **Args:**</span>
 </span><span id="CLDataset-113"><a href="#CLDataset-113"><span class="linenos">113</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
-</span><span id="CLDataset-114"><a href="#CLDataset-114"><span class="linenos">114</span></a><span class="sd">            - &#39;fit&#39; or &#39;validation&#39;: training and validation dataset of current task `self.task_id` should be assigned to `self.dataset_train` and `self.dataset_val`.</span>
+</span><span id="CLDataset-114"><a href="#CLDataset-114"><span class="linenos">114</span></a><span class="sd">            - &#39;fit&#39; or &#39;validation&#39;: training and validation dataset of current task `self.task_id` should be assigned to `self.dataset_train_t` and `self.dataset_val_t`.</span>
 </span><span id="CLDataset-115"><a href="#CLDataset-115"><span class="linenos">115</span></a><span class="sd">            - &#39;test&#39;: a list of test dataset of all seen tasks (from task 0 to `self.task_id`) should be assigned to `self.dataset_test`.</span>
 </span><span id="CLDataset-116"><a href="#CLDataset-116"><span class="linenos">116</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="CLDataset-117"><a href="#CLDataset-117"><span class="linenos">117</span></a>        <span class="k">if</span> <span class="n">stage</span> <span class="o">==</span> <span class="s2">&quot;fit&quot;</span> <span class="ow">or</span> <span class="s2">&quot;validate&quot;</span><span class="p">:</span>
@@ -1036,7 +1036,7 @@
 </span><span id="CLDataset.setup-111"><a href="#CLDataset.setup-111"><span class="linenos">111</span></a>
 </span><span id="CLDataset.setup-112"><a href="#CLDataset.setup-112"><span class="linenos">112</span></a><span class="sd">        **Args:**</span>
 </span><span id="CLDataset.setup-113"><a href="#CLDataset.setup-113"><span class="linenos">113</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
-</span><span id="CLDataset.setup-114"><a href="#CLDataset.setup-114"><span class="linenos">114</span></a><span class="sd">            - &#39;fit&#39; or &#39;validation&#39;: training and validation dataset of current task `self.task_id` should be assigned to `self.dataset_train` and `self.dataset_val`.</span>
+</span><span id="CLDataset.setup-114"><a href="#CLDataset.setup-114"><span class="linenos">114</span></a><span class="sd">            - &#39;fit&#39; or &#39;validation&#39;: training and validation dataset of current task `self.task_id` should be assigned to `self.dataset_train_t` and `self.dataset_val_t`.</span>
 </span><span id="CLDataset.setup-115"><a href="#CLDataset.setup-115"><span class="linenos">115</span></a><span class="sd">            - &#39;test&#39;: a list of test dataset of all seen tasks (from task 0 to `self.task_id`) should be assigned to `self.dataset_test`.</span>
 </span><span id="CLDataset.setup-116"><a href="#CLDataset.setup-116"><span class="linenos">116</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="CLDataset.setup-117"><a href="#CLDataset.setup-117"><span class="linenos">117</span></a>        <span class="k">if</span> <span class="n">stage</span> <span class="o">==</span> <span class="s2">&quot;fit&quot;</span> <span class="ow">or</span> <span class="s2">&quot;validate&quot;</span><span class="p">:</span>
@@ -1073,7 +1073,7 @@
 <ul>
 <li><strong>stage</strong> (<code>str</code>): the stage of the experiment. Should be one of the following:
 <ul>
-<li>'fit' or 'validation': training and validation dataset of current task <code>self.task_id</code> should be assigned to <code>self.dataset_train</code> and <code>self.dataset_val</code>.</li>
+<li>'fit' or 'validation': training and validation dataset of current task <code>self.task_id</code> should be assigned to <code>self.dataset_train_t</code> and <code>self.dataset_val_t</code>.</li>
 <li>'test': a list of test dataset of all seen tasks (from task 0 to <code>self.task_id</code>) should be assigned to <code>self.dataset_test</code>.</li>
 </ul></li>
 </ul>

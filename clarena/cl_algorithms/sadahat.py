@@ -184,11 +184,11 @@ class SAdaHAT(AdaHAT):
         r"""Store the base value added to the linear layer to avoid zero. """
 
         self.importances: dict[str, dict[str, Tensor]] = {}
-        r"""Store the min-max scaled ($[0, 1]$) neuron-wise importance of units. It is $I^{\tau}_{l}$ in the paper. Keys are task IDs (string type) and values are the corresponding importance tensor. Each importance tensor is a dict where keys are layer names and values are the importance tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units). """
+        r"""Store the min-max scaled ($[0, 1]$) neuron-wise importance of units. It is $I^{\tau}_{l}$ in the paper. Keys are task IDs (string type) and values are the corresponding importance tensor. Each importance tensor is a dict where keys are layer names and values are the importance tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units, ). """
         self.num_steps_t: int
         r"""Store the number of training steps for the current task `self.task_id`. It is used to calculate the neuron-wise importance for a task. """
         self.summative_importance_for_previous_tasks: dict[str, Tensor] = {}
-        r"""Store the summative neuron-wise importance values of units for previous tasks before the current task `self.task_id`. See $I^{<t}_{l}$ in the paper. Keys are layer names and values are the summative importance tensor for the layer. The summative importance tensor is the same size as the feature tensor with size (number of units). """
+        r"""Store the summative neuron-wise importance values of units for previous tasks before the current task `self.task_id`. See $I^{<t}_{l}$ in the paper. Keys are layer names and values are the summative importance tensor for the layer. The summative importance tensor is the same size as the feature tensor with size (number of units, ). """
 
         # set manual optimisation
         self.automatic_optimization = False
@@ -708,7 +708,7 @@ class SAdaHAT(AdaHAT):
         r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute value of activation of the layer. This is our own implementation of [Layer Activation](https://captum.ai/api/layer.html#layer-activation) in Captum.
 
         **Args:**
-        - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
+        - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units, ).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -734,7 +734,7 @@ class SAdaHAT(AdaHAT):
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
-        - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
+        - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units, ).
         - **if_output_weight** (`bool`): whether to use the output weights or input weights.
 
         **Returns:**
@@ -831,7 +831,7 @@ class SAdaHAT(AdaHAT):
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
-        - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
+        - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units, ).
         - **if_output_weight** (`bool`): whether to use the output weights or input weights.
 
         **Returns:**
@@ -885,7 +885,7 @@ class SAdaHAT(AdaHAT):
         - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): starting point from which integral is computed in this method. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerConductance.attribute) for more details.
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
-        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.- **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units).
+        - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.- **mask** (`Tensor`): the mask tensor of the layer. It has the same size as the feature tensor with size (number of units, ).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
@@ -1319,7 +1319,7 @@ class SAdaHAT(AdaHAT):
 
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
-        - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units).
+        - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units, ).
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.

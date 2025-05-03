@@ -5,7 +5,7 @@ The submodule in `cl_algorithms` for [HAT (Hard Attention to the Task) algorithm
 __all__ = ["HAT"]
 
 import logging
-from typing import Any, Callable
+from typing import Any
 
 import torch
 from torch import Tensor
@@ -87,10 +87,10 @@ class HAT(CLAlgorithm):
         r"""HAT doesn't use the epsilon for `hat_const_alpha`. We still set it here to be consistent with the `epsilon` in `clip_grad_by_adjustment()` method in `HATMaskBackbone`."""
 
         self.masks: dict[str, dict[str, Tensor]] = {}
-        r"""Store the binary attention mask of each previous task gated from the task embedding. Keys are task IDs (string type) and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has size (number of units). """
+        r"""Store the binary attention mask of each previous task gated from the task embedding. Keys are task IDs (string type) and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has size (number of units, ). """
 
         self.cumulative_mask_for_previous_tasks: dict[str, Tensor] = {}
-        r"""Store the cumulative binary attention mask $\mathrm{M}^{<t}$ of previous tasks $1,\cdots, t-1$, gated from the task embedding. Keys are task IDs and values are the corresponding cumulative mask. Each cumulative mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has size (number of units). """
+        r"""Store the cumulative binary attention mask $\mathrm{M}^{<t}$ of previous tasks $1,\cdots, t-1$, gated from the task embedding. Keys are task IDs and values are the corresponding cumulative mask. Each cumulative mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has size (number of units, ). """
 
         # set manual optimisation
         self.automatic_optimization = False
@@ -284,7 +284,7 @@ class HAT(CLAlgorithm):
 
         **Returns:**
         - **logits** (`Tensor`): the output logits tensor.
-        - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
+        - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
         - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
         feature, mask, activations = self.backbone(
@@ -340,7 +340,7 @@ class HAT(CLAlgorithm):
 
         # backward step (manually)
         self.manual_backward(loss)  # calculate the gradients
-        # HAT hard clip gradients by the cumulative masks. See equation (2) inchapter 2.3 "Network Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a). Network capacity is calculated along with this process. Network capacity is defined as the average adjustment rate over all paramaters. See chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
+        # HAT hard clip gradients by the cumulative masks. See equation (2) in chapter 2.3 "Network Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a). Network capacity is calculated along with this process. Network capacity is defined as the average adjustment rate over all parameters. See chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
 
         adjustment_rate_weight, adjustment_rate_bias, capacity = (
             self.clip_grad_by_adjustment(
@@ -374,10 +374,9 @@ class HAT(CLAlgorithm):
         }
 
     def on_train_end(self) -> None:
-        r"""Store the mask and update cumulative mask after training the task."""
+        r"""Store the mask and update the cumulative mask after training the task."""
 
-        # store the mask for the current task
-
+        # get the mask for the current task
         mask_t = {
             layer_name: (self.backbone.task_embedding_t[layer_name].weight > 0)
             .float()
@@ -385,10 +384,10 @@ class HAT(CLAlgorithm):
             .detach()
             for layer_name in self.backbone.weighted_layer_names
         }
-
+        # store the mask for the current task
         self.masks[f"{self.task_id}"] = mask_t
 
-        # update the cumulative and summative masks
+        # update the cumulative mask
         self.cumulative_mask_for_previous_tasks = {
             layer_name: torch.max(
                 self.cumulative_mask_for_previous_tasks[layer_name], mask_t[layer_name]

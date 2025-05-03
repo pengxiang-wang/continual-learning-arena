@@ -1,4 +1,4 @@
-"""Main module containing entrance to run a continual learning experiment."""
+r"""Entrance to run a continual learning experiment."""
 
 import argparse
 import os
@@ -96,6 +96,6 @@ def clrun_from_cfg(cfg: DictConfig, task_ids: list[int]) -> CLExperiment:
     expr = CLExperiment(cfg)
 
     # execute the experiment
-    expr.run(task_ids=task_ids)
+    expr.run()
 
     return expr

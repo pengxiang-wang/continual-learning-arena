@@ -1,4 +1,4 @@
-"""Main module containing entrance to run a continual unlearning experiment."""
+r"""Entrance to run a joint learning experiment. Joint learning means that all tasks are mixed and trained together in a single training process. This is different from continual learning, where tasks are trained sequentially."""
 
 import argparse
 import os
@@ -8,7 +8,7 @@ import hydra
 from omegaconf import DictConfig
 
 from clarena.base import (
-    CULExperiment,  # It was supposed to be `from clarena import CULExperiment`, but it is not working when pip install -e . is used.
+    CLExperiment,  # It was supposed to be `from clarena import CLExperiment`, but it is not working when pip install -e . is used.
 )
 from clarena.utils import preprocess_config
 
@@ -21,8 +21,8 @@ def add_and_parse_args() -> tuple[Namespace, list[str]]:
     - **unknown_args** (`list[str]`): unknown arguments that are handled by Hydra, for configuration overrides.
     """
     parser = argparse.ArgumentParser(
-        usage="culrun [-h] [--config-dir CONFIG_DIR] [--entrance ENTRANCE] -- [experiment=EXPERIMENT_NAME] [(overrides)...]",
-        description="Run a continual unlearning experiment. ",
+        usage="clrun [-h] [--config-dir CONFIG_DIR] [--entrance ENTRANCE] -- [experiment=EXPERIMENT_NAME] [(overrides)...]",
+        description="Run a continual learning experiment. ",
         epilog="After them, you must specifiy your experiment through [experiment=EXPERIMENT_NAME]. The EXPERIMENT_NAME should be the name of the experiment YAML file in your configs/experiment directory. You can also add other overrides to the experiment configuration.",
     )
     parser.add_argument(
@@ -42,8 +42,8 @@ def add_and_parse_args() -> tuple[Namespace, list[str]]:
     )  # use parse_known_args() instead of parse_args() to enable Hydra overrides
 
 
-def culrun() -> None:
-    r"""The main entrance for running a continual unlearning experiment."""
+def clrun() -> None:
+    r"""The main entrance for running a continual learning experiment."""
 
     # parse the arguments
     args, _ = add_and_parse_args()
@@ -65,7 +65,7 @@ def culrun() -> None:
         preprocess_config(cfg)
 
         # construct the experiment
-        expr = CULExperiment(cfg)
+        expr = CLExperiment(cfg)
 
         # execute the experiment
         expr.run()
@@ -76,3 +76,26 @@ def culrun() -> None:
     )(main)
 
     hydra_decorated_main()
+
+
+def clrun_from_cfg(cfg: DictConfig, task_ids: list[int]) -> CLExperiment:
+    r"""Run a continual learning experiment directly from a configuration object.
+
+    **Args:**
+    - **cfg** (`DictConfig`): the configuration for the experiment.
+    - **task_ids** (`list[int]` | `None`): the list of task IDs to be conducted in the experiment. If `None`, all tasks will be conducted.
+
+    **Returns:**
+    - **expr** (`CLExperiment`): the continual learning experiment object after conducting.
+    """
+
+    # preprocess the configuration before constructing the experiment
+    preprocess_config(cfg)
+
+    # construct the experiment
+    expr = CLExperiment(cfg)
+
+    # execute the experiment
+    expr.run()
+
+    return expr

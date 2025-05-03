@@ -14,6 +14,8 @@ The datasets are implemented as subclasses of `CLDataset` classes, which are the
 
 - `CLDataset`: The base class for continual learning datasets.
 - `CLPermutedDataset`: The base class for permuted continual learning datasets. A child class of `CLDataset`.
+- `CLSplitDataset`: The base class for split continual learning datasets. A child class of `CLDataset`.
+- `CLCombinedDataset`: The base class for combined continual learning datasets. A child class of `CLDataset`.
 
 """
 
@@ -24,6 +26,7 @@ from .base import (
     CLSplitDataset,
     CLCombinedDataset,
     Permute,
+    JointDataset,
 )
 from .combined import Combined
 from .permuted_mnist import PermutedMNIST

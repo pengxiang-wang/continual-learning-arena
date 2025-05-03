@@ -37,7 +37,7 @@ from torchvision.datasets import (
 )
 from torchvision.datasets.vision import VisionDataset
 
-from clarena.cl_datasets import CLCombinedDataset
+from clarena.cl_datasets import CLClassMapping, CLCombinedDataset
 from clarena.cl_datasets.original import (
     CUB2002011,
     ArabicHandwrittenDigits,
@@ -139,12 +139,6 @@ class Combined(CLCombinedDataset):
         repeat_channels: int | None | list[int | None] = None,
         to_tensor: bool | list[bool] = True,
         resize: tuple[int, int] | None | list[tuple[int, int] | None] = None,
-        custom_target_transforms: (
-            Callable
-            | transforms.Compose
-            | None
-            | list[Callable | transforms.Compose | None]
-        ) = None,
     ) -> None:
         r"""Initialise the Combined Torchvision dataset object providing the root where data files live.
 
@@ -159,7 +153,6 @@ class Combined(CLCombinedDataset):
         - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
         - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
-        - **custom_target_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included. If it is a list, each item is the custom transforms for each task.
         """
         CLCombinedDataset.__init__(
             self,
@@ -171,7 +164,6 @@ class Combined(CLCombinedDataset):
             repeat_channels=repeat_channels,
             to_tensor=to_tensor,
             resize=resize,
-            custom_target_transforms=custom_target_transforms,
         )
 
         self.validation_percentage: float = validation_percentage
@@ -182,11 +174,13 @@ class Combined(CLCombinedDataset):
     def prepare_data(self) -> None:
         r"""Download the original datasets if haven't."""
 
+        if self.task_id != 1:
+            return  # download all original datasets only at the beginning of first task
+
         failed_dataset_classes = []
         for task_id in range(1, self.num_tasks + 1):
             root = self.root[task_id - 1]
             dataset_class = self.original_dataset_python_classes[task_id - 1]
-            # download all original datasets at the beginning of first task
             # torchvision datasets might have different APIs
             try:
                 # collect the error and raise it at the end to avoid stopping the whole download process
@@ -400,8 +394,8 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 train=True,
                 transform=self.train_and_val_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-            dataset_train_and_val.target_transform = self.target_transforms()
 
             return random_split(
                 dataset_train_and_val,
@@ -421,10 +415,8 @@ class Combined(CLCombinedDataset):
             dataset_all = self.original_dataset_python_class_t(
                 root=self.root_t,
                 transform=self.train_and_val_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-            dataset_all.target_transform = (
-                self.target_transforms()
-            )  # must be set here before random split, otherwise the target transform will not be applied to the dataset
 
             dataset_train_and_val, _ = random_split(
                 dataset_all,
@@ -450,15 +442,14 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="train",
                 transform=self.train_and_val_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-            dataset_train.target_transform = self.target_transforms()
-
             dataset_val = self.original_dataset_python_class_t(
                 root=self.root_t,
                 split="valid",
                 transform=self.train_and_val_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-            dataset_val.target_transform = self.target_transforms()
 
             return dataset_train, dataset_val
 
@@ -476,15 +467,15 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="train",
                 transform=self.train_and_val_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-            dataset_train.target_transform = self.target_transforms()
 
             dataset_val = self.original_dataset_python_class_t(
                 root=self.root_t,
                 split="val",
                 transform=self.train_and_val_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-            dataset_val.target_transform = self.target_transforms()
 
             return dataset_train, dataset_val
 
@@ -502,8 +493,8 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="train",
                 transform=self.train_and_val_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-            dataset_train_and_val.target_transform = self.target_transforms()
 
             return random_split(
                 dataset_train_and_val,
@@ -520,8 +511,8 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="trainval",
                 transform=self.train_and_val_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-            dataset_train_and_val.target_transform = self.target_transforms()
 
             return random_split(
                 dataset_train_and_val,
@@ -538,16 +529,16 @@ class Combined(CLCombinedDataset):
                 split="train",
                 target_type="identity",
                 transform=self.train_and_val_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-            dataset_train.target_transform = self.target_transforms()
 
             dataset_val = self.original_dataset_python_class_t(
                 root=self.root_t,
                 split="valid",
                 target_type="identity",
                 transform=self.train_and_val_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-            dataset_val.target_transform = self.target_transforms()
 
             return dataset_train, dataset_val
 
@@ -591,9 +582,10 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 train=False,
                 transform=self.test_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
 
-            dataset_test.target_transform = self.target_transforms()
+            return dataset_test
 
         elif self.original_dataset_python_class_t in [
             Country211,
@@ -618,9 +610,10 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="test",
                 transform=self.test_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
 
-            dataset_test.target_transform = self.target_transforms()
+            return dataset_test
 
         elif self.original_dataset_python_class_t in [
             Caltech101,
@@ -634,17 +627,16 @@ class Combined(CLCombinedDataset):
             dataset_all = self.original_dataset_python_class_t(
                 root=self.root_t,
                 transform=self.train_and_val_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-
-            dataset_all.target_transform = (
-                self.target_transforms()
-            )  # must be set here before random split, otherwise the target transform will not be applied to the dataset
 
             _, dataset_test = random_split(
                 dataset_all,
                 lengths=[1 - self.test_percentage, self.test_percentage],
                 generator=torch.Generator().manual_seed(42),
             )
+
+            return dataset_test
 
         elif self.original_dataset_python_class_t in [CelebA]:
             # special case
@@ -653,8 +645,10 @@ class Combined(CLCombinedDataset):
                 split="test",
                 target_type="identity",
                 transform=self.test_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
-            dataset_test.target_transform = self.target_transforms()
+
+            return dataset_test
 
         elif self.original_dataset_python_class_t in [TinyImageNet]:
             # special case
@@ -662,6 +656,7 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="val",
                 transform=self.test_transforms(),
+                target_transform=CLClassMapping(self.cl_class_map_t),
             )
 
-        return dataset_test
+            return dataset_test

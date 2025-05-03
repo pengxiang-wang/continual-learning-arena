@@ -1,9 +1,15 @@
 r"""The submodule in `utils` with tools related to configs."""
 
-__all__ = ["preprocess_config", "cfg_to_tree", "save_tree_to_file"]
+__all__ = [
+    "preprocess_config",
+    "cfg_to_tree",
+    "save_tree_to_file",
+    "construct_unlearning_ref_config",
+]
 
 import logging
 import os
+from copy import deepcopy
 
 import rich
 from omegaconf import DictConfig, OmegaConf
@@ -106,3 +112,28 @@ def save_tree_to_file(tree: dict, save_path: str) -> None:
 
     with open(save_path, "w") as file:
         rich.print(tree, file=file)
+
+
+def construct_unlearning_ref_config(
+    cul_cfg: DictConfig,
+) -> DictConfig:
+    r"""Construct the config for reference experiment to evaluate the unlearning performance, for the continual unlearning experiment whose config is given.
+
+    **Args:**
+    - **cul_cfg** (`DictConfig`): the config dict of the continual unlearning experiment to be evaluated.
+
+    **Returns:**
+    - **ulref_cfg** (`DictConfig`): the  constructed unlearning reference config.
+    """
+
+    ulref_cfg = deepcopy(cul_cfg)
+
+    ulref_cfg.output_dir = os.path.join(
+        ulref_cfg.output_dir, "unlearning_ref"
+    )  # set the output directory for unlearning reference experiment
+
+    ulref_cfg.skip_unlearning_tasks = (
+        True  # skip the unlearning tasks specified in unlearning_requests
+    )
+
+    return ulref_cfg

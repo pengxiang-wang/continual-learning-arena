@@ -82,7 +82,7 @@ class AdaHAT(HAT):
         """Store the small value to avoid division by zero appeared in equation (9) in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9)."""
 
         self.summative_mask_for_previous_tasks: dict[str, Tensor] = {}
-        r"""Store the summative binary attention mask $\mathrm{M}^{<t,\text{sum}}$ previous tasks $1,\cdots, t-1$, gated from the task embedding. Keys are task IDs and values are the corresponding summative mask. Each cumulative mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has size (number of units). """
+        r"""Store the summative binary attention mask $\mathrm{M}^{<t,\text{sum}}$ previous tasks $1,\cdots, t-1$, gated from the task embedding. Keys are task IDs and values are the corresponding summative mask. Each cumulative mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has size (number of units, ). """
 
         # set manual optimisation
         self.automatic_optimization = False

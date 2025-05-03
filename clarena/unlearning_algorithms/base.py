@@ -35,14 +35,11 @@ class UnlearningAlgorithm:
         r"""Store the list of task IDs that have been unlearned in the experiment. """
         self.if_permanent_task_id: bool
         r"""Whether the task is permanent or not. If `True`, the task will not be unlearned i.e. not shown in future unlearning requests."""
-        self.cfg_unlearning_test_reference: DictConfig
-        r"""The reference experiment configuration for unlearning test. """
 
     def setup_task_id(
         self,
         task_id: int,
         unlearning_requests: dict[int, list[int]],
-        cfg_unlearning_test_reference: DictConfig,
         if_permanent: bool,
     ) -> None:
         r"""Set up which task the CUL experiment is on. This must be done before `unlearn()` method is called.
@@ -50,7 +47,6 @@ class UnlearningAlgorithm:
         **Args:**
         - **task_id** (`int`): the target task ID to be set up.
         - **unlearning_requests** (`dict[int, list[int]]`): the entire unlearning requests. Keys are IDs of the tasks that request unlearning after their learning, and values are the list of the previous tasks to be unlearned.
-        - **cfg_unlearning_test_reference** (`DictConfig`): the reference experiment configuration for unlearning test.
         - **if_permanent** (`bool`): whether the task is permanent or not. If `True`, the task will not be unlearned i.e. not shown in future unlearning requests.
         """
         self.task_id = task_id
@@ -60,9 +56,6 @@ class UnlearningAlgorithm:
         )
         self.unlearning_task_ids = unlearning_task_ids
         self.model.unlearning_task_ids = unlearning_task_ids
-
-        self.cfg_unlearning_test_reference = cfg_unlearning_test_reference
-        self.model.cfg_unlearning_test_reference = cfg_unlearning_test_reference
 
         self.if_permanent_task_id = if_permanent
 

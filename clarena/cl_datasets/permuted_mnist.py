@@ -12,7 +12,7 @@ from torch.utils.data import Dataset, random_split
 from torchvision.datasets import MNIST
 from torchvision.transforms import transforms
 
-from clarena.cl_datasets import CLPermutedDataset
+from clarena.cl_datasets import CLClassMapping, CLPermutedDataset
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -40,12 +40,6 @@ class PermutedMNIST(CLPermutedDataset):
         repeat_channels: int | None | list[int | None] = None,
         to_tensor: bool | list[bool] = True,
         resize: tuple[int, int] | None | list[tuple[int, int] | None] = None,
-        custom_target_transforms: (
-            Callable
-            | transforms.Compose
-            | None
-            | list[Callable | transforms.Compose | None]
-        ) = None,
         permutation_mode: str = "first_channel_only",
         permutation_seeds: list[int] | None = None,
     ) -> None:
@@ -61,7 +55,6 @@ class PermutedMNIST(CLPermutedDataset):
         - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
         - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
-        - **custom_target_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included. If it is a list, each item is the custom transforms for each task.
         - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
@@ -78,7 +71,6 @@ class PermutedMNIST(CLPermutedDataset):
             repeat_channels=repeat_channels,
             to_tensor=to_tensor,
             resize=resize,
-            custom_target_transforms=custom_target_transforms,
             permutation_mode=permutation_mode,
             permutation_seeds=permutation_seeds,
         )
@@ -88,14 +80,16 @@ class PermutedMNIST(CLPermutedDataset):
 
     def prepare_data(self) -> None:
         r"""Download the original MNIST dataset if haven't."""
-        if self.task_id == 1:
-            # just download the original dataset once
-            MNIST(root=self.root_t, train=True, download=True)
-            MNIST(root=self.root_t, train=False, download=True)
 
-            pylogger.debug(
-                "The original MNIST dataset has been downloaded to %s.", self.root_t
-            )
+        if self.task_id != 1:
+            return  # download all original datasets only at the beginning of first task
+
+        MNIST(root=self.root_t, train=True, download=True)
+        MNIST(root=self.root_t, train=False, download=True)
+
+        pylogger.debug(
+            "The original MNIST dataset has been downloaded to %s.", self.root_t
+        )
 
     def train_and_val_dataset(self) -> tuple[Dataset, Dataset]:
         """Get the training and validation dataset of task `self.task_id`.
@@ -107,9 +101,9 @@ class PermutedMNIST(CLPermutedDataset):
             root=self.root_t,
             train=True,
             transform=self.train_and_val_transforms(),
+            target_transform=CLClassMapping(self.cl_class_map_t),
             download=False,
         )
-        dataset_train_and_val.target_transform = self.target_transforms()
 
         return random_split(
             dataset_train_and_val,
@@ -129,9 +123,8 @@ class PermutedMNIST(CLPermutedDataset):
             root=self.root_t,
             train=False,
             transform=self.test_transforms(),
+            target_transform=CLClassMapping(self.cl_class_map_t),
             download=False,
         )
-
-        dataset_test.target_transform = self.target_transforms()
 
         return dataset_test

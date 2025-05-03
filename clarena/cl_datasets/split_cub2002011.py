@@ -11,7 +11,7 @@ import torch
 from torch.utils.data import Dataset, random_split
 from torchvision import transforms
 
-from clarena.cl_datasets import CLSplitDataset
+from clarena.cl_datasets import CLClassMapping, CLSplitDataset
 from clarena.cl_datasets.original import CUB2002011
 
 # always get logger for built-in logging in each module
@@ -40,12 +40,6 @@ class SplitCUB2002011(CLSplitDataset):
         repeat_channels: int | None | list[int | None] = None,
         to_tensor: bool | list[bool] = True,
         resize: tuple[int, int] | None | list[tuple[int, int] | None] = (224, 224),
-        custom_target_transforms: (
-            Callable
-            | transforms.Compose
-            | None
-            | list[Callable | transforms.Compose | None]
-        ) = None,
     ) -> None:
         r"""Initialise the Split CUB-200-2011 dataset object providing the root where data files live.
 
@@ -59,7 +53,6 @@ class SplitCUB2002011(CLSplitDataset):
         - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
         - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
-        - **custom_target_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included. If it is a list, each item is the custom transforms for each task.
         """
         CLSplitDataset.__init__(
             self,
@@ -71,7 +64,6 @@ class SplitCUB2002011(CLSplitDataset):
             repeat_channels=repeat_channels,
             to_tensor=to_tensor,
             resize=resize,
-            custom_target_transforms=custom_target_transforms,
         )
 
         self.validation_percentage: float = validation_percentage
@@ -79,15 +71,17 @@ class SplitCUB2002011(CLSplitDataset):
 
     def prepare_data(self) -> None:
         r"""Download the original CUB-200-2011 dataset if haven't."""
-        if self.task_id == 1:
-            # just download the original dataset once
-            CUB2002011(root=self.root_t, train=True, download=True)
-            CUB2002011(root=self.root_t, train=False, download=True)
 
-            pylogger.debug(
-                "The original CUB-200-2011 dataset has been downloaded to %s.",
-                self.root_t,
-            )
+        if self.task_id != 1:
+            return  # download all original datasets only at the beginning of first task
+
+        CUB2002011(root=self.root_t, train=True, download=True)
+        CUB2002011(root=self.root_t, train=False, download=True)
+
+        pylogger.debug(
+            "The original CUB-200-2011 dataset has been downloaded to %s.",
+            self.root_t,
+        )
 
     def get_subset_of_classes(self, dataset: Dataset) -> Dataset:
         r"""Get a subset of classes from the dataset of current classes of `self.task_id`. It is used when constructing the split. It must be implemented by subclasses.
@@ -106,6 +100,10 @@ class SplitCUB2002011(CLSplitDataset):
         # subset the dataset by the indices, in-place operation
         dataset.data = dataset.data.iloc[idx]  # data is a Pandas DataFrame
 
+        dataset.target_transform = CLClassMapping(
+            self.cl_class_map_t
+        )  # cl class mapping should be applied after the split
+
         return dataset
 
     def train_and_val_dataset(self) -> tuple[Dataset, Dataset]:
@@ -119,10 +117,10 @@ class SplitCUB2002011(CLSplitDataset):
                 root=self.root_t,
                 train=True,
                 transform=self.train_and_val_transforms(),
+                # cl class mapping should be applied after the split
                 download=False,
             )
         )
-        dataset_train_and_val.target_transform = self.target_transforms()
 
         return random_split(
             dataset_train_and_val,
@@ -144,9 +142,9 @@ class SplitCUB2002011(CLSplitDataset):
                 root=self.root_t,
                 train=False,
                 transform=self.test_transforms(),
+                # cl class mapping should be applied after the split
                 download=False,
             )
         )
-        dataset_test.target_transform = self.target_transforms()
 
         return dataset_test

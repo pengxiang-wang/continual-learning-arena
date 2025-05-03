@@ -29,6 +29,7 @@ from .cbp import CBP
 from .hat import HAT
 from .adahat import AdaHAT
 from .sadahat import SAdaHAT
+from .wsn import WSN
 
 
 __all__ = [
@@ -43,4 +44,5 @@ __all__ = [
     "cbp",
     "adahat",
     "sadahat",
+    "wsn",
 ]

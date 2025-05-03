@@ -2,17 +2,26 @@ r"""
 The submodule in `cl_datasets` for CL dataset bases.
 """
 
-__all__ = ["CLDataset", "CLPermutedDataset", "CLClassMapping", "Permute"]
+__all__ = [
+    "CLDataset",
+    "CLPermutedDataset",
+    "CLClassMapping",
+    "Permute",
+    "CLSplitDataset",
+    "CLCombinedDataset",
+    "JointDataset",
+]
 
 import ast
 import logging
+import types
 from abc import abstractmethod
 from typing import Any, Callable
 
 import torch
 from lightning import LightningDataModule
 from omegaconf import ListConfig
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import ConcatDataset, DataLoader, Dataset
 from torchvision import transforms
 
 from clarena.cl_datasets.original.constants import (
@@ -43,12 +52,6 @@ class CLDataset(LightningDataModule):
         repeat_channels: int | None | list[int | None] = None,
         to_tensor: bool | list[bool] = True,
         resize: tuple[int, int] | None | list[tuple[int, int] | None] = None,
-        custom_target_transforms: (
-            Callable
-            | transforms.Compose
-            | None
-            | list[Callable | transforms.Compose | None]
-        ) = None,
     ) -> None:
         r"""Initialise the CL dataset object providing the root where data files live.
 
@@ -61,7 +64,6 @@ class CLDataset(LightningDataModule):
         - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
         - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
-        - **custom_target_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included. If it is a list, each item is the custom transforms for each task.
         """
         LightningDataModule.__init__(self)
 
@@ -128,19 +130,6 @@ class CLDataset(LightningDataModule):
         r"""Store the mean values for normalisation for the current task `self.task_id`. Used when constructing the transforms."""
         self.std_t: float
         r"""Store the standard deviation values for normalisation for the current task `self.task_id`. Used when constructing the transforms."""
-        self.custom_target_transforms: (
-            Callable
-            | transforms.Compose
-            | None
-            | list[Callable | transforms.Compose | None]
-        ) = (
-            custom_target_transforms
-            if isinstance(custom_target_transforms, ListConfig)
-            else [custom_target_transforms] * num_tasks
-        )
-        r"""Store the custom target transforms other than the CL class mapping."""
-        self.custom_target_transforms_t: Callable | transforms.Compose | None
-        r"""Store the custom target transforms for the current task `self.task_id`. Used when constructing the dataset."""
 
         self.task_id: int
         r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
@@ -156,15 +145,13 @@ class CLDataset(LightningDataModule):
         r"""Store the class map for the current task `self.task_id`. The key is the integer class label, and the value is the original class label. It is used to get the original class label from the integer class label."""
         self.cl_class_map_t: dict[str | int, int]
         r"""Store the CL class map for the current task `self.task_id`. """
-        self.cl_class_mapping_t: Callable
-        r"""Store the CL class mapping transform for the current task `self.task_id`. """
 
-        self.dataset_train: Any
+        self.dataset_train_t: Any
         r"""The training dataset object. Can be a PyTorch Dataset object or any other dataset object."""
-        self.dataset_val: Any
+        self.dataset_val_t: Any
         r"""The validation dataset object. Can be a PyTorch Dataset object or any other dataset object."""
-        self.dataset_test: dict[str, object] = {}
-        r"""The dictionary to store test dataset object. Keys are task IDs (string type) and values are the dataset objects. Can be PyTorch Dataset objects or any other dataset objects."""
+        self.dataset_test: dict[str, Any] = {}
+        r"""The dictionary to store test dataset object of each task. Keys are task IDs (string type) and values are the dataset objects. Can be PyTorch Dataset objects or any other dataset objects."""
 
         CLDataset.sanity_check(self)
 
@@ -187,28 +174,24 @@ class CLDataset(LightningDataModule):
 
     @abstractmethod
     def prepare_data(self) -> None:
-        r"""Use this to download and prepare data. It must be implemented by subclasses, regulated by `LightningDatamodule`."""
+        r"""Use this to download and prepare data. It must be implemented by subclasses, regulated by `LightningDatamodule`. This method is called at the beginning of each task."""
 
     def setup(self, stage: str) -> None:
-        r"""Set up the dataset for different stages.
+        r"""Set up the dataset for different stages. This method is called at the beginning of each task.
 
         **Args:**
         - **stage** (`str`): the stage of the experiment. Should be one of the following:
-            - 'fit' or 'validation': training and validation dataset of current task `self.task_id` should be assigned to `self.dataset_train` and `self.dataset_val`.
+            - 'fit' or 'validation': training and validation dataset of current task `self.task_id` should be assigned to `self.dataset_train_t` and `self.dataset_val_t`.
             - 'test': a list of test dataset of all seen tasks (from task 0 to `self.task_id`) should be assigned to `self.dataset_test`.
         """
-        if stage == "fit" or "validate":
+        if stage == "fit" or stage == "validate":
 
             pylogger.debug(
                 "Construct train and validation dataset for task %d...", self.task_id
             )
-            self.dataset_train, self.dataset_val = self.train_and_val_dataset()
-            self.dataset_train.target_transform = (
-                self.target_transforms()
-            )  # apply target transform after potential class split
-            self.dataset_val.target_transform = (
-                self.target_transforms()
-            )  # apply target transform after potential class split
+
+            self.dataset_train_t, self.dataset_val_t = self.train_and_val_dataset()
+
             pylogger.debug(
                 "Train and validation dataset for task %d are ready.", self.task_id
             )
@@ -216,10 +199,9 @@ class CLDataset(LightningDataModule):
         if stage == "test":
 
             pylogger.debug("Construct test dataset for task %d...", self.task_id)
+
             self.dataset_test[f"{self.task_id}"] = self.test_dataset()
-            self.dataset_test[f"{self.task_id}"].target_transform = (
-                self.target_transforms()
-            )  # apply target transform after potential class split
+
             pylogger.debug("Test dataset for task %d are ready.", self.task_id)
 
     def setup_task_id(self, task_id: int) -> None:
@@ -239,10 +221,8 @@ class CLDataset(LightningDataModule):
         self.repeat_channels_t = self.repeat_channels[task_id - 1]
         self.to_tensor_t = self.to_tensor[task_id - 1]
         self.resize_t = self.resize[task_id - 1]
-        self.custom_target_transforms_t = self.custom_target_transforms[task_id - 1]
 
         self.cl_class_map_t = self.cl_class_map(task_id)
-        self.cl_class_mapping_t = CLClassMapping(self.cl_class_map_t)
 
     def set_cl_paradigm(self, cl_paradigm: str) -> None:
         r"""Set the continual learning paradigm to `self.cl_paradigm`. It is used to define the CL class map.
@@ -316,27 +296,6 @@ class CLDataset(LightningDataModule):
             )
         )  # the order of transforms matters
 
-    def target_transforms(
-        self,
-    ) -> transforms.Compose:
-        r"""The target transform for the dataset. It is a handy tool to use in subclasses when constructing the dataset.
-
-        **Returns:**
-        - **target_transforms** (`transforms.Compose`): the transformed target tensor.
-        """
-
-        return transforms.Compose(
-            list(
-                filter(
-                    None,
-                    [
-                        self.custom_target_transforms_t,
-                        self.cl_class_mapping_t,
-                    ],
-                )
-            )
-        )  # the order of transforms matters
-
     @abstractmethod
     def train_and_val_dataset(self) -> Any:
         r"""Get the training and validation dataset of task `self.task_id`. It must be implemented by subclasses.
@@ -363,7 +322,7 @@ class CLDataset(LightningDataModule):
         pylogger.debug("Construct train dataloader for task %d...", self.task_id)
 
         return DataLoader(
-            dataset=self.dataset_train,
+            dataset=self.dataset_train_t,
             batch_size=self.batch_size_t,
             shuffle=True,  # shuffle train batch to prevent overfitting
             num_workers=self.num_workers_t,
@@ -379,7 +338,7 @@ class CLDataset(LightningDataModule):
         pylogger.debug("Construct validation dataloader for task %d...", self.task_id)
 
         return DataLoader(
-            dataset=self.dataset_val,
+            dataset=self.dataset_val_t,
             batch_size=self.batch_size_t,
             shuffle=False,  # don't have to shuffle val or test batch
             num_workers=self.num_workers_t,
@@ -396,12 +355,12 @@ class CLDataset(LightningDataModule):
 
         return {
             f"{task_id}": DataLoader(
-                dataset=dataset_test,
+                dataset=dataset_test_t,
                 batch_size=self.batch_size_t,
                 shuffle=False,  # don't have to shuffle val or test batch
                 num_workers=self.num_workers_t,
             )
-            for task_id, dataset_test in self.dataset_test.items()
+            for task_id, dataset_test_t in self.dataset_test.items()
         }
 
 
@@ -426,12 +385,6 @@ class CLPermutedDataset(CLDataset):
         repeat_channels: int | None | list[int | None] = None,
         to_tensor: bool | list[bool] = True,
         resize: tuple[int, int] | None | list[tuple[int, int] | None] = None,
-        custom_target_transforms: (
-            Callable
-            | transforms.Compose
-            | None
-            | list[Callable | transforms.Compose | None]
-        ) = None,
         permutation_mode: str = "first_channel_only",
         permutation_seeds: list[int] | None = None,
     ) -> None:
@@ -446,7 +399,6 @@ class CLPermutedDataset(CLDataset):
         - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
         - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
-        - **custom_target_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included. If it is a list, each item is the custom transforms for each task.
         - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
@@ -463,7 +415,6 @@ class CLPermutedDataset(CLDataset):
             repeat_channels=repeat_channels,
             to_tensor=to_tensor,
             resize=resize,
-            custom_target_transforms=custom_target_transforms,
         )
 
         self.original_dataset_constants: type[DatasetConstants] = (
@@ -660,12 +611,6 @@ class CLSplitDataset(CLDataset):
         repeat_channels: int | None | list[int | None] = None,
         to_tensor: bool | list[bool] = True,
         resize: tuple[int, int] | None | list[tuple[int, int] | None] = None,
-        custom_target_transforms: (
-            Callable
-            | transforms.Compose
-            | None
-            | list[Callable | transforms.Compose | None]
-        ) = None,
     ) -> None:
         r"""Initialise the CL dataset object providing the root where data files live.
 
@@ -678,7 +623,6 @@ class CLSplitDataset(CLDataset):
         - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
         - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
-        - **custom_target_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included. If it is a list, each item is the custom transforms for each task.
         """
         CLDataset.__init__(
             self,
@@ -690,7 +634,6 @@ class CLSplitDataset(CLDataset):
             repeat_channels=repeat_channels,
             to_tensor=to_tensor,
             resize=resize,
-            custom_target_transforms=custom_target_transforms,
         )
 
         self.original_dataset_constants: type[DatasetConstants] = (
@@ -795,12 +738,6 @@ class CLCombinedDataset(CLDataset):
         repeat_channels: int | None | list[int | None] = None,
         to_tensor: bool | list[bool] = True,
         resize: tuple[int, int] | None | list[tuple[int, int] | None] = None,
-        custom_target_transforms: (
-            Callable
-            | transforms.Compose
-            | None
-            | list[Callable | transforms.Compose | None]
-        ) = None,
     ) -> None:
         r"""Initialise the CL dataset object providing the root where data files live.
 
@@ -813,7 +750,6 @@ class CLCombinedDataset(CLDataset):
         - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
         - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
-        - **custom_target_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom target transforms to apply to dataset labels. Can be a single transform, composed transforms or no transform. CL class mapping is not included. If it is a list, each item is the custom transforms for each task.
         """
         CLDataset.__init__(
             self,
@@ -825,7 +761,6 @@ class CLCombinedDataset(CLDataset):
             repeat_channels=repeat_channels,
             to_tensor=to_tensor,
             resize=resize,
-            custom_target_transforms=custom_target_transforms,
         )
 
         self.original_dataset_python_classes: list[Dataset] = [
@@ -1019,3 +954,167 @@ class Permute:
             img_permuted[0] = first_channel_permuted
 
             return img_permuted
+
+
+class JointDataset(LightningDataModule):
+    r"""The class of joint datasets for the joint learning (JL) experiment, inherited from `LightningDataModule`. The joint dataset is a combination of all tasks' datasets. It is used to train the model on all tasks at once.
+
+    This class is dynamically constructed from the CL dataset class.
+    """
+
+    def __init__(
+        self, cl_dataset: CLDataset, batch_size: int, num_workers: int
+    ) -> None:
+        r"""Initialise the joint dataset object.
+
+        **Args:**
+        - **cl_dataset** (`CLDataset`): the CL dataset object to be used for constructing the joint dataset.
+        - **batch_size** (`int`): the batch size in train, val, test dataloader.
+        - **num_workers** (`int`): the number of workers for dataloaders.
+        """
+
+        LightningDataModule.__init__(self)
+
+        self.cl_dataset: CLDataset = cl_dataset
+        r"""Store the CL dataset object."""
+
+        self.batch_size: int = batch_size
+        r"""Store the batch size for dataloaders."""
+
+        self.num_workers: int = num_workers
+        r"""Store the number of workers for dataloaders."""
+
+        self.dataset_train: ConcatDataset = ConcatDataset([])
+        r"""The dictionary to store training dataset object of each task. Keys are task IDs (string type) and values are the dataset objects. Can be PyTorch Dataset objects or any other dataset objects."""
+        self.dataset_val: dict[str, Any] = {}
+        r"""The dictionary to store validation dataset object of each task. Keys are task IDs (string type) and values are the dataset objects. Can be PyTorch Dataset objects or any other dataset objects."""
+        self.dataset_test: dict[str, Any] = {}
+        r"""The dictionary to store test dataset object of each task. Keys are task IDs (string type) and values are the dataset objects. Can be PyTorch Dataset objects or any other dataset objects."""
+
+    def prepare_data(self) -> None:
+        r"""Download and prepare data."""
+        self.cl_dataset.prepare_data()
+
+    def setup(self, stage: str) -> None:
+        r"""Set up the dataset for different stages.
+
+        **Args:**
+        - **stage** (`str`): the stage of the experiment. Should be one of the following:
+            - 'fit' or 'validation': training and validation dataset should be assigned to `self.dataset_train_t` and `self.dataset_val_t`.
+            - 'test': test dataset should be assigned to `self.dataset_test`.
+        """
+        if stage == "fit":
+            pylogger.debug("Construct joint training dataset...")
+
+            for task_id in range(1, self.cl_dataset.num_tasks + 1):
+                self.cl_dataset.setup_task_id(task_id)
+                self.cl_dataset.setup(stage)
+                label_dataset_task(self.cl_dataset.dataset_train_t, task_id)
+                self.dataset_train = ConcatDataset(
+                    [self.dataset_train, self.cl_dataset.dataset_train_t]
+                )
+            pylogger.debug("Joint training dataset are ready.")
+
+        if stage == "validate":
+            pylogger.debug("Construct joint validation dataset...")
+
+            for task_id in range(1, self.cl_dataset.num_tasks + 1):
+                self.cl_dataset.setup_task_id(task_id)
+                self.cl_dataset.setup(stage)
+                self.dataset_val[f"{task_id}"] = self.cl_dataset.dataset_val_t
+
+            pylogger.debug("Joint validation dataset are ready.")
+
+        if stage == "test":
+
+            pylogger.debug("Construct joint test dataset...")
+
+            for task_id in range(1, self.cl_dataset.num_tasks + 1):
+                self.cl_dataset.setup_task_id(task_id)
+                self.cl_dataset.setup(stage)
+                self.dataset_test[f"{task_id}"] = self.cl_dataset.dataset_test_t
+
+            pylogger.debug("Joint test dataset is ready.")
+
+    def train_dataloader(self) -> DataLoader:
+        r"""DataLoader generator for stage train. It is automatically called before training.
+
+        **Returns:**
+        - **train_dataloader** (`Dataloader`): the train DataLoader.
+        """
+
+        pylogger.debug("Construct joint train dataloader...")
+
+        return DataLoader(
+            dataset=self.dataset_train,
+            batch_size=self.batch_size,
+            shuffle=True,  # shuffle train batch to prevent overfitting
+            num_workers=self.num_workers,
+        )
+
+    def val_dataloader(self) -> DataLoader:
+        r"""DataLoader generator for stage validate. It is automatically called before validation.
+
+        **Returns:**
+        - **train_dataloader** (`Dataloader`): the validation DataLoader.
+        """
+
+        pylogger.debug("Construct joint validation dataloader...")
+
+        return {
+            f"{task_id}": DataLoader(
+                dataset=dataset_val_t,
+                batch_size=self.batch_size,
+                shuffle=False,  # don't have to shuffle val or test batch
+                num_workers=self.num_workers,
+            )
+            for task_id, dataset_val_t in self.dataset_val.items()
+        }
+
+    def test_dataloader(self) -> dict[str, DataLoader]:
+        r"""DataLoader generator for stage test. It is automatically called before testing.
+
+        **Returns:**
+        - **test_dataloader** (`dict[str, DataLoader]`): the test DataLoader.
+        """
+
+        pylogger.debug("Construct joint test dataloader...")
+
+        return {
+            f"{task_id}": DataLoader(
+                dataset=dataset_test_t,
+                batch_size=self.batch_size,
+                shuffle=False,  # don't have to shuffle val or test batch
+                num_workers=self.num_workers,
+            )
+            for task_id, dataset_test_t in self.dataset_test.items()
+        }
+
+
+def label_dataset_task(dataset: Dataset, task_id: int) -> None:
+    r"""Label the dataset with the given task ID by modifying the `__getitem__()` method.
+
+    **Args:**
+    - **dataset** (`Dataset`): the dataset to be labelled.
+    - **task_id** (`int`): the task ID to be labelled.
+    """
+
+    original_getitem = dataset.__getitem__
+
+    def new_getitem(self, index: int) -> tuple[Any, Any, int]:
+        r"""The new method to get the item from the dataset, which returns extra task_id after data and label. This method is used to replace the original `__getitem__` method of the dataset.
+
+        **Args:**
+        - **index** (`int`): the index of the item to be retrieved.
+
+        **Returns:**
+        - **result** (`tuple[Any, Any, int]`): the item retrieved from the dataset, which is a tuple of (data, label, task_id).
+        """
+        result = original_getitem(index)
+
+        if isinstance(result, tuple):
+            return result + (task_id,)
+        else:
+            return (result, task_id)
+
+    dataset.__getitem__ = types.MethodType(new_getitem, dataset)

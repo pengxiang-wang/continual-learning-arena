@@ -16,11 +16,18 @@ The backbones are implemented as subclasses of `CLBackbone` classes, which are t
 
 - `CLBackbone`: The base class for continual learning backbones.
 - `HATMaskBackbone`: The base class for backbones used in [HAT (Hard Attention to the Task) algorithm](http://proceedings.mlr.press/v80/serra18a). A child class of `CLBackbone`.
+- `WSNMaskBackbone`: The base class for backbones used in [WSN (Winning Subnetworks) algorithm](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf). A child class of `CLBackbone`.
 
 
 """
 
-from .base import CLBackbone, HATMaskBackbone
+from .base import (
+    CLBackbone,
+    HATMaskBackbone,
+    WSNMaskBackbone,
+    PercentileLayerParameterMaskingByScore,
+    NISPAMaskBackbone,
+)
 from .mlp import MLP
 from .resnet import (
     ResNet18,
@@ -37,5 +44,18 @@ from .hatmask_resnet import (
     HATMaskResNet101,
     HATMaskResNet152,
 )
+from .wsnmask_mlp import WSNMaskMLP
 
-__all__ = ["CLBackbone", "HATMaskBackbone", "mlp", "resnet"]
+
+__all__ = [
+    "CLBackbone",
+    "HATMaskBackbone",
+    "WSNMaskBackbone",
+    "PercentileLayerParameterMaskingByScore",
+    "NISPAMaskBackbone",
+    "mlp",
+    "resnet",
+    "hatmask_mlp",
+    "hatmask_resnet",
+    "wsnmask_mlp",
+]

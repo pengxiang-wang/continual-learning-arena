@@ -2,9 +2,16 @@ r"""
 The submodule in `backbones` for CL backbone network bases.
 """
 
-__all__ = ["CLBackbone", "HATMaskBackbone"]
+__all__ = [
+    "CLBackbone",
+    "HATMaskBackbone",
+    "WSNMaskBackbone",
+    "PercentileLayerParameterMaskingByScore",
+    "NISPAMaskBackbone",
+]
 
 import logging
+import math
 
 import torch
 from torch import Tensor, nn
@@ -140,7 +147,7 @@ class HATMaskBackbone(CLBackbone):
 
     - [**HAT (Hard Attention to the Task, 2018)**](http://proceedings.mlr.press/v80/serra18a) is an architecture-based continual learning approach that uses learnable hard attention masks to select the task-specific parameters.
     - [**Adaptive HAT (Adaptive Hard Attention to the Task, 2024)**](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9) is an architecture-based continual learning approach that improves [HAT (Hard Attention to the Task, 2018)](http://proceedings.mlr.press/v80/serra18a) by introducing new adaptive soft gradient clipping based on parameter importance and network sparsity.
-    - **CBPHAT** is what I am working on, trying combining HAT (Hard Attention to the Task) algorithm with Continual Backpropagation (CBP) by leveraging the contribution utility as the parameter importance like in AdaHAT (Adaptive Hard Attention to the Task) algorithm.
+    - **S-AdaHAT** is an architecture-based continual learning approach that improves [HAT (Hard Attention to the Task, 2018)](http://proceedings.mlr.press/v80/serra18a) algorithm by introducing subtler neuron-wise importance measures guiding the adaptive adjustment mechanism in AdaHAT.
     """
 
     def __init__(self, output_dim: int | None, gate: str) -> None:
@@ -160,7 +167,7 @@ class HATMaskBackbone(CLBackbone):
         HATMaskBackbone.sanity_check(self)
 
     def register_hat_mask_module_explicitly(self, gate: str) -> None:
-        r"""Register all `nn.Module`s explicitly in this method. For `HATMaskBackbone`, they are task embedding for the current task and the masks.
+        r"""Register all `nn.Module`s of HAT mechanism explicitly in this method. For `HATMaskBackbone`, they are task embedding for the current task and the masks.
 
         **Args:**
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
@@ -227,15 +234,15 @@ class HATMaskBackbone(CLBackbone):
         **Args:**
         - **stage** (`str`): the stage when applying the conversion, should be one of the following:
             1. 'train': training stage. If stage is 'train', get the mask from task embedding of current task through the gate function, which is scaled by an annealed scalar. See chapter 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
-            2. ‘validation': validation stage. If stage is 'validation', get the mask from task embedding of current task through the gate function, which is scaled by `s_max`. (Note that in this stage, the binary mask hasn't been stored yet as the training is not over.)
-            3. 'test': testing stage. If stage is 'test', apply the mask gate function is scaled by `s_max`, the large scaling making masks nearly binary.
+            2. ‘validation': validation stage. If stage is 'validation', get the mask from task embedding of current task through the gate function, which is scaled by `s_max`. where large scaling making masks nearly binary. (Note that in this stage, the binary mask hasn't been stored yet as the training is not over.)
+            3. 'test': testing stage. If stage is 'test', apply the test mask directly from the argument `test_mask`.
         - **s_max** (`float`): the maximum scaling factor in the gate function. Doesn't apply to testing stage. See chapter 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.
         - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.
         - **test_mask** (`dict[str, Tensor]` | `None`): the binary mask used for test. Applies only to testing stage. For other stages, it is default `None`.
 
         **Returns:**
-        - **mask** (`dict[str, Tensor]`): the hard attention (whose values are 0 or 1) mask. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
+        - **mask** (`dict[str, Tensor]`): the hard attention (whose values are 0 or 1) mask. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
 
         **Raises:**
         - **ValueError**: if the `batch_idx` and `batch_num` are not provided in 'train' stage; if the `s_max` is not provided in 'validation' stage; if the `task_id` is not provided in 'test' stage.
@@ -295,7 +302,7 @@ class HATMaskBackbone(CLBackbone):
         - **CBPHAT**: the parameter-wise measure is the parameter importance for previous tasks from the unit-wise importance of previous tasks `self.unit_importance_for_previous_tasks` based on contribution utility, which is $\min \left(I_{l,i}^{(t-1)}, I_{l-1,j}^{(t-1)}\right)$ in the adjustment rate formula in the paper draft.
 
         **Args:**
-        - **unit_wise_measure** (`dict[str, Tensor]`): the unit-wise measure. Key is layer name, value is the unit-wise measure tensor. The measure tensor has size (number of units).
+        - **unit_wise_measure** (`dict[str, Tensor]`): the unit-wise measure. Key is layer name, value is the unit-wise measure tensor. The measure tensor has size (number of units, ).
         - **layer_name** (`str`): the name of given layer.
         - **aggregation_mode** (`str`): the aggregation mode turning two feature-wise measures into weight-wise matrix, should be one of the following:
             - 'min': takes minimum of the two connected unit measures.
@@ -331,7 +338,7 @@ class HATMaskBackbone(CLBackbone):
         layer_measure = unit_wise_measure[layer_name]
         layer_measure_broadcast_size = (-1, 1) + tuple(
             1 for _ in range(len(weight_size) - 2)
-        )  # since the size of mask tensor is (number of units), we extend it to (number of units, 1) and expand it to the weight size. The weight size has 2 dimensions in fully connected layers and 4 dimensions in convolutional layers
+        )  # since the size of mask tensor is (number of units, ), we extend it to (number of units, 1) and expand it to the weight size. The weight size has 2 dimensions in fully connected layers and 4 dimensions in convolutional layers
 
         layer_measure_broadcasted = layer_measure.view(
             *layer_measure_broadcast_size
@@ -345,7 +352,7 @@ class HATMaskBackbone(CLBackbone):
 
             preceding_layer_measure_broadcast_size = (1, -1) + tuple(
                 1 for _ in range(len(weight_size) - 2)
-            )  # since the size of mask tensor is (number of units), we extend it to (1, number of units) and expand it to the weight size. The weight size has 2 dimensions in fully connected layers and 4 dimensions in convolutional layers
+            )  # since the size of mask tensor is (number of units, ), we extend it to (1, number of units) and expand it to the weight size. The weight size has 2 dimensions in fully connected layers and 4 dimensions in convolutional layers
             preceding_layer_measure = unit_wise_measure[preceding_layer_name]
             preceding_layer_measure_broadcasted = preceding_layer_measure.view(
                 *preceding_layer_measure_broadcast_size
@@ -388,7 +395,7 @@ class HATMaskBackbone(CLBackbone):
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
-        - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units).
+        - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
         - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
 
         """
@@ -405,21 +412,270 @@ class HATMaskBackbone(CLBackbone):
 class WSNMaskBackbone(CLBackbone):
     r"""The backbone network for WSN algorithm with learnable parameter masks.
 
-    [WSN (Winning Subnetworks, 2022)](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf) is an architecture-based continual learning algorithm. It trains learnable parameter-wise importance and select the most important $c\%$ of the network parameters to be used for each task.
+    [WSN (Winning Subnetworks, 2022)](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf) is an architecture-based continual learning algorithm. It trains learnable parameter-wise score and select the most scored $c\%$ of the network parameters to be used for each task.
     """
 
-    def __init__(self, output_dim: int | None, gate: str) -> None:
+    def __init__(self, output_dim: int | None) -> None:
         r"""Initialise the WSN mask backbone network with task embeddings and masks.
 
         **Args:**
         - **output_dim** (`int`): The output dimension which connects to CL output heads. The `input_dim` of output heads are expected to be the same as this `output_dim`. In some cases, this class is used for a block in the backbone network, which doesn't have the output dimension. In this case, it can be `None`.
-        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
-            - `sigmoid`: the sigmoid function.
         """
         CLBackbone.__init__(self, output_dim=output_dim)
 
-        self.register_hat_mask_module_explicitly(
-            gate=gate
-        )  # we moved the registration of the modules to a separate method to solve a problem of multiple inheritance in terms of `nn.Module`
+        self.register_wsn_mask_module_explicitly()  # we moved the registration of the modules to a separate method to solve a problem of multiple inheritance in terms of `nn.Module`
 
-        HATMaskBackbone.sanity_check(self)
+        WSNMaskBackbone.sanity_check(self)
+
+    def register_wsn_mask_module_explicitly(
+        self,
+    ) -> None:
+        r"""Register all `nn.Module`s of WSN mechanism explicitly in this method. For `WSNMaskBackbone`, they are parameter score for the current task and the masks."""
+
+        self.gate_fn: torch.autograd.Function = PercentileLayerParameterMaskingByScore
+        r"""The gate function turning the real value parameter score into binary parameter masks. It is a custom autograd function that applies the percentile parameter masking by their score."""
+
+        self.weight_score_t: nn.ModuleDict = nn.ModuleDict()
+        r"""Store the weight score for the current task. Keys are the layer names and values are the task embedding `nn.Embedding` for the layer. Each task embedding has the same size (output features, input features) as weight.
+        
+        We use `ModuleDict` rather than `dict` to make sure `LightningModule` can properly register these model parameters for the purpose of, like automatically transfering to device, being recorded in model summaries.
+        
+        we use `nn.Embedding` rather than `nn.Parameter` to store the task embedding for each layer, which is a type of `nn.Module` and can be accepted by `nn.ModuleDict`. (`nn.Parameter` cannot be accepted by `nn.ModuleDict`.)
+        
+        **This must be defined to cover each weighted layer (just as `self.weighted_layer_names` listed) in the backbone network.** Otherwise, the uncovered parts will keep updating for all tasks and become a source of catastrophic forgetting. """
+
+        self.bias_score_t: nn.ModuleDict = nn.ModuleDict()
+        r"""Store the bias score for the current task. Keys are the layer names and values are the task embedding `nn.Embedding` for the layer. Each task embedding has same size (1, output features) as bias. If the layer doesn't have bias, it is `None`.
+        
+        We use `ModuleDict` rather than `dict` to make sure `LightningModule` can properly register these model parameters for the purpose of, like automatically transfering to device, being recorded in model summaries.
+        
+        we use `nn.Embedding` rather than `nn.Parameter` to store the task embedding for each layer, which is a type of `nn.Module` and can be accepted by `nn.ModuleDict`. (`nn.Parameter` cannot be accepted by `nn.ModuleDict`.)
+        
+        **This must be defined to cover each weighted layer (just as `self.weighted_layer_names` listed) in the backbone network.** Otherwise, the uncovered parts will keep updating for all tasks and become a source of catastrophic forgetting. """
+
+        WSNMaskBackbone.sanity_check(self)
+
+    def sanity_check(self) -> None:
+        r"""Check the sanity of the arguments."""
+        pass
+
+    def initialise_parameter_score(self, mode: str) -> None:
+        r"""Initialise the parameter score for the current task.
+
+        **Args:**
+        - **mode** (`str`): the initialisation mode for parameter scores, should be one of the following:
+            1. 'default': the default initialisation mode in original WSN codes.
+            2. 'N01': standard normal distribution $N(0, 1)$.
+            3. 'U01': uniform distribution $U(0, 1)$.
+
+        """
+
+        for layer_name, weight_score in self.weight_score_t.items():
+            if mode == "default":
+                # Kaiming Uniform Initialization for weight score
+                nn.init.kaiming_uniform_(weight_score.weight, a=math.sqrt(5))
+
+                for layer_name, bias_score in self.bias_score_t.items():
+                    if bias_score is not None:
+                        # For bias, follow the standard bias initialization using fan_in
+                        weight_score = self.weight_score_t[layer_name]
+                        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(
+                            weight_score.weight
+                        )
+                        bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+                        nn.init.uniform_(bias_score.weight, -bound, bound)
+            elif mode == "N01":
+                nn.init.normal_(weight_score.weight, 0, 1)
+                for layer_name, bias_score in self.bias_score_t.items():
+                    if bias_score is not None:
+                        nn.init.normal_(bias_score.weight, 0, 1)
+            elif mode == "U01":
+                nn.init.uniform_(weight_score.weight, 0, 1)
+                for layer_name, bias_score in self.bias_score_t.items():
+                    if bias_score is not None:
+                        nn.init.uniform_(bias_score.weight, 0, 1)
+
+    def get_mask(
+        self,
+        stage: str,
+        mask_percentage: float,
+        test_mask: tuple[dict[str, Tensor], dict[str, Tensor]] | None = None,
+    ) -> dict[str, Tensor]:
+        r"""Get the binary parameter mask used in `forward()` method for different stages.
+
+        **Args:**
+        - **stage** (`str`): the stage when applying the conversion, should be one of the following:
+            1. 'train': training stage. If stage is 'train', get the mask from parameter score of current task through the gate function that masks top $c\%$ largest scored. See chapter 3.1 "Winning Subnetworks" in [WSN paper](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf).
+            2. ‘validation': validation stage. If stage is 'validation', do the same thing as 'train'. (Note that in this stage, the binary mask hasn't been stored yet as the training is not over.)
+            3. 'test': testing stage. If stage is 'test', apply the test mask directly from the argument `test_mask`.
+        - **test_mask** (`tuple[dict[str, Tensor], dict[str, Tensor]]` | `None`): the binary weight and bias mask used for test. Applies only to testing stage. For other stages, it is default `None`.
+
+        **Returns:**
+        - **weight_mask** (`dict[str, Tensor]`): the binary mask on weight. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has the same size (output features, input features) as weight.
+        - **bias_mask** (`dict[str, Tensor]`): the binary mask on bias. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has the same size (output features, ) as bias. If the layer doesn't have bias, it is `None`.
+        """
+
+        weight_mask = {}
+        bias_mask = {}
+        if stage == "train" or stage == "validation":
+            for layer_name in self.weighted_layer_names:
+                weight_mask[layer_name] = self.gate_fn.apply(
+                    self.weight_score_t[layer_name].weight, mask_percentage
+                )
+                if self.bias_score_t[layer_name] is not None:
+                    bias_mask[layer_name] = self.gate_fn.apply(
+                        self.bias_score_t[layer_name].weight.squeeze(
+                            0
+                        ),  # from (1, output_dim) to (output_dim, )
+                        mask_percentage,
+                    )
+                else:
+                    bias_mask[layer_name] = None
+        elif stage == "test":
+            weight_mask, bias_mask = test_mask
+
+        return weight_mask, bias_mask
+
+    @override
+    def forward(
+        self,
+        input: Tensor,
+        stage: str,
+        mask_percentage: float,
+        test_mask: tuple[dict[str, Tensor], dict[str, Tensor]] | None = None,
+    ) -> tuple[Tensor, dict[str, Tensor], dict[str, Tensor], dict[str, Tensor]]:
+        r"""The forward pass for data from task `task_id`. Task-specific mask for `task_id` are applied to the units in each layer.
+
+        **Args:**
+        - **input** (`Tensor`): The input tensor from data.
+        - **stage** (`str`): the stage of the forward pass, should be one of the following:
+            1. 'train': training stage.
+            2. 'validation': validation stage.
+            3. 'test': testing stage.
+        - **mask_percentage** (`float`): the percentage of parameters to be masked. The value should be between 0 and 1.
+        - **test_mask** (`tuple[dict[str, Tensor], dict[str, Tensor]]` | `None`): the binary weight and bias mask used for test. Applies only to testing stage. For other stages, it is default `None`.
+
+        **Returns:**
+        - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
+        - **weight_mask** (`dict[str, Tensor]`): the weight mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has same (output features, input features) as weight.
+        - **bias_mask** (`dict[str, Tensor]`): the bias mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has same (output features, ) as bias. If the layer doesn't have bias, it is `None`.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        """
+        # this should be copied to all subclasses. Make sure it is called to get the mask for the current task from the task embedding in this stage
+        weight_mask, bias_mask = self.get_mask(
+            stage,
+            mask_percentage=mask_percentage,
+            test_mask=test_mask,
+        )
+
+
+class PercentileLayerParameterMaskingByScore(torch.autograd.Function):
+    r"""The custom autograd function that gets the parameter masks of a layer where top $c\%$ largest scored parameters are masked. This is used in WSN algorithm."""
+
+    @staticmethod
+    def forward(ctx, score: Tensor, percentage: float) -> Tensor:
+        r"""The forward pass of the custom autograd function.
+
+        **Args:**
+        - **ctx**: the context object to save the input for backward pass. This must be included in the forward pass.
+        - **score** (`Tensor`): the parameter score of the layer. It has the same size as the parameter.
+        - **percentage** (`float`): the percentage of parameters to be masked. The value should be between 0 and 1.
+
+        **Returns:**
+        - **parameter_mask** (`Tensor`): the binary mask. The size is the same as the parameter. The value is 1 for the masked parameters and 0 for the unmasked parameters.
+        """
+        # percentile of the scores as the threshold
+        threshold = torch.quantile(
+            score, 1 - percentage
+        )  # keep top c% largest scored parameters
+
+        parameter_size = score.size()
+        zeros = torch.zeros(parameter_size).to(score.device)
+        ones = torch.ones(parameter_size).to(score.device)
+
+        # the mask is 1 for the parameters with score >= threshold and 0 for the parameters with score < threshold
+        return torch.where(score < threshold, zeros, ones)
+
+    @staticmethod
+    def backward(ctx, grad_output: Tensor) -> tuple[Tensor, None]:
+        r"""The backward pass of the custom autograd function. It applies STE (Straight-through Estimator) to solve the problem: that this filter layer always has a gradient value of 0; therefore, updating the weight scores s with its loss gradient is not possible. See equation (5) in chapter 3.2 "Optimization Procedure for Winning SubNetworks" in [WSN paper](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf).
+
+        **Args:**
+        - **ctx**: the context object to save the input for backward pass. This must be included in the forward pass.
+        - **grad_output** (`Tensor`): the gradient of the output from the forward pass.
+
+        **Returns:**
+        - **grad_score_input** (`Tensor`): the gradient of the input (the score).
+        - **grad_percentage_input** (`None`): the gradient of the input (percentage). It is `None` because it is not used in the backward pass.
+        """
+        return grad_output, None
+
+
+class NISPAMaskBackbone(CLBackbone):
+    r"""The backbone network for NISPA algorithm with neuron masks.
+
+    [NISPA (Neuro-Inspired Stability-Plasticity Adaptation)](https://proceedings.mlr.press/v162/gurbuz22a/gurbuz22a.pdf) is an architecture-based continual learning algorithm. It
+    """
+
+    def __init__(self, output_dim: int | None) -> None:
+        r"""Initialise the NISPA mask backbone network with masks.
+
+        **Args:**
+        - **output_dim** (`int`): The output dimension which connects to CL output heads. The `input_dim` of output heads are expected to be the same as this `output_dim`. In some cases, this class is used for a block in the backbone network, which doesn't have the output dimension. In this case, it can be `None`.
+        """
+        CLBackbone.__init__(self, output_dim=output_dim)
+
+        self.register_nispa_mask_module_explicitly()  # we moved the registration of the modules to a separate method to solve a problem of multiple inheritance in terms of `nn.Module`
+
+        NISPAMaskBackbone.sanity_check(self)
+
+    def register_nispa_mask_module_explicitly(
+        self,
+    ) -> None:
+        r"""Register all `nn.Module`s of NISPA mechanism explicitly in this method. For `NISPAMaskBackbone`, they are the masks."""
+
+        self.candidate_stable_unit_mask_t: dict[str, dict[str, Tensor]] = {}
+
+        self.stable_unit_mask_t: dict[str, dict[str, Tensor]] = {}
+
+        self.plastic_unit_mask_t: dict[str, dict[str, Tensor]] = {}
+
+        self.weight_mask_t: dict[str, dict[str, Tensor]] = {}
+
+        self.bias_mask_t: dict[str, dict[str, Tensor]] = {}
+
+        self.frozen_weight_mask_t: dict[str, dict[str, Tensor]] = {}
+
+        self.frozen_bias_mask_t: dict[str, dict[str, Tensor]] = {}
+
+        NISPAMaskBackbone.sanity_check(self)
+
+    def sanity_check(self) -> None:
+        r"""Check the sanity of the arguments."""
+        pass
+
+    @override
+    def forward(
+        self,
+        input: Tensor,
+        stage: str,
+    ) -> tuple[Tensor, dict[str, Tensor], dict[str, Tensor], dict[str, Tensor]]:
+        r"""The forward pass for data from task `task_id`. Task-specific mask for `task_id` are applied to the units in each layer.
+
+        **Args:**
+        - **input** (`Tensor`): The input tensor from data.
+        - **stage** (`str`): the stage of the forward pass, should be one of the following:
+            1. 'train': training stage.
+            2. 'validation': validation stage.
+            3. 'test': testing stage.
+
+        **Returns:**
+        - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
+        - **weight_mask** (`dict[str, Tensor]`): the weight mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has same (output features, input features) as weight.
+        - **bias_mask** (`dict[str, Tensor]`): the bias mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has same (output features, ) as bias. If the layer doesn't have bias, it is `None`.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        """
+        # this should be copied to all subclasses. Make sure it is called to get the mask for the current task from the task embedding in this stage
+        weight_mask, bias_mask = self.get_mask(
+            stage,
+        )
