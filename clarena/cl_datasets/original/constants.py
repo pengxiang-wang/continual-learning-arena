@@ -1579,11 +1579,11 @@ class Linnaeus5_32Constants(DatasetConstants):
     r"""The standard deviation values of each channel. Linnaeus 5 does not have official std values, so we use the ImageNet std values."""
 
     CLASS_MAP: dict[int, int] = {
-        0: 0,  # Acer
-        1: 1,  # Betula
-        2: 2,  # Fagus
-        3: 3,  # Quercus
-        4: 4,  # Salix
+        0: 1,  # Acer
+        1: 2,  # Betula
+        2: 3,  # Fagus
+        3: 4,  # Quercus
+        4: 5,  # Salix
     }
     r"""The mapping from class index to original label name. They correspond to the classes in Linnaeus 5 dataset."""
 
@@ -1607,11 +1607,11 @@ class Linnaeus5_64Constants(DatasetConstants):
     r"""The standard deviation values of each channel. Linnaeus 5 does not have official std values, so we use the ImageNet std values."""
 
     CLASS_MAP: dict[int, int] = {
-        0: 0,  # Acer
-        1: 1,  # Betula
-        2: 2,  # Fagus
-        3: 3,  # Quercus
-        4: 4,  # Salix
+        0: 1,  # Acer
+        1: 2,  # Betula
+        2: 3,  # Fagus
+        3: 4,  # Quercus
+        4: 5,  # Salix
     }
     r"""The mapping from class index to original label name. They correspond to the classes in Linnaeus 5 dataset."""
 
@@ -1635,11 +1635,11 @@ class Linnaeus5_128Constants(DatasetConstants):
     r"""The standard deviation values of each channel. Linnaeus 5 does not have official std values, so we use the ImageNet std values."""
 
     CLASS_MAP: dict[int, int] = {
-        0: 0,  # Acer
-        1: 1,  # Betula
-        2: 2,  # Fagus
-        3: 3,  # Quercus
-        4: 4,  # Salix
+        0: 1,  # Acer
+        1: 2,  # Betula
+        2: 3,  # Fagus
+        3: 4,  # Quercus
+        4: 5,  # Salix
     }
     r"""The mapping from class index to original label name. They correspond to the classes in Linnaeus 5 dataset."""
 
@@ -1663,11 +1663,11 @@ class Linnaeus5_256Constants(DatasetConstants):
     r"""The standard deviation values of each channel. Linnaeus 5 does not have official std values, so we use the ImageNet std values."""
 
     CLASS_MAP: dict[int, int] = {
-        0: 0,  # Acer
-        1: 1,  # Betula
-        2: 2,  # Fagus
-        3: 3,  # Quercus
-        4: 4,  # Salix
+        0: 1,  # Acer
+        1: 2,  # Betula
+        2: 3,  # Fagus
+        3: 4,  # Quercus
+        4: 5,  # Salix
     }
     r"""The mapping from class index to original label name. They correspond to the classes in Linnaeus 5 dataset."""
 
