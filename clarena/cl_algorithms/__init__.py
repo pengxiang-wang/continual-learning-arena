@@ -21,6 +21,7 @@ from .base import CLAlgorithm, JointLearning
 from .finetuning import Finetuning
 from .independent import Independent
 from .fix import Fix
+from .random import Random
 
 from .lwf import LwF
 from .ewc import EWC
@@ -39,6 +40,7 @@ __all__ = [
     "finetuning",
     "independent",
     "fix",
+    "random",
     "lwf",
     "ewc",
     "hat",
