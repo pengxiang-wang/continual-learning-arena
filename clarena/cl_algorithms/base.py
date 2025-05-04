@@ -5,12 +5,15 @@ The submodule in `cl_algorithms` for CL algorithm bases.
 __all__ = ["CLAlgorithm", "JointLearning"]
 
 import logging
+from typing import Any
 
+import torch
 from lightning import LightningModule
 from omegaconf import DictConfig
 from torch import Tensor, nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+from torch.utils.data import DataLoader
 
 from clarena.backbones import CLBackbone
 from clarena.cl_heads import HeadsCIL, HeadsTIL
@@ -231,12 +234,16 @@ class JointLearning(LightningModule):
         self,
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL,
+        optimizer: Optimizer,
+        lr_scheduler: LRScheduler | None,
     ) -> None:
         r"""Initialise the joint learning algorithm with the network.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **optimizer** (`Optimizer`): the optimizer object (partially initialised).
+        - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.
         """
         LightningModule.__init__(self)
 
@@ -244,9 +251,9 @@ class JointLearning(LightningModule):
         r"""Store the backbone network."""
         self.heads: HeadsTIL | HeadsCIL = heads
         r"""Store the output heads."""
-        self.optimizer: Optimizer
+        self.optimizer: Optimizer = optimizer
         r"""Store the optimizer object (partially initialised) for the backpropagation of task `self.task_id`. Will be equipped with parameters in `configure_optimizers()`."""
-        self.lr_scheduler: LRScheduler | None
+        self.lr_scheduler: LRScheduler | None = lr_scheduler
         r"""Store the learning rate scheduler for the optimizer. If `None`, no scheduler is used."""
         self.criterion = nn.CrossEntropyLoss()
         r"""The loss function bewteen the output logits and the target labels. Default is cross-entropy loss."""
@@ -264,6 +271,19 @@ class JointLearning(LightningModule):
                 "The output_dim of backbone network should be equal to the input_dim of CL heads!"
             )
 
+    def get_val_task_id_from_dataloader_idx(self, dataloader_idx: int) -> int:
+        r"""Get the validation task ID from the dataloader index.
+
+        **Args:**
+        - **dataloader_idx** (`int`): the dataloader index.
+
+        **Returns:**
+        - **test_task_id** (`str`): the test task ID.
+        """
+        dataset_val = self.trainer.datamodule.dataset_val
+        test_task_id = list(dataset_val.keys())[dataloader_idx]
+        return test_task_id
+
     def get_test_task_id_from_dataloader_idx(self, dataloader_idx: int) -> int:
         r"""Get the test task ID from the dataloader index.
 
@@ -280,6 +300,8 @@ class JointLearning(LightningModule):
     def forward(self, input: Tensor, stage: str, task_id: int | None = None) -> Tensor:
         r"""The forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`. It works both for TIL and CIL.
 
+        This forward pass does not accept input batch in different tasks. Please make sure the input batch is from the same task. If you want to use this forward pass for different tasks, please divide the input batch by tasks and call this forward pass for each task separately.
+
         **Args:**
         - **input** (`Tensor`): The input tensor from data.
         - **stage** (`str`): the stage of the forward pass, should be one of the following:
@@ -294,6 +316,101 @@ class JointLearning(LightningModule):
         feature, _ = self.backbone(input, stage=stage, task_id=task_id)
         logits = self.heads(feature, task_id)
         return logits
+
+    def training_step(self, batch: Any) -> dict[str, Tensor]:
+        r"""Training step for joint learning.
+
+        **Args:**
+        - **batch** (`Any`): a batch of training data.
+
+        **Returns:**
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and accuracy from this training step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs.
+        """
+        x, y, t = batch  # train data are provided task ID in case of TIL
+
+        loss_cls = 0.0
+        acc = 0.0
+
+        # classification loss
+        for task_id in torch.unique(t):
+            # divide the input batch by tasks
+            idx_task = t == task_id
+            x_task, y_task = x[idx_task], y[idx_task]
+
+            # do the forward pass for each task separately
+            logits_task = self.forward(
+                x_task, stage="train", task_id=task_id.item()
+            )  # use the corresponding head to get the logits
+            loss_cls_task = self.criterion(logits_task, y_task)
+            loss_cls = loss_cls + loss_cls_task
+
+            acc_task = (logits_task.argmax(dim=1) == y_task).float().mean()
+            acc = acc + acc_task
+
+        # total loss
+        loss = loss_cls
+
+        return {
+            "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
+            "loss_cls": loss_cls,
+            "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
+        }
+
+    def validation_step(
+        self, batch: DataLoader, batch_idx: int, dataloader_idx: int = 0
+    ) -> dict[str, Tensor]:
+        r"""Validation step for joint learning. This is done task by task rather than mixing the tasks in batches.
+
+        **Args:**
+        - **batch** (`Any`): a batch of validation data.
+
+        **Returns:**
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and accuracy from this validation step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
+        """
+        val_task_id = self.get_val_task_id_from_dataloader_idx(dataloader_idx)
+
+        x, y = batch  # validation data are not provided task ID
+
+        # the batch is from the same task, so no need to divide the input batch by tasks
+        logits = self.forward(
+            x, stage="validation", task_id=val_task_id
+        )  # use the corresponding head to get the logits
+        loss_cls = self.criterion(logits, y)
+        acc = (logits.argmax(dim=1) == y).float().mean()
+
+        # Return metrics for lightning loggers callback to handle at `on_validation_batch_end()`
+        return {
+            "loss_cls": loss_cls,
+            "acc": acc,
+        }
+
+    def test_step(
+        self, batch: DataLoader, batch_idx: int, dataloader_idx: int = 0
+    ) -> dict[str, Tensor]:
+        r"""Test step for joint learning. This is done task by task rather than mixing the tasks in batches.
+
+        **Args:**
+        - **batch** (`Any`): a batch of test data.
+
+        **Returns:**
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and accuracy from this test step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
+        """
+        test_task_id = self.get_test_task_id_from_dataloader_idx(dataloader_idx)
+
+        x, y = batch
+
+        # the batch is from the same task, so no need to divide the input batch by tasks
+        logits = self.forward(
+            x, stage="test", task_id=test_task_id
+        )  # use the corresponding head to get the logits
+        loss_cls = self.criterion(logits, y)
+        acc = (logits.argmax(dim=1) == y).float().mean()
+
+        # Return metrics for lightning loggers callback to handle at `on_validation_batch_end()`
+        return {
+            "loss_cls": loss_cls,
+            "acc": acc,
+        }
 
     def configure_optimizers(self) -> Optimizer:
         r"""

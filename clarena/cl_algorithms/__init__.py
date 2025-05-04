@@ -15,7 +15,7 @@ The algorithms are implemented as subclasses of `CLAlgorithm`.
 
 """
 
-from .base import CLAlgorithm
+from .base import CLAlgorithm, JointLearning
 
 # finetuning first
 from .finetuning import Finetuning
@@ -34,6 +34,7 @@ from .wsn import WSN
 
 __all__ = [
     "CLAlgorithm",
+    "JointLearning",
     "regularisers",
     "finetuning",
     "independent",

@@ -3,8 +3,6 @@ The module for general CL bases.
 """
 
 import logging
-from copy import deepcopy
-from re import U
 
 import hydra
 import lightning as L
@@ -455,7 +453,7 @@ class JLExperiment:
 
         self.cl_dataset: CLDataset
         r"""CL dataset object. Instantiate in `instantiate_cl_dataset()`."""
-        self.joint_dataset: Dataset
+        self.joint_dataset: JointDataset
         r"""Joint dataset object. Instantiate in `instantiate_joint_dataset()`."""
         self.backbone: CLBackbone
         r"""Backbone network object. Instantiate in `instantiate_backbone()`."""
@@ -491,7 +489,7 @@ class JLExperiment:
         self.cl_dataset = hydra.utils.instantiate(
             cl_dataset_cfg
         )  # instantiate the original CL dataset
-        self.joint_dataset: JointDataset = JointDataset(
+        self.joint_dataset = JointDataset(
             self.cl_dataset,
             batch_size=self.joint_batch_size,
             num_workers=self.joint_num_workers,
@@ -523,12 +521,12 @@ class JLExperiment:
 
         pylogger.debug("Instantiating clarena.cl_algorithms.JointLearning...")
         self.model: JointLearning = JointLearning(
-            backbone=self.backbone, heads=self.heads
+            backbone=self.backbone,
+            heads=self.heads,
+            optimizer=self.optimizer,
+            lr_scheduler=self.lr_scheduler,
         )
-        pylogger.debug(
-            "<%s> (clarena.jl_algorithms.JLAlgorithm) instantiated!",
-            self.cfg.jl_algorithm.get("_target_"),
-        )
+        pylogger.debug("clarena.cl_algorithms.JointLearning instantiated!")
 
     def instantiate_optimizer(
         self,
@@ -583,7 +581,9 @@ class JLExperiment:
             "Instantiating trainer <%s> (lightning.Trainer)...",
             trainer_cfg.get("_target_"),
         )
-        self.trainer: Trainer = hydra.utils.instantiate(trainer_cfg)
+        self.trainer: Trainer = hydra.utils.instantiate(
+            trainer_cfg, callbacks=self.callbacks, logger=self.lightning_loggers
+        )
         pylogger.debug(
             "Trainer <%s> (lightning.Trainer) instantiated!",
             trainer_cfg.get("_target_"),
@@ -634,9 +634,9 @@ class JLExperiment:
         self.instantiate_joint_dataset(self.cfg.cl_dataset)
         self.instantiate_backbone(self.cfg.backbone)
         self.instantiate_heads(self.cl_paradigm, self.cfg.backbone.output_dim)
-        self.instantiate_joint_learning()  # JL object should be instantiated after backbone and heads
         self.instantiate_optimizer(self.cfg.optimizer)
         self.instantiate_lr_scheduler(self.cfg.lr_scheduler)
+        self.instantiate_joint_learning()  # JL object should be instantiated after backbone, heads, optimizer and lr_scheduler
         self.instantiate_callbacks(self.cfg.callbacks)
         self.instantiate_lightning_loggers(self.cfg.lightning_loggers)
         self.instantiate_trainer(
@@ -646,10 +646,16 @@ class JLExperiment:
     def setup(self) -> None:
         r"""Setup."""
         self.set_global_seed()
+
+        # set up heads. Before setting up heads, the CL dataset should be set up properly.
+        self.cl_dataset.set_cl_paradigm(cl_paradigm=self.cl_paradigm)
         for task_id in range(1, self.num_tasks + 1):
+            self.cl_dataset.setup_task_id(task_id)
             self.heads.setup_task_id(
                 task_id, len(self.cl_dataset.cl_class_map(task_id))
             )
+
+        self.model.num_tasks = self.num_tasks  # let the model know the number of tasks
 
     def run(self) -> None:
         r"""The main method to run the continual learning experiment."""

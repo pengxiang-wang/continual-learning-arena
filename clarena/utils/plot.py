@@ -20,10 +20,10 @@ from torch import Tensor
 
 
 def plot_test_acc_matrix_from_csv(csv_path: str, plot_path: str) -> None:
-    """Plot the test accuracy matrix from saved csv file and save the plot to the designated directory.
+    """Plot the test accuracy matrix from saved CSV file and save the plot to the designated directory.
 
     **Args:**
-    - **csv_path** (`str`): the path to the csv file where the `utils.update_test_acc_to_csv()` saved the test accuracy metric.
+    - **csv_path** (`str`): the path to the CSV file where the `utils.update_test_acc_to_csv()` saved the test accuracy metric.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/acc_matrix.png'.
     """
     data = pd.read_csv(csv_path)
@@ -81,10 +81,10 @@ def plot_test_acc_matrix_from_csv(csv_path: str, plot_path: str) -> None:
 
 
 def plot_test_loss_cls_matrix_from_csv(csv_path: str, plot_path: str) -> None:
-    """Plot the test classification loss matrix from saved csv file and save the plot to the designated directory.
+    """Plot the test classification loss matrix from saved CSV file and save the plot to the designated directory.
 
     **Args:**
-    - **csv_path** (`str`): the path to the csv file where the `utils.update_loss_cls_to_csv()` saved the test classification loss metric.
+    - **csv_path** (`str`): the path to the CSV file where the `utils.update_loss_cls_to_csv()` saved the test classification loss metric.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/loss_cls_matrix.png'.
     """
     data = pd.read_csv(csv_path)
@@ -139,10 +139,10 @@ def plot_test_loss_cls_matrix_from_csv(csv_path: str, plot_path: str) -> None:
 
 
 def plot_test_ave_acc_curve_from_csv(csv_path: str, plot_path: str) -> None:
-    """Plot the test average accuracy curve over different training tasks from saved csv file and save the plot to the designated directory.
+    """Plot the test average accuracy curve over different training tasks from saved CSV file and save the plot to the designated directory.
 
     **Args:**
-    - **csv_path** (`str`): the path to the csv file where the `utils.update_test_acc_to_csv()` saved the test accuracy metric.
+    - **csv_path** (`str`): the path to the CSV file where the `utils.update_test_acc_to_csv()` saved the test accuracy metric.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/ave_acc.png'.
     """
     data = pd.read_csv(csv_path)
@@ -170,10 +170,10 @@ def plot_test_ave_acc_curve_from_csv(csv_path: str, plot_path: str) -> None:
 
 
 def plot_test_ave_loss_cls_curve_from_csv(csv_path: str, plot_path: str) -> None:
-    """Plot the test average classification loss curve over different training tasks from saved csv file and save the plot to the designated directory.
+    """Plot the test average classification loss curve over different training tasks from saved CSV file and save the plot to the designated directory.
 
     **Args:**
-    - **csv_path** (`str`): the path to the csv file where the `utils.update_loss_cls_to_csv()` saved the test classification loss metric.
+    - **csv_path** (`str`): the path to the CSV file where the `utils.update_loss_cls_to_csv()` saved the test classification loss metric.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/ave_loss_cls.png'.
     """
     data = pd.read_csv(csv_path)
@@ -199,6 +199,46 @@ def plot_test_ave_loss_cls_curve_from_csv(csv_path: str, plot_path: str) -> None
     ax.set_yticks(yticks)
     ax.set_xticklabels(xticks, fontsize=16)
     ax.set_yticklabels([f"{tick:.1f}" for tick in yticks], fontsize=16)
+    fig.savefig(plot_path)
+    plt.close(fig)
+
+
+def plot_joint_test_acc_from_csv(csv_path: str, plot_path: str) -> None:
+    """Plot the test accuracy bar chart of all tasks in joint learning from saved CSV file and save the plot to the designated directory.
+
+    **Args:**
+    - **csv_path** (`str`): the path to the csv file where the `utils.save_joint_test_acc_csv()` saved the test accuracy metric.
+    - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/acc.png'.
+    """
+    data = pd.read_csv(csv_path)
+
+    # extract all accuracy columns including average
+    all_columns = data.columns.tolist()
+    task_ids = list(range(len(all_columns)))  # assign index-based positions
+    labels = [
+        col.replace("test_on_task_", "Task ") if "test_on_task_" in col else "Average"
+        for col in all_columns
+    ]
+    accuracies = data.iloc[0][all_columns].values
+
+    # plot the accuracy bar chart over tasks
+    fig, ax = plt.subplots(figsize=(16, 9))
+    ax.bar(
+        task_ids,
+        accuracies,
+        color="skyblue",
+        edgecolor="black",
+    )
+    ax.set_xlabel("Task", fontsize=16)
+    ax.set_ylabel("Accuracy", fontsize=16)
+    ax.grid(True)
+    ax.set_xticks(task_ids)
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=14)
+    ax.set_yticks([i * 0.05 for i in range(21)])
+    ax.set_yticklabels(
+        [f"{tick:.2f}" for tick in [i * 0.05 for i in range(21)]], fontsize=14
+    )
+    fig.tight_layout()
     fig.savefig(plot_path)
     plt.close(fig)
 
@@ -283,10 +323,10 @@ def plot_hat_adjustment_rate(
 
 
 def plot_unlearning_test_distance_from_csv(csv_path: str, plot_path: str) -> None:
-    """Plot the unlearning test distance matrix over different unlearned tasks from saved csv file and save the plot to the designated directory.
+    """Plot the unlearning test distance matrix over different unlearned tasks from saved CSV file and save the plot to the designated directory.
 
     **Args:**
-    - **csv_path** (`str`): the path to the csv file where the `utils.save_unlearning_test_distance_to_csv()` saved the unlearning test distance metric.
+    - **csv_path** (`str`): the path to the CSV file where the `utils.save_unlearning_test_distance_to_csv()` saved the unlearning test distance metric.
     - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/results/unlearning_test_after_task_X/distance.png'.
     """
     data = pd.read_csv(csv_path)

@@ -16,6 +16,7 @@ import ast
 import logging
 import types
 from abc import abstractmethod
+from copy import deepcopy
 from typing import Any, Callable
 
 import torch
@@ -181,11 +182,11 @@ class CLDataset(LightningDataModule):
 
         **Args:**
         - **stage** (`str`): the stage of the experiment. Should be one of the following:
-            - 'fit' or 'validation': training and validation dataset of current task `self.task_id` should be assigned to `self.dataset_train_t` and `self.dataset_val_t`.
+            - 'fit': training and validation dataset of current task `self.task_id` should be assigned to `self.dataset_train_t` and `self.dataset_val_t`.
             - 'test': a list of test dataset of all seen tasks (from task 0 to `self.task_id`) should be assigned to `self.dataset_test`.
         """
-        if stage == "fit" or stage == "validate":
-
+        if stage == "fit":
+            # these two stages must be done together because a sanity check for validation is conducted before training
             pylogger.debug(
                 "Construct train and validation dataset for task %d...", self.task_id
             )
@@ -984,7 +985,7 @@ class JointDataset(LightningDataModule):
         self.num_workers: int = num_workers
         r"""Store the number of workers for dataloaders."""
 
-        self.dataset_train: ConcatDataset = ConcatDataset([])
+        self.dataset_train: ConcatDataset
         r"""The dictionary to store training dataset object of each task. Keys are task IDs (string type) and values are the dataset objects. Can be PyTorch Dataset objects or any other dataset objects."""
         self.dataset_val: dict[str, Any] = {}
         r"""The dictionary to store validation dataset object of each task. Keys are task IDs (string type) and values are the dataset objects. Can be PyTorch Dataset objects or any other dataset objects."""
@@ -1000,29 +1001,30 @@ class JointDataset(LightningDataModule):
 
         **Args:**
         - **stage** (`str`): the stage of the experiment. Should be one of the following:
-            - 'fit' or 'validation': training and validation dataset should be assigned to `self.dataset_train_t` and `self.dataset_val_t`.
+            - 'fit': training and validation dataset should be assigned to `self.dataset_train` and `self.dataset_val`.
             - 'test': test dataset should be assigned to `self.dataset_test`.
         """
         if stage == "fit":
             pylogger.debug("Construct joint training dataset...")
 
+            dataset_train_list = []
             for task_id in range(1, self.cl_dataset.num_tasks + 1):
                 self.cl_dataset.setup_task_id(task_id)
                 self.cl_dataset.setup(stage)
-                label_dataset_task(self.cl_dataset.dataset_train_t, task_id)
-                self.dataset_train = ConcatDataset(
-                    [self.dataset_train, self.cl_dataset.dataset_train_t]
+                task_labelled_dataset = label_dataset_task(
+                    self.cl_dataset.dataset_train_t, task_id
                 )
+                dataset_train_list.append(task_labelled_dataset)
+
+            self.dataset_train = ConcatDataset(dataset_train_list)
             pylogger.debug("Joint training dataset are ready.")
 
-        if stage == "validate":
             pylogger.debug("Construct joint validation dataset...")
 
             for task_id in range(1, self.cl_dataset.num_tasks + 1):
                 self.cl_dataset.setup_task_id(task_id)
                 self.cl_dataset.setup(stage)
                 self.dataset_val[f"{task_id}"] = self.cl_dataset.dataset_val_t
-
             pylogger.debug("Joint validation dataset are ready.")
 
         if stage == "test":
@@ -1032,7 +1034,9 @@ class JointDataset(LightningDataModule):
             for task_id in range(1, self.cl_dataset.num_tasks + 1):
                 self.cl_dataset.setup_task_id(task_id)
                 self.cl_dataset.setup(stage)
-                self.dataset_test[f"{task_id}"] = self.cl_dataset.dataset_test_t
+                self.dataset_test[f"{task_id}"] = self.cl_dataset.dataset_test[
+                    f"{task_id}"
+                ]
 
             pylogger.debug("Joint test dataset is ready.")
 
@@ -1091,30 +1095,55 @@ class JointDataset(LightningDataModule):
         }
 
 
-def label_dataset_task(dataset: Dataset, task_id: int) -> None:
-    r"""Label the dataset with the given task ID by modifying the `__getitem__()` method.
+class TaskLabelledDataset(Dataset):
+    r"""The dataset class that labels the dataset with the given task ID. It is used to label the dataset with the task ID for joint learning (JL) experiment."""
+
+    def __init__(self, dataset: Dataset, task_id: int) -> None:
+        r"""Initialise the task labelled dataset object.
+
+        **Args:**
+        - **dataset** (`Dataset`): the dataset to be labelled.
+        - **task_id** (`int`): the task ID to be labelled.
+        """
+        Dataset.__init__(self)
+
+        self.dataset: Dataset = dataset
+        r"""Store the dataset object."""
+        self.task_id: int = task_id
+        r"""Store the task ID."""
+
+    def __len__(self) -> int:
+        r"""The length of the dataset. The same as the length of the original dataset.
+
+        **Returns:**
+        - **length** (`int`): the length of the dataset.
+        """
+
+        return len(self.dataset)
+
+    def __getitem__(self, idx) -> tuple[Any, Any, int]:
+        r"""Get the item from the dataset. Labelled with the task ID.
+
+        **Args:**
+        - **idx** (`int`): the index of the item to be retrieved.
+
+        **Returns:**
+        - **x** (`Any`): the input data.
+        - **y** (`Any`): the target data.
+        - **task_id** (`int`): the task ID.
+        """
+        x, y = self.dataset[idx]
+        return x, y, self.task_id
+
+
+def label_dataset_task(dataset: Dataset, task_id: int) -> Dataset:
+    r"""Label the dataset with the given task ID by wrapping it with a dataset that returns (x, y, task_id) tuples.
 
     **Args:**
     - **dataset** (`Dataset`): the dataset to be labelled.
     - **task_id** (`int`): the task ID to be labelled.
+
+    **Returns:**
+    - **task_labelled_dataset** (`Dataset`): the labelled dataset.
     """
-
-    original_getitem = dataset.__getitem__
-
-    def new_getitem(self, index: int) -> tuple[Any, Any, int]:
-        r"""The new method to get the item from the dataset, which returns extra task_id after data and label. This method is used to replace the original `__getitem__` method of the dataset.
-
-        **Args:**
-        - **index** (`int`): the index of the item to be retrieved.
-
-        **Returns:**
-        - **result** (`tuple[Any, Any, int]`): the item retrieved from the dataset, which is a tuple of (data, label, task_id).
-        """
-        result = original_getitem(index)
-
-        if isinstance(result, tuple):
-            return result + (task_id,)
-        else:
-            return (result, task_id)
-
-    dataset.__getitem__ = types.MethodType(new_getitem, dataset)
+    return TaskLabelledDataset(dataset, task_id)

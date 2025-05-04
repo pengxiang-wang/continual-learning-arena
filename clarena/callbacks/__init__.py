@@ -14,9 +14,10 @@ The callbacks are implemented as subclasses of `lightning.Callback`.
 """
 
 from .cl_metrics import CLMetricsCallback
+from .jl_metrics import JLMetricsCallback
 from .cl_rich_progress_bar import CLRichProgressBar
 from .hat_metrics import HATMetricsCallback
-from .pylogger import PyloggerCallback
+from .pylogger import CLPyloggerCallback, JLPyloggerCallback
 from .save_first_batch_images import SaveFirstBatchImagesCallback
 
 __all__ = [

@@ -105,8 +105,6 @@ class Finetuning(CLAlgorithm):
 
         x, y = batch
 
-        # print(x.shape, y.shape, y)
-
         logits, activations = self.forward(
             x, stage="test", task_id=test_task_id
         )  # use the corresponding head to test (instead of the current task `self.task_id`)

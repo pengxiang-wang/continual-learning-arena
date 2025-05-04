@@ -24,7 +24,13 @@ from .plot import (
     plot_test_acc_matrix_from_csv,
     plot_test_loss_cls_matrix_from_csv,
 )
-from .save import update_test_acc_to_csv, update_test_loss_cls_to_csv
+from .save import (
+    update_test_acc_to_csv,
+    update_test_loss_cls_to_csv,
+    save_joint_test_acc_to_csv,
+    save_joint_test_loss_cls_to_csv,
+    update_unlearning_test_distance_to_csv,
+)
 from .transforms import min_max_normalise, js_div
 from .misc import str_to_class
 

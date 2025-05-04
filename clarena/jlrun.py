@@ -8,7 +8,7 @@ import hydra
 from omegaconf import DictConfig
 
 from clarena.base import (
-    CLExperiment,  # It was supposed to be `from clarena import CLExperiment`, but it is not working when pip install -e . is used.
+    JLExperiment,  # It was supposed to be `from clarena import JLExperiment`, but it is not working when pip install -e . is used.
 )
 from clarena.utils import preprocess_config
 
@@ -21,8 +21,8 @@ def add_and_parse_args() -> tuple[Namespace, list[str]]:
     - **unknown_args** (`list[str]`): unknown arguments that are handled by Hydra, for configuration overrides.
     """
     parser = argparse.ArgumentParser(
-        usage="clrun [-h] [--config-dir CONFIG_DIR] [--entrance ENTRANCE] -- [experiment=EXPERIMENT_NAME] [(overrides)...]",
-        description="Run a continual learning experiment. ",
+        usage="jlrun [-h] [--config-dir CONFIG_DIR] [--entrance ENTRANCE] -- [experiment=EXPERIMENT_NAME] [(overrides)...]",
+        description="Run a joint learning experiment. ",
         epilog="After them, you must specifiy your experiment through [experiment=EXPERIMENT_NAME]. The EXPERIMENT_NAME should be the name of the experiment YAML file in your configs/experiment directory. You can also add other overrides to the experiment configuration.",
     )
     parser.add_argument(
@@ -42,8 +42,8 @@ def add_and_parse_args() -> tuple[Namespace, list[str]]:
     )  # use parse_known_args() instead of parse_args() to enable Hydra overrides
 
 
-def clrun() -> None:
-    r"""The main entrance for running a continual learning experiment."""
+def jlrun() -> None:
+    r"""The main entrance for running a joint learning experiment."""
 
     # parse the arguments
     args, _ = add_and_parse_args()
@@ -65,7 +65,7 @@ def clrun() -> None:
         preprocess_config(cfg)
 
         # construct the experiment
-        expr = CLExperiment(cfg)
+        expr = JLExperiment(cfg)
 
         # execute the experiment
         expr.run()
@@ -76,26 +76,3 @@ def clrun() -> None:
     )(main)
 
     hydra_decorated_main()
-
-
-def clrun_from_cfg(cfg: DictConfig, task_ids: list[int]) -> CLExperiment:
-    r"""Run a continual learning experiment directly from a configuration object.
-
-    **Args:**
-    - **cfg** (`DictConfig`): the configuration for the experiment.
-    - **task_ids** (`list[int]` | `None`): the list of task IDs to be conducted in the experiment. If `None`, all tasks will be conducted.
-
-    **Returns:**
-    - **expr** (`CLExperiment`): the continual learning experiment object after conducting.
-    """
-
-    # preprocess the configuration before constructing the experiment
-    preprocess_config(cfg)
-
-    # construct the experiment
-    expr = CLExperiment(cfg)
-
-    # execute the experiment
-    expr.run()
-
-    return expr

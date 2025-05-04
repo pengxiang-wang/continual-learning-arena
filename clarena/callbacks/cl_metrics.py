@@ -71,7 +71,7 @@ class CLMetricsCallback(Callback):
         self.test_loss_cls_csv_path: str = os.path.join(
             save_dir, test_loss_cls_csv_name
         )
-        r"""Store the path to save test classification loss and average accuracy CSV file."""
+        r"""Store the path to save test classification loss matrix and average classification loss CSV file."""
         if test_loss_cls_matrix_plot_name:
             self.test_acc_matrix_plot_path: str = os.path.join(
                 save_dir, test_acc_matrix_plot_name

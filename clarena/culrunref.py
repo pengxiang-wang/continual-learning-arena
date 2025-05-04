@@ -38,7 +38,7 @@ def add_and_parse_args() -> tuple[Namespace, list[str]]:
     )  # use parse_known_args() instead of parse_args() to enable Hydra overrides
 
 
-def uleval() -> None:
+def culrunref() -> None:
     r"""The main entrance to run the reference experiment of a continual unlearning experiment."""
 
     # parse the arguments
