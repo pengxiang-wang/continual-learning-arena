@@ -1,8 +1,8 @@
 r"""
-The submodule in `cl_algorithms` for S-AdaHAT algorithm.
+The submodule in `cl_algorithms` for FG-AdaHAT algorithm.
 """
 
-__all__ = ["SAdaHAT"]
+__all__ = ["FGAdaHAT"]
 
 import logging
 import math
@@ -33,12 +33,12 @@ from clarena.utils.transforms import min_max_normalise
 pylogger = logging.getLogger(__name__)
 
 
-class SAdaHAT(AdaHAT):
-    r"""S-AdaHAT (Subtle Adaptive Hard Attention to the Task) algorithm.
+class FGAdaHAT(AdaHAT):
+    r"""FG-AdaHAT (Fine-Grained Adaptive Hard Attention to the Task) algorithm.
 
-    S-AdaHAT is an architecture-based continual learning approach that improves [AdaHAT (Adaptive Hard Attention to the Task, 2024)](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9) by introducing subtler neuron-wise importance measures guiding the adaptive adjustment mechanism in AdaHAT.
+    FG-AdaHAT is an architecture-based continual learning approach that improves [AdaHAT (Adaptive Hard Attention to the Task, 2024)](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9) by introducing subtler neuron-wise importance measures guiding the adaptive adjustment mechanism in AdaHAT.
 
-    We implement S-AdaHAT as a subclass of AdaHAT algorithm because S-AdaHAT still uses some components of AdaHAT, such as summative mask.
+    We implement FG-AdaHAT as a subclass of AdaHAT algorithm because FG-AdaHAT still uses some components of AdaHAT, such as summative mask.
     """
 
     def __init__(
@@ -57,6 +57,7 @@ class SAdaHAT(AdaHAT):
         base_importance: float = 0.01,
         base_mask_sparsity_reg: float = 0.1,
         base_linear: float = 10,
+        filter_by_cumulative_mask: bool = True,
         filter_unmasked_importance: bool = True,
         step_multiply_training_mask: bool = False,
         task_embedding_init_mode: str = "N01",
@@ -64,7 +65,7 @@ class SAdaHAT(AdaHAT):
         importance_summing_strategy_exponential_rate: float | None = None,
         importance_summing_strategy_log_base: float | None = None,
     ) -> None:
-        r"""Initialise the S-AdaHAT algorithm with the network.
+        r"""Initialise the FG-AdaHAT algorithm with the network.
 
         **Args:**
         - **backbone** (`HATMaskBackbone`): must be a backbone network with HAT mask mechanism.
@@ -119,6 +120,7 @@ class SAdaHAT(AdaHAT):
         - **base_importance** (`float`): the base value added to the importance. It is $b_I$ in the paper. Default is 0.01.
         - **base_mask_sparsity_reg** (`float`): the base value added to the mask sparsity regularisation factor in the importance scheduler. It is $b_R$ in the paper. Default is 0.1.
         - **base_linear** (`float`): the base value added to the linear factor in the importance scheduler. It is $b_L$ in the paper. Default is 10.
+        - **filter_by_cumulative_mask** (`bool`): whether to multiply the cumulative mask to the importance when calculating adjustment rate. Default is True.
         - **filter_unmasked_importance** (`bool`): whether to filter unmasked importance values (set them to 0) at the end of task training. Filtering is to multiply the final trained mask $m^{t}_{l,i}$ to the importance $I^{t}_{l,i}$. Default is True.
         - **step_multiply_training_mask** (`bool`): whether to multiply the training mask to the importance at each training step. Default is False.
         - **task_embedding_init_mode** (`str`): the initialisation method for task embeddings, should be one of the following:
@@ -155,6 +157,8 @@ class SAdaHAT(AdaHAT):
             neuron_to_weight_importance_aggregation_mode
         )
         r"""Store the mode of aggregation from neuron-wise to weight-wise importance. It is used to calculate the weight importance from the neuron importance. """
+        self.filter_by_cumulative_mask: bool = filter_by_cumulative_mask
+        r"""Store the flag to filter importance by the cumulative mask when calculating the adjustment rate. """
         self.filter_unmasked_importance: bool = filter_unmasked_importance
         r"""Store the flag to filter unmasked importance values (set them to 0) at the end of task training. """
         self.step_multiply_training_mask: bool = step_multiply_training_mask
@@ -193,7 +197,7 @@ class SAdaHAT(AdaHAT):
         # set manual optimisation
         self.automatic_optimization = False
 
-        SAdaHAT.sanity_check(self)
+        FGAdaHAT.sanity_check(self)
 
     def sanity_check(self) -> None:
         r"""Check the sanity of the arguments.
@@ -285,9 +289,20 @@ class SAdaHAT(AdaHAT):
                 )
             )
 
+            weight_mask, bias_mask = self.backbone.get_layer_measure_parameter_wise(
+                unit_wise_measure=self.cumulative_mask_for_previous_tasks,
+                layer_name=layer_name,
+                aggregation_mode="min",
+            )
+
+            # filter the weight importance by the cumulative mask
+            if self.filter_by_cumulative_mask:
+                weight_importance = weight_importance * weight_mask
+                bias_importance = bias_importance * bias_mask
+
             network_sparsity_layer = network_sparsity[layer_name]
 
-            # calculate the factor of importance (importance scheduler)
+            # calculate importance scheduler (the factor of importance)
             factor = network_sparsity_layer + self.base_mask_sparsity_reg
             if self.importance_scheduler_type == "linear_sparsity_reg":
                 factor = factor * (self.task_id + self.base_linear)

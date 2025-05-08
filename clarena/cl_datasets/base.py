@@ -1017,6 +1017,7 @@ class JointDataset(LightningDataModule):
                 dataset_train_list.append(task_labelled_dataset)
 
             self.dataset_train = ConcatDataset(dataset_train_list)
+
             pylogger.debug("Joint training dataset are ready.")
 
             pylogger.debug("Construct joint validation dataset...")

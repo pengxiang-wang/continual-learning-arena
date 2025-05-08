@@ -147,7 +147,7 @@ class HATMaskBackbone(CLBackbone):
 
     - [**HAT (Hard Attention to the Task, 2018)**](http://proceedings.mlr.press/v80/serra18a) is an architecture-based continual learning approach that uses learnable hard attention masks to select the task-specific parameters.
     - [**Adaptive HAT (Adaptive Hard Attention to the Task, 2024)**](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9) is an architecture-based continual learning approach that improves [HAT (Hard Attention to the Task, 2018)](http://proceedings.mlr.press/v80/serra18a) by introducing new adaptive soft gradient clipping based on parameter importance and network sparsity.
-    - **S-AdaHAT** is an architecture-based continual learning approach that improves [HAT (Hard Attention to the Task, 2018)](http://proceedings.mlr.press/v80/serra18a) algorithm by introducing subtler neuron-wise importance measures guiding the adaptive adjustment mechanism in AdaHAT.
+    - **FG-AdaHAT** is an architecture-based continual learning approach that improves [HAT (Hard Attention to the Task, 2018)](http://proceedings.mlr.press/v80/serra18a) algorithm by introducing subtler neuron-wise importance measures guiding the adaptive adjustment mechanism in AdaHAT.
     """
 
     def __init__(self, output_dim: int | None, gate: str) -> None:
