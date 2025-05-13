@@ -50,6 +50,7 @@ from clarena.cl_datasets.original import (
     FaceScrub20,
     FaceScrub50,
     FaceScrub100,
+    FaceScrubFromHAT,
     FGVCAircraftFamily,
     FGVCAircraftManufacturer,
     FGVCAircraftVariant,
@@ -59,9 +60,11 @@ from clarena.cl_datasets.original import (
     Linnaeus5_128,
     Linnaeus5_256,
     NotMNIST,
+    NotMNISTFromHAT,
     OxfordIIITPet2,
     OxfordIIITPet37,
     SignLanguageMNIST,
+    TrafficSignsFromHAT,
 )
 
 # always get logger for built-in logging in each module
@@ -93,7 +96,7 @@ class Combined(CLCombinedDataset):
         FGVCAircraftVariant,
         FaceScrub10,
         FaceScrub100,
-        FaceScrub100,
+        FaceScrubFromHAT,
         FaceScrub20,
         FaceScrub50,
         FashionMNIST,
@@ -108,6 +111,7 @@ class Combined(CLCombinedDataset):
         Linnaeus5_64,
         MNIST,
         NotMNIST,
+        NotMNISTFromHAT,
         OxfordIIITPet2,
         OxfordIIITPet37,
         PCAM,
@@ -117,6 +121,7 @@ class Combined(CLCombinedDataset):
         SVHN,
         SignLanguageMNIST,
         StanfordCars,
+        TrafficSignsFromHAT,
         TinyImageNet,
         USPS,
     ]
@@ -219,6 +224,7 @@ class Combined(CLCombinedDataset):
                     FaceScrub20,
                     FaceScrub50,
                     FaceScrub100,
+                    FaceScrubFromHAT,
                     FashionMNIST,
                     KannadaMNIST,
                     KMNIST,
@@ -228,7 +234,9 @@ class Combined(CLCombinedDataset):
                     Linnaeus5_256,
                     MNIST,
                     NotMNIST,
+                    NotMNISTFromHAT,
                     SignLanguageMNIST,
+                    TrafficSignsFromHAT,
                     USPS,
                 ]:
                     # dataset classes that have `train` bool argument
@@ -377,6 +385,7 @@ class Combined(CLCombinedDataset):
             FaceScrub20,
             FaceScrub50,
             FaceScrub100,
+            FaceScrubFromHAT,
             FashionMNIST,
             KannadaMNIST,
             KMNIST,
@@ -386,7 +395,9 @@ class Combined(CLCombinedDataset):
             Linnaeus5_256,
             MNIST,
             NotMNIST,
+            NotMNISTFromHAT,
             SignLanguageMNIST,
+            TrafficSignsFromHAT,
             USPS,
         ]:
             # dataset classes that have `train` bool argument
@@ -560,11 +571,11 @@ class Combined(CLCombinedDataset):
             EMNISTBalanced,
             EMNISTLetters,
             EMNISTDigits,
-            EuroSAT,
             FaceScrub10,
             FaceScrub20,
             FaceScrub50,
             FaceScrub100,
+            FaceScrubFromHAT,
             FashionMNIST,
             KannadaMNIST,
             KMNIST,
@@ -574,7 +585,9 @@ class Combined(CLCombinedDataset):
             Linnaeus5_256,
             MNIST,
             NotMNIST,
+            NotMNISTFromHAT,
             SignLanguageMNIST,
+            TrafficSignsFromHAT,
             USPS,
         ]:
             # dataset classes that have `train` bool argument

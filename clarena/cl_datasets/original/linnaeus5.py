@@ -10,7 +10,6 @@ __all__ = [
     "Linnaeus5_256",
 ]
 
-
 import logging
 import os
 from pathlib import Path
@@ -19,27 +18,25 @@ from typing import Any, Callable
 import pandas as pd
 import rarfile
 from PIL import Image
-from torchvision.datasets import VisionDataset
 from torchvision.datasets.folder import default_loader
 from torchvision.datasets.utils import download_url
+from torchvision.datasets.vision import VisionDataset
 
-# always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 class Linnaeus5(VisionDataset):
-    r"""Linnaeus 5 dataset. The [original Linnaeus 5 dataset](https://chaladze.com/l5/) contains flower images in 5 classes at various resolutions. It has built-in `train/` and `test/` splits. This class handles loading and using those splits."""
+    r"""Linnaeus 5 dataset. The [original Linnaeus 5 dataset](https://chaladze.com/l5/)
+    contains images from 5 classes at various resolutions, with train/test splits."""
 
     base_url: str = "https://chaladze.com/l5/img/"
-    r"""Base URL where the dataset archives are hosted."""
 
     versions: dict[str, str] = {
-        "256": "Linnaeus%205%2032X32.rar",
+        "256": "Linnaeus%205%20256X256.rar",
         "128": "Linnaeus%205%20128X128.rar",
         "64": "Linnaeus%205%2064X64.rar",
         "32": "Linnaeus%205%2032X32.rar",
     }
-    r"""Dictionary mapping resolution keys to their .rar archive filenames."""
 
     def __init__(
         self,
@@ -50,16 +47,6 @@ class Linnaeus5(VisionDataset):
         target_transform: Callable | None = None,
         download: bool = False,
     ) -> None:
-        r"""Initialise the Linnaeus 5 dataset.
-
-        **Args:**
-        - **root** (`str` | `Path`): Root directory of the dataset.
-        - **resolution** (`str`): Image resolution to use: "256", "128", "64", or "32".
-        - **train** (`bool`): If True, uses the train set. If False, uses the test set.
-        - **transform** (`callable` | `None`): Image transform pipeline.
-        - **target_transform** (`callable` | `None`): Label transform.
-        - **download** (`bool`): If True, downloads the dataset if not found.
-        """
         super().__init__(
             root=root, transform=transform, target_transform=target_transform
         )
@@ -72,14 +59,14 @@ class Linnaeus5(VisionDataset):
         self.resolution = resolution
         self.train = train
 
+        # Correct class names as found in the dataset structure
         self.class_names: list[str] = [
-            "buttercup",
-            "colts_foot",
-            "daisy",
-            "dandelion",
-            "fritillary",
+            "berry",
+            "bird",
+            "dog",
+            "flower",
+            "other",
         ]
-        r"""List of class names in the dataset."""
 
         self.filename: str = self.versions[resolution]
         self.base_folder: str = self.filename.replace(".rar", "").replace("%20", " ")
@@ -99,14 +86,16 @@ class Linnaeus5(VisionDataset):
         self.loader = default_loader
 
     def _load_data(self) -> None:
-        r"""Load file paths and labels from `train/` or `test/` folders."""
+        """Load file paths and labels from train/test folders, based on class_names."""
         split_dir = os.path.join(self.root, self.base_folder, self.split_folder)
         samples = []
 
-        for label_index, class_folder in enumerate(sorted(os.listdir(split_dir))):
-            class_path = os.path.join(split_dir, class_folder)
+        for label_index, class_name in enumerate(self.class_names):
+            class_path = os.path.join(split_dir, class_name)
             if not os.path.isdir(class_path):
-                continue
+                raise FileNotFoundError(
+                    f"Expected folder '{class_name}' not found in {split_dir}"
+                )
 
             for fname in os.listdir(class_path):
                 img_path = os.path.join(class_path, fname)
@@ -121,12 +110,12 @@ class Linnaeus5(VisionDataset):
         self.data = pd.DataFrame(samples, columns=["filepath", "target"])
 
     def _check_integrity(self) -> bool:
-        r"""Check that data is extracted and usable."""
+        """Check that dataset is present and extracted."""
         split_dir = os.path.join(self.root, self.base_folder, self.split_folder)
         return os.path.isdir(split_dir)
 
     def download(self) -> None:
-        r"""Download and extract the Linnaeus 5 dataset .rar file."""
+        """Download and extract the dataset."""
         archive_path = os.path.join(self.root, self.filename)
 
         if self._check_integrity():
@@ -135,7 +124,6 @@ class Linnaeus5(VisionDataset):
 
         download_url(self.url, self.root, filename=self.filename)
 
-        # Extract the .rar file
         try:
             with rarfile.RarFile(archive_path) as rf:
                 rf.extractall(self.root)
@@ -145,7 +133,7 @@ class Linnaeus5(VisionDataset):
             )
 
     def __getitem__(self, index: int) -> tuple[Any, Any]:
-        r"""Get an image and its label by index."""
+        """Return image and label at given index."""
         sample = self.data.iloc[index]
         img = Image.open(sample.filepath).convert("RGB")
         target = sample.target

@@ -11,7 +11,7 @@ import torch
 from torch.utils.data import Dataset, random_split
 from torchvision.transforms import transforms
 
-from clarena.cl_datasets import CLPermutedDataset, CLClassMapping
+from clarena.cl_datasets import CLClassMapping, CLPermutedDataset
 from clarena.cl_datasets.original import (
     Linnaeus5,
     Linnaeus5_32,
@@ -102,12 +102,19 @@ class PermutedLinnaeus5(CLPermutedDataset):
         if self.task_id != 1:
             return  # download all original datasets only at the beginning of first task
 
-        Linnaeus5(
+        d = Linnaeus5(
             root=self.root_t, resolution=self.resolution, train=True, download=True
         )
-        Linnaeus5(
+
+        for i in range(len(d)):
+            print(d[i][1])
+
+        f = Linnaeus5(
             root=self.root_t, resolution=self.resolution, train=False, download=True
         )
+
+        for i in range(len(f)):
+            print(f[i][1])
 
         pylogger.debug(
             "The original Linnaeus 5 dataset has been downloaded to %s.",

@@ -11,7 +11,7 @@ import torch
 from torch.utils.data import Dataset, random_split
 from torchvision.transforms import transforms
 
-from clarena.cl_datasets import CLPermutedDataset, CLClassMapping
+from clarena.cl_datasets import CLClassMapping, CLPermutedDataset
 from clarena.cl_datasets.original import (
     FaceScrub10,
     FaceScrub20,
@@ -24,7 +24,7 @@ pylogger = logging.getLogger(__name__)
 
 
 class PermutedFaceScrub(CLPermutedDataset):
-    r"""Permuted FaceScrub dataset. The [original FaceScrub dataset](https://vintage.winklerbros.net/facescrub.html) is a collection of 106,863 images of 530 different people. It consists of 530 classes (correspond to 530 people), with 200-300 images per class. [This version](https://github.com/nkundiushuti/facescrub_subset) uses subset of the official [Megaface Facescrub challenge](http://megaface.cs.washington.edu/participate/challenge.html), cropped and resized to 38x38 pixels. We have FaceScrub-10, FaceScrub-20, FaceScrub-50, FaceScrub-100 datasets where the number of classes are 10, 20, 50 and 100 respectively."""
+    r"""Permuted FaceScrub dataset. The [original FaceScrub dataset](https://vintage.winklerbros.net/facescrub.html) is a collection of 106,863 images of 530 different people. It consists of 530 classes (correspond to 530 people), with 200-300 images per class. [This version](https://github.com/nkundiushuti/facescrub_subset) uses subset of the official [Megaface FaceScrub challenge](http://megaface.cs.washington.edu/participate/challenge.html), cropped and resized to 38x38 pixels. We have FaceScrub-10, FaceScrub-20, FaceScrub-50, FaceScrub-100 datasets where the number of classes are 10, 20, 50 and 100 respectively."""
 
     def __init__(
         self,

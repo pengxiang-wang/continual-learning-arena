@@ -33,7 +33,6 @@ class EWC(Finetuning):
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL,
         parameter_change_reg_factor: float,
-        parameter_change_reg_p_norm: float,
     ) -> None:
         r"""Initialise the HAT algorithm with the network.
 
@@ -41,8 +40,6 @@ class EWC(Finetuning):
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
         - **parameter_change_reg_factor** (`float`): the parameter change regularisation factor. It controls the strength of preventing forgetting.
-        - **parameter_change_reg_p_norm** (`float`): the norm of the distance of parameters between previous tasks and current task in the parameter change regularisation.
-
         """
         Finetuning.__init__(self, backbone=backbone, heads=heads)
 
@@ -51,17 +48,14 @@ class EWC(Finetuning):
         """
         self.previous_task_backbones: dict[str, nn.Module] = {}
         r"""Store the backbone models of the previous tasks. Keys are task IDs (string type) and values are the corresponding models. Each model is a `nn.Module` backbone after the corresponding previous task was trained.
-        
+
         Some would argue that since we could store the model of the previous tasks, why don't we test the task directly with the stored model, instead of doing the less easier EWC thing? The thing is, EWC only uses the model of the previous tasks to train current and future tasks, which aggregate them into a single model. Once the training of the task is done, the storage for those parameters can be released. However, this make the future tasks not able to use EWC anymore, which is a disadvantage for EWC.
         """
 
         self.parameter_change_reg_factor = parameter_change_reg_factor
         r"""Store parameter change regularisation factor."""
-        self.parameter_change_reg_p_norm = parameter_change_reg_p_norm
-        r"""Store norm of the distance used in parameter change regularisation."""
         self.parameter_change_reg = ParameterChangeReg(
             factor=parameter_change_reg_factor,
-            p_norm=parameter_change_reg_p_norm,
         )
         r"""Initialise and store the parameter change regulariser."""
 
@@ -123,12 +117,10 @@ class EWC(Finetuning):
             for param_name, param in self.backbone.named_parameters():
                 fisher_information_t[param_name] += batch_size * param.grad**2
 
-        num_params = sum(p.numel() for p in self.backbone.parameters())
-
         for param_name, param in self.backbone.named_parameters():
-            fisher_information_t[param_name] /= (
-                num_data * num_params
-            )  # average over data and parameters
+            fisher_information_t[
+                param_name
+            ] /= num_data  # average over data, do not average over parameters
 
         return fisher_information_t
 
@@ -151,16 +143,13 @@ class EWC(Finetuning):
         loss_reg = 0.0
         for previous_task_id in range(1, self.task_id):
             # sum over all previous models, because [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114) says: "When moving to a third task, task C, EWC will try to keep the network parameters close to the learned parameters of both tasks A and B. This can be enforced either with two separate penalties or as one by noting that the sum of two quadratic penalties is itself a quadratic penalty."
-            loss_reg += self.parameter_change_reg(
+            loss_reg += 0.5 * self.parameter_change_reg(
                 target_model=self.backbone,
                 ref_model=self.previous_task_backbones[previous_task_id],
                 weights=self.parameter_importance[previous_task_id],
-            )
+            )  # the factor 1/2 in equation (3) in the [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114) is included here instead of the parameter change regulariser.
 
-        if self.task_id != 1:
-            loss_reg /= (
-                self.task_id
-            )  # average over tasks to avoid linear increase of the regularisation loss
+        # do not average over tasks to avoid linear increase of the regularisation loss. EWC paper doesn't mention this!
 
         # total loss
         loss = loss_cls + loss_reg

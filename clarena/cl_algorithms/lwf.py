@@ -122,10 +122,7 @@ class LwF(Finetuning):
                 teacher_logits=teacher_logits,
             )
 
-        if self.task_id != 1:
-            loss_reg /= (
-                self.task_id
-            )  # average over tasks to avoid linear increase of the regularisation loss
+        # do not average over tasks to avoid linear increase of the regularisation loss. LwF paper doesn't mention this!
 
         # total loss
         loss = loss_cls + loss_reg

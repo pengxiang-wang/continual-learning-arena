@@ -1579,11 +1579,11 @@ class Linnaeus5_32Constants(DatasetConstants):
     r"""The standard deviation values of each channel. Linnaeus 5 does not have official std values, so we use the ImageNet std values."""
 
     CLASS_MAP: dict[int, int] = {
-        0: 1,  # Acer
-        1: 2,  # Betula
-        2: 3,  # Fagus
-        3: 4,  # Quercus
-        4: 5,  # Salix
+        0: 0,  # berry
+        1: 1,  # birds
+        2: 2,  # dog
+        3: 3,  # flower
+        4: 4,  # other
     }
     r"""The mapping from class index to original label name. They correspond to the classes in Linnaeus 5 dataset."""
 
@@ -1607,11 +1607,11 @@ class Linnaeus5_64Constants(DatasetConstants):
     r"""The standard deviation values of each channel. Linnaeus 5 does not have official std values, so we use the ImageNet std values."""
 
     CLASS_MAP: dict[int, int] = {
-        0: 1,  # Acer
-        1: 2,  # Betula
-        2: 3,  # Fagus
-        3: 4,  # Quercus
-        4: 5,  # Salix
+        0: 0,  # berry
+        1: 1,  # birds
+        2: 2,  # dog
+        3: 3,  # flower
+        4: 4,  # other
     }
     r"""The mapping from class index to original label name. They correspond to the classes in Linnaeus 5 dataset."""
 
@@ -1635,11 +1635,11 @@ class Linnaeus5_128Constants(DatasetConstants):
     r"""The standard deviation values of each channel. Linnaeus 5 does not have official std values, so we use the ImageNet std values."""
 
     CLASS_MAP: dict[int, int] = {
-        0: 1,  # Acer
-        1: 2,  # Betula
-        2: 3,  # Fagus
-        3: 4,  # Quercus
-        4: 5,  # Salix
+        0: 0,  # berry
+        1: 1,  # birds
+        2: 2,  # dog
+        3: 3,  # flower
+        4: 4,  # other
     }
     r"""The mapping from class index to original label name. They correspond to the classes in Linnaeus 5 dataset."""
 
@@ -1663,11 +1663,11 @@ class Linnaeus5_256Constants(DatasetConstants):
     r"""The standard deviation values of each channel. Linnaeus 5 does not have official std values, so we use the ImageNet std values."""
 
     CLASS_MAP: dict[int, int] = {
-        0: 1,  # Acer
-        1: 2,  # Betula
-        2: 3,  # Fagus
-        3: 4,  # Quercus
-        4: 5,  # Salix
+        0: 0,  # berry
+        1: 1,  # birds
+        2: 2,  # dog
+        3: 3,  # flower
+        4: 4,  # other
     }
     r"""The mapping from class index to original label name. They correspond to the classes in Linnaeus 5 dataset."""
 
@@ -2281,6 +2281,7 @@ DATASET_CONSTANTS_MAPPING: dict[type[Dataset], type[DatasetConstants]] = {
     original.ArabicHandwrittenDigits: ArabicHandwrittenDigitsConstants,
     original.KannadaMNIST: KannadaMNISTConstants,
     original.NotMNIST: NotMNISTConstants,
+    original.NotMNISTFromHAT: NotMNISTConstants,
     torchvision.datasets.Country211: Country211Constants,
     original.FGVCAircraftVariant: FGVCAircraftVariantConstants,
     original.FGVCAircraftFamily: FGVCAircraftFamilyConstants,
@@ -2289,6 +2290,7 @@ DATASET_CONSTANTS_MAPPING: dict[type[Dataset], type[DatasetConstants]] = {
     original.FaceScrub20: FaceScrub20Constants,
     original.FaceScrub50: FaceScrub50Constants,
     original.FaceScrub100: FaceScrub100Constants,
+    original.FaceScrubFromHAT: FaceScrub100Constants,
     original.OxfordIIITPet37: OxfordIIITPet37Constants,
     original.OxfordIIITPet2: OxfordIIITPet2Constants,
     torchvision.datasets.PCAM: PCAMConstants,
@@ -2314,6 +2316,7 @@ DATASET_CONSTANTS_MAPPING: dict[type[Dataset], type[DatasetConstants]] = {
     torchvision.datasets.Imagenette: ImagenetteConstants,
     original.CUB2002011: CUB2002011Constants,
     torchvision.datasets.GTSRB: GTSRBConstants,
+    original.TrafficSignsFromHAT: GTSRBConstants,
     original.Linnaeus5_32: Linnaeus5_32Constants,
     original.Linnaeus5_64: Linnaeus5_64Constants,
     original.Linnaeus5_128: Linnaeus5_128Constants,
