@@ -25,7 +25,7 @@ from torch import Tensor
 
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import AdaHAT
-from clarena.cl_heads import HeadsCIL, HeadsTIL
+from clarena.cl_heads import HeadsTIL
 from clarena.utils import HATNetworkCapacity
 from clarena.utils.transforms import min_max_normalise
 
@@ -44,7 +44,7 @@ class FGAdaHAT(AdaHAT):
     def __init__(
         self,
         backbone: HATMaskBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL,
         adjustment_intensity: float,
         importance_type: str,
         importance_summing_strategy: str,
@@ -69,7 +69,7 @@ class FGAdaHAT(AdaHAT):
 
         **Args:**
         - **backbone** (`HATMaskBackbone`): must be a backbone network with HAT mask mechanism.
-        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **heads** (`HeadsTIL`): output heads. FG-AdaHAT algorithm only supports TIL (Task-Incremental Learning).
         - **adjustment_intensity** (`float`): hyperparameter, control the overall intensity of gradient adjustment. It is the $\alpha$ in the paper.
         - **importance_type** (`str`): the type of the neuron-wise importance, should be one of the following:
             1. 'input_weight_abs_sum':
@@ -1139,7 +1139,7 @@ class FGAdaHAT(AdaHAT):
         **Args:**
         - **layer_name** (`str`): the name of layer to get neuron-wise importance.
         - **input** (`Tensor` | `tuple[Tensor, ...]`): the input batch of the training step.
-        - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): starting point from which expectation is computed. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerGradientShap.attribute) for more details.
+        - **baselines** (`None` | `int` | `float` | `Tensor` | `tuple[int | float | Tensor, ...]`): starting point from which expectation is computed. Please refer to the [Captum documentation](https://captum.ai/api/layer.html#captum.attr.LayerGradientShap.attribute) for more details. If `None`, the baselines are set to zero.
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
@@ -1148,6 +1148,11 @@ class FGAdaHAT(AdaHAT):
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
+
+        if baselines is None:
+            baselines = torch.zeros_like(
+                input
+            )  # baselines are mandatory for GradientShap API. We explicitly set them to zero
 
         # initialise the Layer GradientShap object
         layer_gradientshap = LayerGradientShap(forward_func=self.forward, layer=layer)

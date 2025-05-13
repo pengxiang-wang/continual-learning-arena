@@ -45,6 +45,7 @@ from .hatmask_resnet import (
     HATMaskResNet152,
 )
 from .wsnmask_mlp import WSNMaskMLP
+from .nispamask_mlp import NISPAMaskMLP
 
 
 __all__ = [
@@ -52,10 +53,10 @@ __all__ = [
     "HATMaskBackbone",
     "WSNMaskBackbone",
     "PercentileLayerParameterMaskingByScore",
-    "NISPAMaskBackbone",
     "mlp",
     "resnet",
     "hatmask_mlp",
     "hatmask_resnet",
     "wsnmask_mlp",
+    "nispamask_mlp",
 ]

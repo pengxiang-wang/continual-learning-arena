@@ -634,19 +634,14 @@ class NISPAMaskBackbone(CLBackbone):
     ) -> None:
         r"""Register all `nn.Module`s of NISPA mechanism explicitly in this method. For `NISPAMaskBackbone`, they are the masks."""
 
-        self.candidate_stable_unit_mask_t: dict[str, dict[str, Tensor]] = {}
-
-        self.stable_unit_mask_t: dict[str, dict[str, Tensor]] = {}
-
-        self.plastic_unit_mask_t: dict[str, dict[str, Tensor]] = {}
-
-        self.weight_mask_t: dict[str, dict[str, Tensor]] = {}
-
-        self.bias_mask_t: dict[str, dict[str, Tensor]] = {}
-
-        self.frozen_weight_mask_t: dict[str, dict[str, Tensor]] = {}
-
-        self.frozen_bias_mask_t: dict[str, dict[str, Tensor]] = {}
+        self.weight_mask_t: dict[str, Tensor] = {}
+        r"""Store the weight mask for each layer. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has the same size (output features, input features) as weight."""
+        self.frozen_weight_mask_t: dict[str, Tensor] = {}
+        r"""Store the frozen weight mask for each layer. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has the same size (output features, input features) as weight."""
+        self.bias_mask_t: dict[str, Tensor] = {}
+        r"""Store the bias mask for each layer. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has the same size (output features, ) as bias. If the layer doesn't have bias, it is `None`."""
+        self.frozen_bias_mask_t: dict[str, Tensor] = {}
+        r"""Store the frozen bias mask for each layer. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has the same size (output features, ) as bias. If the layer doesn't have bias, it is `None`."""
 
         NISPAMaskBackbone.sanity_check(self)
 
@@ -654,13 +649,35 @@ class NISPAMaskBackbone(CLBackbone):
         r"""Check the sanity of the arguments."""
         pass
 
+    def initialise_parameter_mask(self) -> None:
+        r"""Initialise the parameter masks as zeros."""
+        for layer_name in self.weighted_layer_names:
+            layer = self.backbone.get_layer_by_name(
+                layer_name
+            )  # get the layer by its name
+
+            self.weight_mask_t[layer_name] = torch.zeros_like(layer.weight).to(
+                self.device
+            )
+            self.frozen_weight_mask_t[layer_name] = torch.zeros_like(layer.weight).to(
+                self.device
+            )
+
+            if layer.bias is not None:
+                self.bias_mask_t[layer_name] = torch.zeros_like(layer.bias).to(
+                    self.device
+                )
+                self.frozen_bias_mask_t[layer_name] = torch.zeros_like(layer.bias).to(
+                    self.device
+                )
+
     @override
     def forward(
         self,
         input: Tensor,
         stage: str,
     ) -> tuple[Tensor, dict[str, Tensor], dict[str, Tensor], dict[str, Tensor]]:
-        r"""The forward pass for data from task `task_id`. Task-specific mask for `task_id` are applied to the units in each layer.
+        r"""The forward pass for data from task `task_id`. Parameter mask is applied to the parameters in each layer.
 
         **Args:**
         - **input** (`Tensor`): The input tensor from data.
@@ -671,11 +688,7 @@ class NISPAMaskBackbone(CLBackbone):
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
-        - **weight_mask** (`dict[str, Tensor]`): the weight mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has same (output features, input features) as weight.
-        - **bias_mask** (`dict[str, Tensor]`): the bias mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has same (output features, ) as bias. If the layer doesn't have bias, it is `None`.
+        - **weight_mask** (`dict[str, Tensor]`): the weight mask. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has same (output features, input features) as weight.
+        - **bias_mask** (`dict[str, Tensor]`): the bias mask. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has same (output features, ) as bias. If the layer doesn't have bias, it is `None`.
         - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
         """
-        # this should be copied to all subclasses. Make sure it is called to get the mask for the current task from the task embedding in this stage
-        weight_mask, bias_mask = self.get_mask(
-            stage,
-        )

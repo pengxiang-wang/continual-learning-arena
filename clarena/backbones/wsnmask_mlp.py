@@ -28,7 +28,7 @@ class WSNMaskMLP(MLP, WSNMaskBackbone):
         bias: bool = True,
         dropout: float | None = None,
     ) -> None:
-        r"""Construct and initialise the WSN masked MLP backbone network with task embedding. Note that batch normalisation is incompatible with WSN mechanism.
+        r"""Construct and initialise the WSN masked MLP backbone network with task embedding.
 
         **Args:**
         - **input_dim** (`int`): the input dimension. Any data need to be flattened before going in MLP.
@@ -46,7 +46,7 @@ class WSNMaskMLP(MLP, WSNMaskBackbone):
             hidden_dims=hidden_dims,
             output_dim=output_dim,
             activation_layer=activation_layer,
-            batch_normalisation=False,  # batch normalisation is incompatible with HAT mechanism
+            batch_normalisation=False,
             bias=bias,
             dropout=dropout,
         )

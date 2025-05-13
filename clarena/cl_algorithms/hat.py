@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import CLAlgorithm
 from clarena.cl_algorithms.regularisers import HATMaskSparsityReg
-from clarena.cl_heads import HeadsCIL, HeadsTIL
+from clarena.cl_heads import HeadsTIL
 from clarena.utils import HATNetworkCapacity
 
 # always get logger for built-in logging in each module
@@ -30,7 +30,7 @@ class HAT(CLAlgorithm):
     def __init__(
         self,
         backbone: HATMaskBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL,
         adjustment_mode: str,
         s_max: float,
         clamp_threshold: float,
@@ -43,7 +43,7 @@ class HAT(CLAlgorithm):
 
         **Args:**
         - **backbone** (`HATMaskBackbone`): must be a backbone network with HAT mask mechanism.
-        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **heads** (`HeadsTIL`): output heads. HAT algorithm only supports TIL (Task-Incremental Learning).
         - **adjustment_mode** (`str`): the strategy of adjustment i.e. the mode of gradient clipping, should be one of the following:
             1. 'hat': set the gradients of parameters linking to masked units to zero. This is the way that HAT does, which fixes the part of network for previous tasks completely. See equation (2) in chapter 2.3 "Network Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
             2. 'hat_random': set the gradients of parameters linking to masked units to random 0-1 values. See the "Baselines" section in chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
@@ -89,7 +89,7 @@ class HAT(CLAlgorithm):
         self.masks: dict[str, dict[str, Tensor]] = {}
         r"""Store the binary attention mask of each previous task gated from the task embedding. Keys are task IDs (string type) and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has size (number of units, ). """
 
-        self.cumulative_mask_for_previous_tasks: dict[str, Tensor] = {}
+        self.cumulative_mask_for_previous_tasks: dict[str, dict[str, Tensor]] = {}
         r"""Store the cumulative binary attention mask $\mathrm{M}^{<t}$ of previous tasks $1,\cdots, t-1$, gated from the task embedding. Keys are task IDs and values are the corresponding cumulative mask. Each cumulative mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has size (number of units, ). """
 
         # set manual optimisation

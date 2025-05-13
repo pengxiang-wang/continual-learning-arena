@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 
 from clarena.backbones import WSNMaskBackbone
 from clarena.cl_algorithms import CLAlgorithm
-from clarena.cl_heads import HeadsCIL, HeadsTIL
+from clarena.cl_heads import HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class WSN(CLAlgorithm):
     def __init__(
         self,
         backbone: WSNMaskBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL,
         mask_percentage: float,
         parameter_score_init_mode: str = "default",
     ) -> None:
@@ -36,13 +36,12 @@ class WSN(CLAlgorithm):
 
         **Args:**
         - **backbone** (`WSNMaskBackbone`): must be a backbone network with WSN mask mechanism.
-        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **heads** (`HeadsTIL`): output heads. WSN algorithm only supports TIL (Task-Incremental Learning).
         - **mask_percentage** (`float`): the percentage of parameters to be used for each task. See $c\%$ in [WSN paper](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf).
         - **parameter_score_init_mode** (`str`): the initialisation mode for parameter scores, should be one of the following:
             1. 'default': the default initialisation mode in original WSN codes.
             2. 'N01': standard normal distribution $N(0, 1)$.
             3. 'U01': uniform distribution $U(0, 1)$.
-
         """
         CLAlgorithm.__init__(self, backbone=backbone, heads=heads)
 
