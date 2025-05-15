@@ -161,7 +161,7 @@ class EWC(Finetuning):
         """
         if self.when_calculate_fisher_information == "train_end":
             self.parameter_importance[self.task_id] = (
-                self.calculate_fisher_information_on_train_end()
+                self.accumulate_fisher_information_on_train_end()
             )
 
         for param_name, param in self.backbone.named_parameters():

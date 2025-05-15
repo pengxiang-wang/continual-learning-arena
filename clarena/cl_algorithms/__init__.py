@@ -31,6 +31,7 @@ from .hat import HAT
 from .adahat import AdaHAT
 from .fgadahat import FGAdaHAT
 from .wsn import WSN
+from .nispa import NISPA
 
 
 __all__ = [
@@ -48,4 +49,5 @@ __all__ = [
     "adahat",
     "fgadahat",
     "wsn",
+    "nispa",
 ]

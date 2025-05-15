@@ -85,12 +85,12 @@ class NISPAMaskMLP(MLP, NISPAMaskBackbone):
             weighted_layer = self.fc[layer_idx]
 
             # mask the weight and bias
-            weighted_layer.weight.data *= weight_mask[f"fc/{layer_idx}"]
+            weighted_layer.weight.data *= weight_mask[f"fc.{layer_idx}"]
             if (
                 weighted_layer.bias is not None
-                and bias_mask[f"fc/{layer_idx}"] is not None
+                and bias_mask[f"fc.{layer_idx}"] is not None
             ):
-                weighted_layer.bias.data *= bias_mask[f"fc/{layer_idx}"]
+                weighted_layer.bias.data *= bias_mask[f"fc.{layer_idx}"]
 
             # forward pass
             x = weighted_layer(x)

@@ -80,19 +80,21 @@ class FGAdaHAT(AdaHAT):
             6. 'input_weight_abs_sum_x_activation_abs':
             7. 'output_weight_abs_sum_x_activation_abs':
             8. 'gradient_x_activation_abs':
-            9. 'input_weight_gradient_square_sum_x_activation_abs':
-            10. 'output_weight_gradient_square_sum_x_activation_abs':
-            11. 'conductance_abs':
-            12. 'internal_influence_abs':
-            13. 'gradcam_abs':
-            14. 'deeplift_abs':
-            15. 'deepliftshap_abs':
-            16. 'gradientshap_abs':
-            17. 'integrated_gradients_abs':
-            18. 'feature_ablation_abs':
-            19. 'lrp_abs':
-            20. 'cbp_adaptation':
-            21. 'cbp_adaptative_contribution':
+            9. 'input_weight_gradient_square_sum':
+            10. 'output_weight_gradient_square_sum':
+            11. 'input_weight_gradient_square_sum_x_activation_abs':
+            12. 'output_weight_gradient_square_sum_x_activation_abs':
+            13. 'conductance_abs':
+            14. 'internal_influence_abs':
+            15. 'gradcam_abs':
+            16. 'deeplift_abs':
+            17. 'deepliftshap_abs':
+            18. 'gradientshap_abs':
+            19. 'integrated_gradients_abs':
+            20. 'feature_ablation_abs':
+            21. 'lrp_abs':
+            22. 'cbp_adaptation':
+            23. 'cbp_adaptative_contribution':
         - **importance_summing_strategy** (`str`): the strategy to sum the neuron-wise importance for previous tasks, should be one of the following:
             1. 'add_latest': add the latest task importance to the summative importance.
             2. 'add_all': add all tasks importance to the summative importance. It is the same as 'linear_decrease'.
@@ -417,6 +419,22 @@ class FGAdaHAT(AdaHAT):
                         target=target,
                         batch_idx=batch_idx,
                         num_batches=num_batches,
+                    )
+                )
+            elif self.importance_type == "input_weight_gradient_square_sum":
+                importance_step = (
+                    self.get_importance_step_layer_weight_gradient_square_sum(
+                        layer_name=layer_name,
+                        activation=activation,
+                        if_output_weight=False,
+                    )
+                )
+            elif self.importance_type == "output_weight_gradient_square_sum":
+                importance_step = (
+                    self.get_importance_step_layer_weight_gradient_square_sum(
+                        layer_name=layer_name,
+                        activation=activation,
+                        if_output_weight=True,
                     )
                 )
             elif (
@@ -832,6 +850,46 @@ class FGAdaHAT(AdaHAT):
         )
 
         importance_step_layer = attribution_abs_batch_mean
+        importance_step_layer = importance_step_layer.detach()
+
+        return importance_step_layer
+
+    def get_importance_step_layer_weight_gradient_square_sum(
+        self: str,
+        layer_name: str,
+        activation: Tensor,
+        if_output_weight: bool,
+    ) -> Tensor:
+        r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the sum of layer weight gradient squares. The weight gradient square is equal to fisher information in [EWC](https://www.pnas.org/doi/10.1073/pnas.1611835114).
+
+        **Args:**
+        - **layer_name** (`str`): the name of layer to get neuron-wise importance.
+        - **activation** (`Tensor`): the activation tensor of the layer. It has the same size of (number of units, ).
+        - **if_output_weight** (`bool`): whether to use the output weights or input weights.
+
+        **Returns:**
+        - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
+        """
+        layer = self.backbone.get_layer_by_name(layer_name)
+
+        if not if_output_weight:
+            gradient_square = layer.weight.grad.data**2
+            gradient_square_sum = torch.sum(
+                gradient_square,
+                dim=[
+                    i for i in range(gradient_square.dim()) if i != 0
+                ],  # sum over the input dimension
+            )
+        else:
+            gradient_square = self.next_layer(layer_name).weight.grad.data**2
+            gradient_square_sum = torch.sum(
+                gradient_square,
+                dim=[
+                    i for i in range(gradient_square.dim()) if i != 1
+                ],  # sum over the output dimension
+            )
+
+        importance_step_layer = gradient_square_sum
         importance_step_layer = importance_step_layer.detach()
 
         return importance_step_layer

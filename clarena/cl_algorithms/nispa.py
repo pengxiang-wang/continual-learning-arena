@@ -1,13 +1,14 @@
-r"""
-The submodule in `cl_algorithms` for [NISPA (Neuro-Inspired Stability-Plasticity Adaptation)](https://proceedings.mlr.press/v162/gurbuz22a/gurbuz22a.pdf) algorithm.
+"""
+The submodule in `cl_algorithms` for NISPA (Neuro-Inspired Stability-Plasticity Adaptation) algorithm.
 """
 
 __all__ = ["NISPA"]
 
 import logging
 import math
+import random
 from copy import deepcopy
-from typing import Any
+from typing import Any, Dict
 
 import torch
 from torch import Tensor
@@ -17,15 +18,12 @@ from clarena.backbones import NISPAMaskBackbone
 from clarena.cl_algorithms import CLAlgorithm
 from clarena.cl_heads import HeadsTIL
 
-# always get logger for built-in logging in each module
+# built-in logger
 pylogger = logging.getLogger(__name__)
 
 
 class NISPA(CLAlgorithm):
-    r"""NISPA (Neuro-Inspired Stability-Plasticity Adaptation) algorithm.
-
-    [NISPA (Neuro-Inspired Stability-Plasticity Adaptation), 2022](https://proceedings.mlr.press/v162/gurbuz22a/gurbuz22a.pdf) is an architecture-based continual learning algorithm. It
-    """
+    r"""NISPA (Neuro-Inspired Stability-Plasticity Adaptation) algorithm."""
 
     def __init__(
         self,
@@ -35,318 +33,282 @@ class NISPA(CLAlgorithm):
         accuracy_fall_threshold: float,
         k: float,
     ) -> None:
-        r"""Initialise the NISPA algorithm with the network.
+        super().__init__(backbone=backbone, heads=heads)
 
-        **Args:**
-        - **backbone** (`NISPAMaskBackbone`): must be a backbone network with NISPA mask mechanism.
-        - **heads** (`HeadsTIL`): output heads. NISPA algorithm only supports TIL (Task-Incremental Learning).
-        - **num_epochs_per_phase** (`int`): the number of epochs per phase. One phase consists of several epochs. At the end of each phase, unit selection and rewire is performed.
-        - **accuracy_fall_threshold** (`float`): the accuracy fall threshold to stop the phases. If the accuracy of the current task is below this (best accuracy of phases - this threshold), the phase will stop, or else it will continue next phase.
-        - **k** (`float`): hyperparameter for scheduling activation fraction $\tau$. See equation (3) in [NISPA paper](https://proceedings.mlr.press/v162/gurbuz22a/gurbuz22a.pdf).
+        print(backbone)
+        self.num_epochs_per_phase = num_epochs_per_phase
+        self.accuracy_fall_threshold = accuracy_fall_threshold
+        self.k = k
 
-        """
-        CLAlgorithm.__init__(self, backbone=backbone, heads=heads)
+        # unit-level masks (size = #neurons in layer)
+        self.candidate_stable_unit_mask_t: Dict[str, Tensor] = {}
+        self.stable_unit_mask_t: Dict[str, Tensor] = {}
+        self.plastic_unit_mask_t: Dict[str, Tensor] = {}
 
-        self.num_epochs_per_phase: int = num_epochs_per_phase
-        r"""Store the number of epochs per phase."""
-        self.accuracy_fall_threshold: float = accuracy_fall_threshold
-        r"""Store the accuracy fall threshold to stop the phases."""
-        self.k: float = k
-        r"""Store the hyperparameter for scheduling activation fraction $\tau$. See equation (3) in [NISPA paper](https://proceedings.mlr.press/v162/gurbuz22a/gurbuz22a.pdf)."""
-
-        self.candidate_stable_unit_mask_t: dict[str, Tensor] = {}
-        r"""Store the candidate stable unit mask for each layer. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, )."""
-        self.stable_unit_mask_t: dict[str, Tensor] = {}
-        r"""Store the stable unit mask for each layer. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, )."""
-        self.plastic_unit_mask_t: dict[str, Tensor] = {}
-        r"""Store the plastic unit mask for each layer. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, )."""
-
+        # bookkeeping for phases
         self.best_phase_acc: float
-        r"""Store the best accuracy of the current task in the current phase."""
         self.phase_idx: int
-        r"""Store the index of the current phase."""
 
     def on_train_start(self) -> None:
-        r"""Initialise the masks at the beginning of first task."""
-
+        """Initialise all masks at the very beginning of Task 1."""
         self.best_phase_acc = 0.0
         self.phase_idx = 0
 
-        # initialise the masks at the beginning of first task. This should not be called in `__init__()` method as the `self.device` is not available at that time.
         if self.task_id == 1:
-
-            # initialise NISPA backbone weight mask
+            # zero‐out the backbone’s parameter masks
             self.backbone.initialise_parameter_mask()
 
-            for layer_name in self.backbone.weighted_layer_names:
-                layer = self.backbone.get_layer_by_name(
-                    layer_name
-                )  # get the layer by its name
-                num_units = layer.weight.shape[0]
-
-                # initialise unit masks in NISPA algorithm
-                self.candidate_stable_unit_mask_t[layer_name] = torch.zeros(
-                    num_units
-                ).to(self.device)
-
-                self.stable_unit_mask_t[layer_name] = torch.zeros(num_units).to(
-                    self.device
+            for layer in self.backbone.weighted_layer_names:
+                # number of units = output dim of that layer
+                num_units = self.backbone.get_layer_by_name(layer).weight.shape[0]
+                self.candidate_stable_unit_mask_t[layer] = torch.zeros(
+                    num_units, device=self.device
                 )
-                self.plastic_unit_mask_t[layer_name] = torch.ones(num_units).to(
-                    self.device
+                self.stable_unit_mask_t[layer] = torch.zeros(
+                    num_units, device=self.device
+                )
+                self.plastic_unit_mask_t[layer] = torch.ones(
+                    num_units, device=self.device
                 )
 
-    def clip_grad_by_frozen_mask(
-        self,
-    ) -> None:
-        r"""Clip the gradient by the frozen parameter mask. The gradient is multiplied by (1 - the frozen parameter mask) making masked parameters fixed. See "frozen connections" in [NISPA paper](https://proceedings.mlr.press/v162/gurbuz22a/gurbuz22a.pdf)."""
-
+    def clip_grad_by_frozen_mask(self) -> None:
+        """Zero‐out grads on frozen connections."""
         for layer_name in self.backbone.weighted_layer_names:
             layer = self.backbone.get_layer_by_name(layer_name)
-
-            layer.weight.grad.data *= 1 - self.frozen_weight_mask_t[layer_name]
+            layer.weight.grad.data *= (
+                1.0 - self.backbone.frozen_weight_mask_t[layer_name]
+            )
             if layer.bias is not None:
-                layer.bias.grad.data *= 1 - self.frozen_bias_mask_t[layer_name]
+                layer.bias.grad.data *= (
+                    1.0 - self.backbone.frozen_bias_mask_t[layer_name]
+                )
 
     def forward(
         self,
         input: torch.Tensor,
         stage: str,
         task_id: int | None = None,
-    ) -> tuple[Tensor, dict[str, Tensor]]:
-        r"""The forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`.
-
-        **Args:**
-        - **input** (`Tensor`): The input tensor from data.
-        - **stage** (`str`): the stage of the forward pass, should be one of the following:
-            1. 'train': training stage.
-            2. 'validation': validation stage.
-            3. 'test': testing stage.Applies only to training stage. For other stages, it is default `None`.
-        - **task_id** (`int`| `None`): the task ID where the data are from. If the stage is 'train' or 'validation', it should be the current task `self.task_id`. If stage is 'test', it could be from any seen task. In TIL, the task IDs of test data are provided thus this argument can be used. NISPA algorithm works only for TIL.
-
-        **Returns:**
-        - **logits** (`Tensor`): the output logits tensor.
-        - **weight_mask** (`dict[str, Tensor]`): the weight mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has same (output features, input features) as weight.
-        - **bias_mask** (`dict[str, Tensor]`): the bias mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has same (output features, ) as bias. If the layer doesn't have bias, it is `None`.
-        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
-        """
-        feature, weight_mask, bias_mask, activations = self.backbone(
-            input,
-            stage=stage,
-        )
-        logits = self.heads(feature, task_id)
-
-        return (
-            logits
-            if self.if_forward_func_return_logits_only
-            else (logits, weight_mask, bias_mask, activations)
-        )
+    ) -> tuple[Tensor, Dict[str, Tensor], Dict[str, Tensor], Dict[str, Tensor]]:
+        """Wrapper around the backbone’s forward + the heads."""
+        features, w_mask, b_mask, activations = self.backbone(input, stage=stage)
+        logits = self.heads(features, task_id)
+        return logits, w_mask, b_mask, activations
 
     def training_step(self, batch: Any) -> dict[str, Tensor]:
-        r"""Training step for current task `self.task_id`.
-
-        **Args:**
-        - **batch** (`Any`): a batch of training data.
-
-        **Returns:**
-        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this training step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs. For WSN, it includes 'weight_mask' and 'bias_mask' for logging.
-        """
         x, y = batch
-
-        # zero the gradients before forward pass in manual optimisation mode
         opt = self.optimizers()
         opt.zero_grad()
 
-        # classification loss
-        logits, weight_mask, bias_mask, activations = self.forward(
-            x, stage="train", task_id=self.task_id
-        )
-        loss_cls = self.criterion(logits, y)
-
-        # total loss
-        loss = loss_cls
-
-        # backward step (manually)
-        self.manual_backward(loss)  # calculate the gradients
-        # WSN hard clip gradients by the cumulative masks. See equation (4) in [WSN paper](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf).
+        logits, w_mask, b_mask, _ = self.forward(x, stage="train", task_id=self.task_id)
+        loss = self.criterion(logits, y)
+        self.manual_backward(loss)
         self.clip_grad_by_frozen_mask()
-
-        # update parameters with the modified gradients
         opt.step()
 
-        # accuracy of the batch
         acc = (logits.argmax(dim=1) == y).float().mean()
+        return {"loss": loss, "acc": acc}
 
-        return {
-            "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
-            "loss_cls": loss_cls,
-            "acc": acc,
-            "activations": activations,
-            "weight_mask": weight_mask,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
-            "bias_mask": bias_mask,
+    def on_validation_epoch_end(self, outputs: dict[str, Any]) -> None:
+        """Every num_epochs_per_phase epochs, do a phase‐end check, selection, and rewire."""
+        if (self.current_epoch + 1) % self.num_epochs_per_phase != 0:
+            return
+
+        # cache model + optimizer in case we need to rollback
+        cached = {
+            "model": deepcopy(self.state_dict()),
+            "opt": deepcopy(self.trainer.optimizers[0].state_dict()),
         }
 
-    def on_train_end(self) -> None:
-        r"""."""
-        # freeze and reinit
-        pass
+        val_acc = outputs["acc"].item()
+        self.best_phase_acc = max(self.best_phase_acc, val_acc)
 
-    def validation_step(self, batch: Any) -> dict[str, Tensor]:
-        r"""Validation step for current task `self.task_id`.
+        if val_acc >= self.best_phase_acc - self.accuracy_fall_threshold:
+            # still “good enough” → select + rewire
+            tau = 0.5 * (1 + math.cos(self.phase_idx * math.pi / self.k))
+            self.select_candidate_stable_units(activation_fraction=tau)
 
-        **Args:**
-        - **batch** (`Any`): a batch of validation data.
+            # merge candidate → stable, update plastic = complement
+            for layer in self.backbone.weighted_layer_names:
+                self.stable_unit_mask_t[layer] = (
+                    self.stable_unit_mask_t[layer]
+                    | self.candidate_stable_unit_mask_t[layer]
+                ).float()
+                self.plastic_unit_mask_t[layer] = 1.0 - self.stable_unit_mask_t[layer]
 
-        **Returns:**
-        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this validation step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
-        """
-        x, y = batch
-        logits, weight_mask, bias_mask, activations = self.forward(
-            x, stage="validation", task_id=self.task_id
-        )
-        loss_cls = self.criterion(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean()
+            # update the backbone’s parameter‐level masks from these unit‐masks
+            self._update_parameter_masks()
 
-        return {
-            "loss_cls": loss_cls,
-            "acc": acc,  # Return metrics for lightning loggers callback to handle at `on_validation_batch_end()`
-        }
+            # drop & grow
+            dropped = self.drop_connections_plastic_to_stable()
+            self.grow_new_connections(dropped)
 
-    def on_validation_epoch_end(self, outputs: dict[str, Any]):
-        r"""
+            self.phase_idx += 1
 
-        **Args:**
-        - **outputs** (`dict[str, Any]`): the outputs of the training step, which is the returns of the `training_step()` method in the `CLAlgorithm`.
+        else:
+            # roll back to previous checkpoint
+            self.load_state_dict(cached["model"])
+            self.trainer.optimizers[0].load_state_dict(cached["opt"])
+            pylogger.info(f"Phase {self.phase_idx} terminated early (val_acc fell).")
 
-        """
+    def _update_parameter_masks(self) -> None:
+        """Convert each layer’s unit‐mask → a weight/bias mask."""
+        for layer in self.backbone.weighted_layer_names:
+            # gather shapes
+            W = self.backbone.weight_mask_t[layer]
+            shape = W.shape
+            stable_units = self.stable_unit_mask_t[layer].bool()
+            plastic_units = self.plastic_unit_mask_t[layer].bool()
 
-        if self.current_epoch % self.num_epochs_per_phase == 0:
+            # out-unit plastic mask
+            out_pl = plastic_units.view(-1, 1).expand(shape)
 
-            cached_state = {
-                "model": deepcopy(self.state_dict()),
-                "optimizer": self.trainer.optimizers[0].state_dict(),
-            }
-
-            val_acc = outputs["acc"]  # accuracy of current epoch
-            if val_acc > self.best_phase_acc:
-                self.best_phase_acc = val_acc  # update the best accuracy
-
-            if (
-                val_acc >= self.best_phase_acc - self.accuracy_fall_threshold
-            ):  # stoppping criterion. See 3.8 "Stopping Criterion" in [NISPA paper](https://proceedings.mlr.press/v162/gurbuz22a/gurbuz22a.pdf)
-
-                tau = 0.5 * (
-                    1 + math.cos(self.phase_idx * math.pi / self.k)
-                )  # calculate the fraction of activation to select the candidate stable units. See equation (3) in [NISPA paper](https://proceedings.mlr.press/v162/gurbuz22a/gurbuz22a.pdf)
-
-                self.select_candidate_stable_units(
-                    activation_fraction=tau,
-                )
-
-                # cached_stable_unit_mask = union(
-                #     deepcopy(self.stable_unit_mask_t), self.candidate_stable_unit_mask_t
-                # )
-
-                # rewire the connections
-                # num_connections_dropped = self.drop_connections_plastic_to_stable()
-                # self.grow_new_connections(num_connections_dropped)
-
+            # in-unit plastic mask (preceding layer)
+            prev = self.backbone.preceding_layer_name(layer)
+            if prev:
+                in_pl = self.plastic_unit_mask_t[prev].view(1, -1).expand(shape)
             else:
-                pass
+                in_pl = torch.ones(shape, device=self.device, dtype=torch.bool)
+
+            # new weight mask = plastic→plastic
+            self.backbone.weight_mask_t[layer] = (out_pl & in_pl).float()
+            # bias mask = plastic units only
+            self.backbone.bias_mask_t[layer] = plastic_units.float()
 
     def select_candidate_stable_units(self, activation_fraction: float) -> None:
-        r"""Select candidate stable units that have highest summed activations in each layer. Thresholded by the fraction of summed activations of all units in the layer. See chapter 3.3 "Selecting Candidate Stable Units" in [NISPA paper](https://proceedings.mlr.press/v162/gurbuz22a/gurbuz22a.pdf).
-
-        **Args:**
-        - **activation_fraction** (`float`): the activation fraction threshold. See equation (3) in [NISPA paper](https://proceedings.mlr.press/v162/gurbuz22a/gurbuz22a.pdf). The value should be between 0 and 1.
-        """
-        train_dataloader = self.trainer.datamodule.train_dataloader()
-
-        summed_activations = {
-            layer_name: torch.zeros_like(self.stable_unit_mask_t[layer_name])
-            for layer_name in self.weighted_layer_names
+        """Pick the top‐activated units until we reach `activation_fraction` of total."""
+        # accumulate per‐unit activations over the training set
+        summed = {
+            layer: torch.zeros_like(self.stable_unit_mask_t[layer])
+            for layer in self.backbone.weighted_layer_names
         }
+        total_data = 0
 
-        for x, y in train_dataloader:
-
-            # move data to device manually
+        for x, _ in self.trainer.datamodule.train_dataloader():
             x = x.to(self.device)
-            y = y.to(self.device)
+            _, _, _, acts = self.forward(x, stage="validation")
+            batch = x.shape[0]
+            total_data += batch
 
-            batch_size = len(y)
-            num_data += batch_size
-            _, activations = self.forward(x, stage="validation")
+            for layer in summed:
+                # sum up the ∥activation∥ per unit
+                summed[layer] += acts[layer].sum(dim=0)  # sum over batch
 
-            for layer_name in self.weighted_layer_names:
-                summed_activations[layer_name] = (
-                    summed_activations[layer_name] + activations[layer_name]
+        # threshold per‐layer
+        for layer in summed:
+            vals = summed[layer]
+            cutoff = vals.sum() * activation_fraction
+            cum = 0.0
+            mask = torch.zeros_like(vals)
+
+            # pick largest values until cum ≥ cutoff
+            while cum < cutoff:
+                idx = torch.argmax(vals)
+                cum += vals[idx].item()
+                mask[idx] = 1.0
+                vals[idx] = 0.0  # ensure we don’t pick it twice
+
+            self.candidate_stable_unit_mask_t[layer] = mask.to(self.device)
+
+    def drop_connections_plastic_to_stable(self) -> Dict[str, int]:
+        """
+        Drop connections *from* plastic units *into* stable units:
+        i.e. weight[stable_out, plastic_in] → 0, bias[stable_out] → 0.
+        """
+        dropped_counts: Dict[str, int] = {}
+
+        for layer in self.backbone.weighted_layer_names:
+            Wm = self.backbone.weight_mask_t[layer]
+            bm = self.backbone.bias_mask_t[layer]
+
+            stable_out = self.stable_unit_mask_t[layer].bool()
+            prev = self.backbone.preceding_layer_name(layer)
+            if prev:
+                plastic_in = (~self.stable_unit_mask_t[prev]).bool()
+            else:
+                plastic_in = torch.zeros(
+                    Wm.shape[1], device=self.device, dtype=torch.bool
                 )
 
-        for layer_name in self.backbone.weighted_layer_names:
-            summed_activations_layer = summed_activations[layer_name]
-            summed_activations_layer_threshold = (
-                sum(summed_activations_layer) * activation_fraction
-            )
+            before_w = int(Wm.sum().item())
+            # zero out those connections
+            Wm[stable_out, :][:, plastic_in] = 0
+            after_w = int(Wm.sum().item())
 
-            cumulative_sum = 0.0
-            while cumulative_sum < summed_activations_layer_threshold:
-                max_idx = torch.argmax(summed_activations_layer, dim=0)
-                max_value = summed_activations_layer[max_idx]
+            before_b = int(bm.sum().item())
+            bm[stable_out] = 0
+            after_b = int(bm.sum().item())
 
-                cumulative_sum = cumulative_sum + max_value
+            self.backbone.weight_mask_t[layer] = Wm
+            self.backbone.bias_mask_t[layer] = bm
+            dropped_counts[layer] = (before_w - after_w) + (before_b - after_b)
 
-                self.candidate_stable_unit_mask_t[layer_name][max_idx] = 1.0
+        return dropped_counts
 
-    def drop_connections_plastic_to_stable(self):
-        r"""Drop the connections from plastic units to stable units."""
-        for layer_name in self.weighted_layer_names:
-            self.plastic_unit_mask_t[layer_name] = {
-                "weight": torch.ones(
-                    self.weight_mask_t[layer_name]["weight"].size()
-                ).to(self.device),
-                "bias": torch.ones(self.weight_mask_t[layer_name]["bias"].size()).to(
-                    self.device
-                ),
-            }
-
-    def grow_new_connections(self, num):
-        r"""Grow new connections for the plastic units.
-
-        **Args:**
-        - **num** (`int`): the number of new connections to be grown.
+    def grow_new_connections(self, dropped: Dict[str, int]) -> None:
         """
-        for layer_name in self.weighted_layer_names:
-            self.plastic_unit_mask_t[layer_name] = {
-                "weight": torch.ones(
-                    self.weight_mask_t[layer_name]["weight"].size()
-                ).to(self.device),
-                "bias": torch.ones(self.weight_mask_t[layer_name]["bias"].size()).to(
-                    self.device
-                ),
-            }
+        Regrow new connections *among plastic units* to keep the network at a fixed density.
+        For simplicity, we randomly reassign the dropped number of connections.
+        """
+        for layer, num_drop in dropped.items():
+            if num_drop <= 0:
+                continue
+
+            Wm = self.backbone.weight_mask_t[layer]
+            prev = self.backbone.preceding_layer_name(layer)
+
+            stable_out = self.stable_unit_mask_t[layer].bool()
+            plastic_out = ~stable_out
+            if prev:
+                plastic_in = (~self.stable_unit_mask_t[prev]).bool()
+            else:
+                plastic_in = torch.ones(
+                    Wm.shape[1], device=self.device, dtype=torch.bool
+                )
+
+            # find all available plastic→plastic positions that are currently zero
+            mask = (Wm == 0) & plastic_out.view(-1, 1) & plastic_in.view(1, -1)
+            coords = torch.nonzero(mask, as_tuple=False)
+            if coords.numel() == 0:
+                continue
+
+            coords = coords.tolist()
+            chosen = random.sample(coords, min(len(coords), num_drop))
+            for i, j in chosen:
+                Wm[i, j] = 1.0
+
+            # for bias, simply ensure all plastic units have bias = 1
+            bm = self.backbone.bias_mask_t[layer]
+            bm[plastic_out] = 1.0
+
+            self.backbone.weight_mask_t[layer] = Wm
+            self.backbone.bias_mask_t[layer] = bm
+
+    def on_train_end(self) -> None:
+        """
+        Called at the very end of a task:
+        freeze *all* connections that were used (mask = 1) as part of this task.
+        """
+        for layer in self.backbone.weighted_layer_names:
+            # freeze any connection that was ever allowed (weight_mask_t == 1)
+            self.backbone.frozen_weight_mask_t[layer] |= (
+                self.backbone.weight_mask_t[layer] > 0
+            ).float()
+            self.backbone.frozen_bias_mask_t[layer] |= (
+                self.backbone.bias_mask_t[layer] > 0
+            ).float()
+
+    def validation_step(self, batch: Any) -> dict[str, Tensor]:
+        x, y = batch
+        logits, _, _, _ = self.forward(x, stage="validation")
+        loss = self.criterion(logits, y)
+        acc = (logits.argmax(dim=1) == y).float().mean()
+        return {"loss": loss, "acc": acc}
 
     def test_step(
-        self, batch: DataLoader, batch_idx: int, dataloader_idx: int = 0
+        self, batch: Any, batch_idx: int, dataloader_idx: int = 0
     ) -> dict[str, Tensor]:
-        r"""Test step for current task `self.task_id`, which tests for all seen tasks indexed by `dataloader_idx`.
-
-        **Args:**
-        - **batch** (`Any`): a batch of test data.
-        - **dataloader_idx** (`int`): the task ID of seen tasks to be tested. A default value of 0 is given otherwise the LightningModule will raise a `RuntimeError`.
-
-        **Returns:**
-        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this test step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
-        """
-
         x, y = batch
-        logits, weight_mask, bias_mask, activations = self.forward(
-            x,
-            stage="test",
-        )  # use the corresponding head and mask to test (instead of the current task `self.task_id`)
-        loss_cls = self.criterion(logits, y)
+        logits, _, _, _ = self.forward(x, stage="test")
+        loss = self.criterion(logits, y)
         acc = (logits.argmax(dim=1) == y).float().mean()
-
-        return {
-            "loss_cls": loss_cls,
-            "acc": acc,  # Return metrics for lightning loggers callback to handle at `on_test_batch_end()`
-        }
+        return {"loss": loss, "acc": acc}
