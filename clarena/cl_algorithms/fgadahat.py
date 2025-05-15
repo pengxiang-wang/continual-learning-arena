@@ -57,7 +57,7 @@ class FGAdaHAT(AdaHAT):
         base_importance: float = 0.01,
         base_mask_sparsity_reg: float = 0.1,
         base_linear: float = 10,
-        filter_by_cumulative_mask: bool = True,
+        filter_by_cumulative_mask: bool = False,
         filter_unmasked_importance: bool = True,
         step_multiply_training_mask: bool = False,
         task_embedding_init_mode: str = "N01",
@@ -122,7 +122,7 @@ class FGAdaHAT(AdaHAT):
         - **base_importance** (`float`): the base value added to the importance. It is $b_I$ in the paper. Default is 0.01.
         - **base_mask_sparsity_reg** (`float`): the base value added to the mask sparsity regularisation factor in the importance scheduler. It is $b_R$ in the paper. Default is 0.1.
         - **base_linear** (`float`): the base value added to the linear factor in the importance scheduler. It is $b_L$ in the paper. Default is 10.
-        - **filter_by_cumulative_mask** (`bool`): whether to multiply the cumulative mask to the importance when calculating adjustment rate. Default is True.
+        - **filter_by_cumulative_mask** (`bool`): whether to multiply the cumulative mask to the importance when calculating adjustment rate. Default is False.
         - **filter_unmasked_importance** (`bool`): whether to filter unmasked importance values (set them to 0) at the end of task training. Filtering is to multiply the final trained mask $m^{t}_{l,i}$ to the importance $I^{t}_{l,i}$. Default is True.
         - **step_multiply_training_mask** (`bool`): whether to multiply the training mask to the importance at each training step. Default is False.
         - **task_embedding_init_mode** (`str`): the initialisation method for task embeddings, should be one of the following:
