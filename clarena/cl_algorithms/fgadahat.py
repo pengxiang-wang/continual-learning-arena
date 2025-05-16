@@ -1112,6 +1112,9 @@ class FGAdaHAT(AdaHAT):
         # initialise the Layer DeepLift object
         layer_deeplift = LayerDeepLift(model=self, layer=layer)
 
+        # convert the target to long type to avoid error
+        target = target.long() if target is not None else None
+
         self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         attribution = layer_deeplift.attribute(
@@ -1160,6 +1163,9 @@ class FGAdaHAT(AdaHAT):
 
         # initialise the Layer DeepLiftShap object
         layer_deepliftshap = LayerDeepLiftShap(model=self, layer=layer)
+
+        # convert the target to long type to avoid error
+        target = target.long() if target is not None else None
 
         self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
