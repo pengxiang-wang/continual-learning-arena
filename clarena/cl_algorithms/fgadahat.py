@@ -1221,6 +1221,9 @@ class FGAdaHAT(AdaHAT):
         # initialise the Layer GradientShap object
         layer_gradientshap = LayerGradientShap(forward_func=self.forward, layer=layer)
 
+        # convert the target to long type to avoid error
+        target = target.long() if target is not None else None
+
         self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         attribution = layer_gradientshap.attribute(
