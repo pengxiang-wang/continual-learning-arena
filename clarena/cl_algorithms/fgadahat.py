@@ -1024,6 +1024,7 @@ class FGAdaHAT(AdaHAT):
             baselines=baselines,
             target=target,
             additional_forward_args=("train", batch_idx, num_batches, self.task_id),
+            n_steps=5,  # set 10 instead of default 50 to accelerate the computation
         )
         self.set_forward_func_return_logits_only(False)
 
@@ -1331,8 +1332,9 @@ class FGAdaHAT(AdaHAT):
         attribution = layer_feature_ablation.attribute(
             inputs=input,
             layer_baselines=layer_baselines,
-            target=target,
+            # target=target, # disable target to enable perturbations_per_eval
             additional_forward_args=("train", batch_idx, num_batches, self.task_id),
+            perturbations_per_eval=16,  # to accelerate the computation
         )
         self.set_forward_func_return_logits_only(False)
 
