@@ -1017,6 +1017,9 @@ class FGAdaHAT(AdaHAT):
         # initialise the Internal Influence object
         internal_influence = InternalInfluence(forward_func=self.forward, layer=layer)
 
+        # convert the target to long type to avoid error
+        target = target.long() if target is not None else None
+
         self.set_forward_func_return_logits_only(True)
         # calculate layer attribution of the step
         attribution = internal_influence.attribute(
@@ -1334,7 +1337,7 @@ class FGAdaHAT(AdaHAT):
             layer_baselines=layer_baselines,
             # target=target, # disable target to enable perturbations_per_eval
             additional_forward_args=("train", batch_idx, num_batches, self.task_id),
-            perturbations_per_eval=16,  # to accelerate the computation
+            perturbations_per_eval=128,  # to accelerate the computation
         )
         self.set_forward_func_return_logits_only(False)
 
