@@ -267,7 +267,7 @@ class FGAdaHAT(AdaHAT):
         """
 
         # initialise network capacity metric
-        capacity = HATNetworkCapacity()
+        capacity = HATNetworkCapacity().to(self.device)
         adjustment_rate_weight = {}
         adjustment_rate_bias = {}
 
