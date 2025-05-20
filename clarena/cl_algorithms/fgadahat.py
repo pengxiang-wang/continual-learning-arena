@@ -1425,6 +1425,7 @@ class FGAdaHAT(AdaHAT):
             )
 
             # calculate layer attribution of the step
+            self.set_forward_func_return_logits_only(True)
             attribution = layer_feature_ablation.attribute(
                 inputs=input,
                 layer_baselines=layer_baselines,
@@ -1432,6 +1433,7 @@ class FGAdaHAT(AdaHAT):
                 additional_forward_args=("train", batch_idx, num_batches, self.task_id),
                 perturbations_per_eval=128,  # to accelerate the computation
             )
+            self.set_forward_func_return_logits_only(False)
 
             attribution_abs_batch_mean = torch.mean(
                 torch.abs(attribution),

@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from torchvision.datasets import DTD
 from torchvision.transforms import transforms
 
-from clarena.cl_datasets import CLPermutedDataset, CLClassMapping
+from clarena.cl_datasets import CLClassMapping, CLPermutedDataset
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ class PermutedDTD(CLPermutedDataset):
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
             3. 'first_channel_only': permute only the first channel.
-        - **permutation_seeds** (`list[int]` or `None`): the seeds for permutation operations used to construct tasks. Make sure it has the same number of seeds as `num_tasks`. Default is None, which creates a list of seeds from 1 to `num_tasks`.
+        - **permutation_seeds** (`list[int]` or `None`): the seeds for permutation operations used to construct tasks. Make sure it has the same number of seeds as `num_tasks`. Default is None, which creates a list of seeds from 0 to `num_tasks`-1.
         """
         CLPermutedDataset.__init__(
             self,

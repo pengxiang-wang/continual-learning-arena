@@ -35,7 +35,6 @@ class CLMetricsCallback(Callback):
     - Coloured plot for test accuracy and classification loss (lower triangular) matrix. See [here](https://pengxiang-wang.com/posts/continual-learning-metrics.html#sec-test-performance-of-previous-tasks) for details.
     - Curve plots for test average accuracy and classification loss over different training tasks. See [here](https://pengxiang-wang.com/posts/continual-learning-metrics.html#sec-average-test-performance-over-tasks) for details.
 
-
     """
 
     def __init__(
@@ -122,14 +121,17 @@ class CLMetricsCallback(Callback):
         # set the current task_id from the `CLAlgorithm` object
         self.task_id = pl_module.task_id
 
+        # get the device to put the metrics on the same device
+        device = pl_module.device
+
         # initialise training metrics
-        self.loss_cls_training_epoch = MeanMetricBatch()
-        self.loss_training_epoch = MeanMetricBatch()
-        self.acc_training_epoch = MeanMetricBatch()
+        self.loss_cls_training_epoch = MeanMetricBatch().to(device)
+        self.loss_training_epoch = MeanMetricBatch().to(device)
+        self.acc_training_epoch = MeanMetricBatch().to(device)
 
         # initialise validation metrics
-        self.loss_cls_val = MeanMetricBatch()
-        self.acc_val = MeanMetricBatch()
+        self.loss_cls_val = MeanMetricBatch().to(device)
+        self.acc_val = MeanMetricBatch().to(device)
 
     def on_train_batch_end(
         self,
@@ -267,12 +269,17 @@ class CLMetricsCallback(Callback):
         # set the current task_id again (double checking) from the `CLAlgorithm` object
         self.task_id = pl_module.task_id
 
+        # get the device to put the metrics on the same device
+        device = pl_module.device
+
         # initialise test metrics for current and previous tasks
         self.loss_cls_test = {
-            f"{task_id}": MeanMetricBatch() for task_id in pl_module.seen_task_ids
+            f"{task_id}": MeanMetricBatch().to(device)
+            for task_id in pl_module.seen_task_ids
         }
         self.acc_test = {
-            f"{task_id}": MeanMetricBatch() for task_id in pl_module.seen_task_ids
+            f"{task_id}": MeanMetricBatch().to(device)
+            for task_id in pl_module.seen_task_ids
         }
 
     def on_test_batch_end(
