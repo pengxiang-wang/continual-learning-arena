@@ -109,6 +109,7 @@ class HATMaskMLP(MLP, HATMaskBackbone):
         x = input.view(batch_size, -1)  # flatten before going through MLP
 
         for layer_idx, layer_name in enumerate(self.weighted_layer_names):
+
             x = self.fc[layer_idx](x)  # fully-connected layer first
             x = x * mask[f"fc/{layer_idx}"]  # apply the mask to the parameters second
             if self.activation:

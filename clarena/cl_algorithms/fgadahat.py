@@ -1309,6 +1309,7 @@ class FGAdaHAT(AdaHAT):
         target: Tensor | None,
         batch_idx: int,
         num_batches: int,
+        if_captum: bool = False,
     ) -> Tensor:
         r"""Get the raw neuron-wise importance (before scaling) of a layer of a training step. See $v_l^{t,s}$ in the paper. This method uses the absolute values of [feature ablation](https://link.springer.com/chapter/10.1007/978-3-319-10590-1_53) attribution. We implement this using [Layer Feature Ablation](https://captum.ai/api/layer.html#layer-feature-ablation) in Captum.
 
@@ -1319,34 +1320,125 @@ class FGAdaHAT(AdaHAT):
         - **target** (`Tensor` | `None`): the target batch of the training step.
         - **batch_idx** (`int`): the index of the current batch. This is an argument of the forward function during training.
         - **num_batches** (`int`): the number of batches in the training step. This is an argument of the forward function during training.
+        - **if_captum** (`bool`): whether to use Captum or not. If `True`, we use Captum to calculate the feature ablation. If `False`, we use our implementation. Default is `False`, because our implementation is much faster.
 
         **Returns:**
         - **importance_step_layer** (`Tensor`): the neuron-wise importance of the layer of the training step.
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
-        # initialise the Layer Feature Ablation object
-        layer_feature_ablation = LayerFeatureAblation(
-            forward_func=self.forward, layer=layer
-        )
+        if not if_captum:
+            # 1. Baseline logits (take first element of forward output)
+            baseline_out, _, _ = self.forward(
+                input, "train", batch_idx, num_batches, self.task_id
+            )
+            if target is not None:
+                baseline_scores = baseline_out.gather(1, target.view(-1, 1)).squeeze(1)
+            else:
+                baseline_scores = baseline_out.sum(dim=1)
 
-        self.set_forward_func_return_logits_only(True)
-        # calculate layer attribution of the step
-        attribution = layer_feature_ablation.attribute(
-            inputs=input,
-            layer_baselines=layer_baselines,
-            # target=target, # disable target to enable perturbations_per_eval
-            additional_forward_args=("train", batch_idx, num_batches, self.task_id),
-            perturbations_per_eval=128,  # to accelerate the computation
-        )
-        self.set_forward_func_return_logits_only(False)
+            # 2. Capture layer’s output shape
+            activs = {}
+            handle = layer.register_forward_hook(
+                lambda module, inp, out: activs.setdefault("output", out.detach())
+            )
+            _, _, _ = self.forward(input, "train", batch_idx, num_batches, self.task_id)
+            handle.remove()
+            layer_output = activs["output"]  # shape (B, F, ...)
 
-        attribution_abs_batch_mean = torch.mean(
-            torch.abs(attribution),
-            dim=[
-                i for i in range(attribution.dim()) if i != 1
-            ],  # average the features over batch samples
-        )
+            # 3. Build baseline tensor matching that shape
+            if layer_baselines is None:
+                baseline_tensor = torch.zeros_like(layer_output)
+            elif isinstance(layer_baselines, (int, float)):
+                baseline_tensor = torch.full_like(layer_output, layer_baselines)
+            elif isinstance(layer_baselines, Tensor):
+                if layer_baselines.shape == layer_output.shape:
+                    baseline_tensor = layer_baselines
+                elif layer_baselines.shape == layer_output.shape[1:]:
+                    baseline_tensor = layer_baselines.unsqueeze(0).repeat(
+                        layer_output.size(0), *([1] * layer_baselines.ndim)
+                    )
+                else:
+                    raise ValueError(...)
+            else:
+                raise ValueError(...)
+
+            B, F = layer_output.size(0), layer_output.size(1)
+
+            # 4. Create a “mega-batch” replicating the input F times
+            if isinstance(input, tuple):
+                mega_inputs = tuple(
+                    t.unsqueeze(0).repeat(F, *([1] * t.ndim)).view(-1, *t.shape[1:])
+                    for t in input
+                )
+            else:
+                mega_inputs = (
+                    input.unsqueeze(0)
+                    .repeat(F, *([1] * input.ndim))
+                    .view(-1, *input.shape[1:])
+                )
+
+            # 5. Equally replicate the baseline tensor
+            mega_baseline = (
+                baseline_tensor.unsqueeze(0)
+                .repeat(F, *([1] * baseline_tensor.ndim))
+                .view(-1, *baseline_tensor.shape[1:])
+            )
+
+            # 6. Precompute vectorized indices
+            device = layer_output.device
+            positions = torch.arange(F * B, device=device)  # [0,1,...,F*B-1]
+            feat_idx = torch.arange(F, device=device).repeat_interleave(
+                B
+            )  # [0,0,...,1,1,...,F-1]
+
+            # 7. One hook to zero out each channel slice across the mega-batch
+            def mega_ablate_hook(module, inp, out):
+                out_mod = out.clone()
+                # for each sample in mega-batch, zero its corresponding channel
+                out_mod[positions, feat_idx] = mega_baseline[positions, feat_idx]
+                return out_mod
+
+            h = layer.register_forward_hook(mega_ablate_hook)
+            out_all, _, _ = self.forward(
+                mega_inputs, "train", batch_idx, num_batches, self.task_id
+            )
+            h.remove()
+
+            # 8. Recover scores, reshape [F*B] → [F, B], diff & mean
+            if target is not None:
+                tgt_flat = target.unsqueeze(0).repeat(F, 1).view(-1)
+                scores_all = out_all.gather(1, tgt_flat.view(-1, 1)).squeeze(1)
+            else:
+                scores_all = out_all.sum(dim=1)
+
+            scores_all = scores_all.view(F, B)
+            diffs = torch.abs(baseline_scores.unsqueeze(0) - scores_all)
+            importance_step_layer = diffs.mean(dim=1).detach()  # [F]
+
+            return importance_step_layer
+
+        else:
+            # initialise the Layer Feature Ablation object
+            layer_feature_ablation = LayerFeatureAblation(
+                forward_func=self.forward, layer=layer
+            )
+
+            # calculate layer attribution of the step
+            attribution = layer_feature_ablation.attribute(
+                inputs=input,
+                layer_baselines=layer_baselines,
+                # target=target, # disable target to enable perturbations_per_eval
+                additional_forward_args=("train", batch_idx, num_batches, self.task_id),
+                perturbations_per_eval=128,  # to accelerate the computation
+            )
+
+            attribution_abs_batch_mean = torch.mean(
+                torch.abs(attribution),
+                dim=[
+                    i for i in range(attribution.dim()) if i != 1
+                ],  # average the features over batch samples
+            )
 
         importance_step_layer = attribution_abs_batch_mean
         importance_step_layer = importance_step_layer.detach()
