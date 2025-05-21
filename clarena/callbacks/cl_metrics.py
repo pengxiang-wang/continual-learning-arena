@@ -9,6 +9,7 @@ import os
 from typing import Any
 
 from lightning import Callback, Trainer
+from lightning.pytorch.utilities import rank_zero_only
 
 from clarena.cl_algorithms import CLAlgorithm
 from clarena.utils import MeanMetricBatch, plot, save
@@ -115,6 +116,7 @@ class CLMetricsCallback(Callback):
         self.task_id: int
         r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
 
+    @rank_zero_only
     def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
         r"""Initialise training and validation metrics."""
 
@@ -133,6 +135,7 @@ class CLMetricsCallback(Callback):
         self.loss_cls_val = MeanMetricBatch().to(device)
         self.acc_val = MeanMetricBatch().to(device)
 
+    @rank_zero_only
     def on_train_batch_end(
         self,
         trainer: Trainer,
@@ -186,6 +189,7 @@ class CLMetricsCallback(Callback):
             prog_bar=True,
         )
 
+    @rank_zero_only
     def on_train_epoch_end(
         self,
         trainer: Trainer,
@@ -212,6 +216,7 @@ class CLMetricsCallback(Callback):
         self.loss_training_epoch.reset()
         self.acc_training_epoch.reset()
 
+    @rank_zero_only
     def on_validation_batch_end(
         self,
         trainer: Trainer,
@@ -238,6 +243,7 @@ class CLMetricsCallback(Callback):
         self.loss_cls_val.update(loss_cls_batch, batch_size)
         self.acc_val.update(acc_batch, batch_size)
 
+    @rank_zero_only
     def on_validation_epoch_end(
         self,
         trainer: Trainer,
@@ -259,6 +265,7 @@ class CLMetricsCallback(Callback):
             prog_bar=True,
         )
 
+    @rank_zero_only
     def on_test_start(
         self,
         trainer: Trainer,
@@ -282,6 +289,7 @@ class CLMetricsCallback(Callback):
             for task_id in pl_module.seen_task_ids
         }
 
+    @rank_zero_only
     def on_test_batch_end(
         self,
         trainer: Trainer,
@@ -312,6 +320,7 @@ class CLMetricsCallback(Callback):
         self.acc_test[f"{test_task_id}"].update(acc_batch, batch_size)
         self.loss_cls_test[f"{test_task_id}"].update(loss_cls_batch, batch_size)
 
+    @rank_zero_only
     def on_test_epoch_end(
         self,
         trainer: Trainer,

@@ -9,6 +9,7 @@ import os
 from typing import Any
 
 from lightning import Callback, Trainer
+from lightning.pytorch.utilities import rank_zero_only
 
 from clarena.cl_algorithms import HAT, CLAlgorithm
 from clarena.utils import plot
@@ -101,6 +102,7 @@ class HATMetricsCallback(Callback):
                 "The `CLAlgorithm` should be `HAT` or `AdaHAT` to apply `HATMetricsCallback`!"
             )
 
+    @rank_zero_only
     def on_train_batch_end(
         self,
         trainer: Trainer,
@@ -161,6 +163,7 @@ class HATMetricsCallback(Callback):
             f"task_{self.task_id}/train/network_capacity", capacity, prog_bar=True
         )
 
+    @rank_zero_only
     def on_test_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
         r"""Plot test mask and cumulative mask figures."""
 

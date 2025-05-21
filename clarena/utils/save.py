@@ -41,7 +41,7 @@ def update_test_acc_to_csv(
     }  # construct the first column
 
     # construct the columns and calculate the average accuracy over tasks at the same time
-    average_accuracy_over_tasks = MeanMetric().to(device=test_acc_metric["0"].device)
+    average_accuracy_over_tasks = MeanMetric().to(device=test_acc_metric["1"].device)
     for task_id in seen_task_ids:
         acc = test_acc_metric[f"{task_id}"].compute().item()
         new_line[f"test_on_task_{task_id}"] = acc
@@ -92,7 +92,7 @@ def update_test_loss_cls_to_csv(
 
     # write to the columns and calculate the average classification loss over tasks at the same time
     average_classification_loss_over_tasks = MeanMetric().to(
-        device=test_loss_cls_metric["0"].device
+        device=test_loss_cls_metric["1"].device
     )
     for task_id in seen_task_ids:
         # task_id = dataloader_idx
@@ -139,7 +139,7 @@ def save_joint_test_acc_to_csv(
     new_line = {}
 
     # construct the columns and calculate the average accuracy over tasks at the same time
-    average_accuracy_over_tasks = MeanMetric().to(device=test_acc_metric["0"].device)
+    average_accuracy_over_tasks = MeanMetric().to(device=test_acc_metric["1"].device)
     for task_id in all_task_ids:
         acc = test_acc_metric[f"{task_id}"].compute().item()
         new_line[f"test_on_task_{task_id}"] = acc
@@ -171,7 +171,7 @@ def save_joint_test_loss_cls_to_csv(
 
     # construct the columns and calculate the average classification loss over tasks at the same time
     average_classification_loss_over_tasks = MeanMetric().to(
-        device=test_loss_cls_metric["0"].device
+        device=test_loss_cls_metric["1"].device
     )
     for task_id in all_task_ids:
         acc = test_loss_cls_metric[f"{task_id}"].compute().item()
@@ -212,7 +212,7 @@ def update_unlearning_test_distance_to_csv(
 
     # write to the columns and calculate the average distribution distance over tasks at the same time
     average_distribution_distance_over_unlearned_tasks = MeanMetric().to(
-        distance_metric["0"].device
+        distance_metric["1"].device
     )
     for task_id in unlearned_task_ids:
         loss_cls = distance_metric[f"{task_id}"].compute().item()
