@@ -1469,7 +1469,7 @@ class FGAdaHAT(AdaHAT):
         """
         layer = self.backbone.get_layer_by_name(layer_name)
 
-        # initialise the Layer DeepLift object
+        # initialise the Layer LRP object
         layer_lrp = LayerLRP(model=self, layer=layer)
 
         # set model to evaluation mode to prevent updating the model parameters

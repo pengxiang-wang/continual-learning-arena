@@ -14,9 +14,7 @@ __all__ = [
 
 import ast
 import logging
-import types
 from abc import abstractmethod
-from copy import deepcopy
 from typing import Any, Callable
 
 import torch
@@ -196,6 +194,16 @@ class CLDataset(LightningDataModule):
             pylogger.debug(
                 "Train and validation dataset for task %d are ready.", self.task_id
             )
+            pylogger.info(
+                "Train dataset for task %d size: %d",
+                self.task_id,
+                len(self.dataset_train_t),
+            )
+            pylogger.info(
+                "Validation dataset for task %d size: %d",
+                self.task_id,
+                len(self.dataset_val_t),
+            )
 
         if stage == "test":
 
@@ -204,6 +212,11 @@ class CLDataset(LightningDataModule):
             self.dataset_test[f"{self.task_id}"] = self.test_dataset()
 
             pylogger.debug("Test dataset for task %d are ready.", self.task_id)
+            pylogger.info(
+                "Test dataset for task %d size: %d",
+                self.task_id,
+                len(self.dataset_test[f"{self.task_id}"]),
+            )
 
     def setup_task_id(self, task_id: int) -> None:
         r"""Set up which task's dataset the CL experiment is on. This must be done before `setup()` method is called.
@@ -363,6 +376,14 @@ class CLDataset(LightningDataModule):
             )
             for task_id, dataset_test_t in self.dataset_test.items()
         }
+
+    def __len__(self) -> int:
+        r"""Get the number of tasks in the dataset.
+
+        **Returns:**
+        - **num_tasks** (`int`): the number of tasks in the dataset.
+        """
+        return self.num_tasks
 
 
 class CLPermutedDataset(CLDataset):
