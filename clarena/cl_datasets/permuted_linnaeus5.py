@@ -11,21 +11,22 @@ import torch
 from torch.utils.data import Dataset, random_split
 from torchvision.transforms import transforms
 
-from clarena.cl_datasets import CLClassMapping, CLPermutedDataset
-from clarena.cl_datasets.original import (
+from clarena.cl_datasets import CLPermutedDataset
+from clarena.stl_datasets.raw import (
     Linnaeus5,
     Linnaeus5_32,
     Linnaeus5_64,
     Linnaeus5_128,
     Linnaeus5_256,
 )
+from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 class PermutedLinnaeus5(CLPermutedDataset):
-    r"""Permuted Linnaeus 5 dataset. The [original Linnaeus 5 dataset](https://chaladze.com/l5/) is a collection of flower images across 5 classes. It includes four versions with resized resolutions: 256x256, 128x128, 64x64, and 32x32."""
+    r"""Permuted Linnaeus 5 dataset. The [Linnaeus 5 dataset](https://chaladze.com/l5/) is a collection of flower images. It consists of 8,000 images of 5 flower species (classes). It provides 256x256, 128x128, 64x64, and 32x32 color images. We support all of them in Permuted Linnaeus 5."""
 
     def __init__(
         self,
@@ -33,39 +34,46 @@ class PermutedLinnaeus5(CLPermutedDataset):
         resolution: str,
         num_tasks: int,
         validation_percentage: float,
-        batch_size: int | list[int] = 1,
-        num_workers: int | list[int] = 0,
+        batch_size: int | dict[int, int] = 1,
+        num_workers: int | dict[int, int] = 0,
         custom_transforms: (
             Callable
             | transforms.Compose
             | None
-            | list[Callable | transforms.Compose | None]
+            | dict[int, Callable | transforms.Compose | None]
         ) = None,
-        repeat_channels: int | None | list[int | None] = None,
-        to_tensor: bool | list[bool] = True,
-        resize: tuple[int, int] | None | list[tuple[int, int] | None] = None,
+        repeat_channels: int | None | dict[int, int | None] = None,
+        to_tensor: bool | dict[int, bool] = True,
+        resize: tuple[int, int] | None | dict[int, tuple[int, int] | None] = None,
         permutation_mode: str = "first_channel_only",
-        permutation_seeds: list[int] | None = None,
+        permutation_seeds: dict[int, int] | None = None,
     ) -> None:
-        r"""Initialise the Permuted Linnaeus 5 dataset object providing the root where data files live.
+        r"""Initialize the dataset object providing the root where data files live.
 
         **Args:**
         - **root** (`str`): the root directory where the original Linnaeus 5 data 'Linnaeus5/' live.
         - **resolution** (`str`): Image resolution, one of ["256", "128", "64", "32"].
-        - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
-        - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
-        - **batch_size** (`int` | `list[int]`): The batch size in train, val, test dataloader. If `list[str]`, it should be a list of integers, each integer is the batch size for each task.
-        - **num_workers** (`int` | `list[int]`): the number of workers for dataloaders. If `list[str]`, it should be a list of integers, each integer is the num of workers for each task.
-        - **custom_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included. If it is a list, each item is the custom transforms for each task.
-        - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
-        - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
-        - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
+        - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset. This decides the valid task IDs from 1 to `num_tasks`.
+        - **validation_percentage** (`float`): the percentage to randomly split some training data into validation data.
+        - **batch_size** (`int` | `dict[int, int]`): the batch size for train, val, and test dataloaders.
+        If it is a dict, the keys are task IDs and the values are the batch sizes for each task. If it is an `int`, it is the same batch size for all tasks.
+        - **num_workers** (`int` | `dict[int, int]`): the number of workers for dataloaders.
+        If it is a dict, the keys are task IDs and the values are the number of workers for each task. If it is an `int`, it is the same number of workers for all tasks.
+        - **custom_transforms** (`transform` or `transforms.Compose` or `None` or dict of them): the custom transforms to apply ONLY to the TRAIN dataset. Can be a single transform, composed transforms, or no transform. `ToTensor()`, normalization, permute, and so on are not included.
+        If it is a dict, the keys are task IDs and the values are the custom transforms for each task. If it is a single transform or composed transforms, it is applied to all tasks. If it is `None`, no custom transforms are applied.
+        - **repeat_channels** (`int` | `None` | dict of them): the number of channels to repeat for each task. Default is `None`, which means no repeat.
+        If it is a dict, the keys are task IDs and the values are the number of channels to repeat for each task. If it is an `int`, it is the same number of channels to repeat for all tasks. If it is `None`, no repeat is applied.
+        - **to_tensor** (`bool` | `dict[int, bool]`): whether to include the `ToTensor()` transform. Default is `True`.
+        If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.
+        - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.
+        If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.
         - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
             3. 'first_channel_only': permute only the first channel.
-        - **permutation_seeds** (`list[int]` or `None`): the seeds for permutation operations used to construct tasks. Make sure it has the same number of seeds as `num_tasks`. Default is None, which creates a list of seeds from 0 to `num_tasks`-1.
+        - **permutation_seeds** (`dict[int, int]` | `None`): the dict of seeds for permutation operations used to construct each task. Keys are task IDs and the values are permutation seeds for each task. Default is `None`, which creates a dict of seeds from 0 to `num_tasks`-1.
         """
+
         if resolution == "32":
             self.original_dataset_python_class: type[Dataset] = Linnaeus5_32
         elif resolution == "64":
@@ -76,8 +84,7 @@ class PermutedLinnaeus5(CLPermutedDataset):
             self.original_dataset_python_class: type[Dataset] = Linnaeus5_256
             r"""The original dataset class."""
 
-        CLPermutedDataset.__init__(
-            self,
+        super().__init__(
             root=root,
             num_tasks=num_tasks,
             batch_size=batch_size,
@@ -94,7 +101,7 @@ class PermutedLinnaeus5(CLPermutedDataset):
         r"""Store the resolution of the original dataset."""
 
         self.validation_percentage: float = validation_percentage
-        r"""Store the percentage to randomly split some of the training data into validation data."""
+        r"""The percentage to randomly split some training data into validation data."""
 
     def prepare_data(self) -> None:
         r"""Download the original Linnaeus 5 dataset if haven't."""
@@ -132,7 +139,7 @@ class PermutedLinnaeus5(CLPermutedDataset):
             resolution=self.resolution,
             train=True,
             transform=self.train_and_val_transforms(),
-            target_transform=CLClassMapping(self.cl_class_map_t),
+            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             download=False,
         )
 
@@ -155,7 +162,7 @@ class PermutedLinnaeus5(CLPermutedDataset):
             resolution=self.resolution,
             train=False,
             transform=self.test_transforms(),
-            target_transform=CLClassMapping(self.cl_class_map_t),
+            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             download=False,
         )
 

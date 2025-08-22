@@ -37,8 +37,8 @@ from torchvision.datasets import (
 )
 from torchvision.datasets.vision import VisionDataset
 
-from clarena.cl_datasets import CLClassMapping, CLCombinedDataset
-from clarena.cl_datasets.original import (
+from clarena.cl_datasets import CLCombinedDataset
+from clarena.stl_datasets.raw import (
     CUB2002011,
     ArabicHandwrittenDigits,
     EMNISTBalanced,
@@ -66,6 +66,7 @@ from clarena.cl_datasets.original import (
     SignLanguageMNIST,
     TrafficSignsFromHAT,
 )
+from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -145,7 +146,7 @@ class Combined(CLCombinedDataset):
         to_tensor: bool | list[bool] = True,
         resize: tuple[int, int] | None | list[tuple[int, int] | None] = None,
     ) -> None:
-        r"""Initialise the Combined Torchvision dataset object providing the root where data files live.
+        r"""Initialize the Combined Torchvision dataset object providing the root where data files live.
 
         **Args:**
         - **datasets** (`list[str]`): the list of dataset class paths for each task. Each element in the list must be a string referring to a valid PyTorch Dataset class. It needs to be one in `self.AVAILABLE_DATASETS`.
@@ -154,7 +155,7 @@ class Combined(CLCombinedDataset):
         - **test_percentage** (`float`): the percentage to randomly split some of the entire data into test data (only if test set is not provided in the dataset).
         - **batch_size** (`int` | `list[int]`): The batch size in train, val, test dataloader. If `list[str]`, it should be a list of integers, each integer is the batch size for each task.
         - **num_workers** (`int` | `list[int]`): the number of workers for dataloaders. If `list[str]`, it should be a list of integers, each integer is the num of workers for each task.
-        - **custom_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included. If it is a list, each item is the custom transforms for each task.
+        - **custom_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalize, permute and so on are not included. If it is a list, each item is the custom transforms for each task.
         - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
         - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
@@ -171,10 +172,10 @@ class Combined(CLCombinedDataset):
             resize=resize,
         )
 
-        self.validation_percentage: float = validation_percentage
-        """Store the percentage to randomly split some of the training data into validation data."""
         self.test_percentage: float = test_percentage
-        """Store the percentage to randomly split some of the entire data into test data."""
+        """The percentage to randomly split some data into test data."""
+        self.validation_percentage: float = validation_percentage
+        """The percentage to randomly split some training data into validation data."""
 
     def prepare_data(self) -> None:
         r"""Download the original datasets if haven't."""
@@ -405,7 +406,7 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 train=True,
                 transform=self.train_and_val_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             return random_split(
@@ -426,7 +427,7 @@ class Combined(CLCombinedDataset):
             dataset_all = self.original_dataset_python_class_t(
                 root=self.root_t,
                 transform=self.train_and_val_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             dataset_train_and_val, _ = random_split(
@@ -453,13 +454,13 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="train",
                 transform=self.train_and_val_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
             dataset_val = self.original_dataset_python_class_t(
                 root=self.root_t,
                 split="valid",
                 transform=self.train_and_val_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             return dataset_train, dataset_val
@@ -478,14 +479,14 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="train",
                 transform=self.train_and_val_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             dataset_val = self.original_dataset_python_class_t(
                 root=self.root_t,
                 split="val",
                 transform=self.train_and_val_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             return dataset_train, dataset_val
@@ -504,7 +505,7 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="train",
                 transform=self.train_and_val_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             return random_split(
@@ -522,7 +523,7 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="trainval",
                 transform=self.train_and_val_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             return random_split(
@@ -540,7 +541,7 @@ class Combined(CLCombinedDataset):
                 split="train",
                 target_type="identity",
                 transform=self.train_and_val_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             dataset_val = self.original_dataset_python_class_t(
@@ -548,7 +549,7 @@ class Combined(CLCombinedDataset):
                 split="valid",
                 target_type="identity",
                 transform=self.train_and_val_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             return dataset_train, dataset_val
@@ -595,7 +596,7 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 train=False,
                 transform=self.test_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             return dataset_test
@@ -623,7 +624,7 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="test",
                 transform=self.test_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             return dataset_test
@@ -640,7 +641,7 @@ class Combined(CLCombinedDataset):
             dataset_all = self.original_dataset_python_class_t(
                 root=self.root_t,
                 transform=self.train_and_val_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             _, dataset_test = random_split(
@@ -658,7 +659,7 @@ class Combined(CLCombinedDataset):
                 split="test",
                 target_type="identity",
                 transform=self.test_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             return dataset_test
@@ -669,7 +670,7 @@ class Combined(CLCombinedDataset):
                 root=self.root_t,
                 split="val",
                 transform=self.test_transforms(),
-                target_transform=CLClassMapping(self.cl_class_map_t),
+                target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             )
 
             return dataset_test

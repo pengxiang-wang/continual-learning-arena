@@ -11,7 +11,29 @@
     <style>/*! theme.css */:root{--pdoc-background:#fff;}.pdoc{--text:#212529;--muted:#6c757d;--link:#3660a5;--link-hover:#1659c5;--code:#f8f8f8;--active:#fff598;--accent:#eee;--accent2:#c1c1c1;--nav-hover:rgba(255, 255, 255, 0.5);--name:#0066BB;--def:#008800;--annotation:#007020;}</style>
     <style>/*! layout.css */html, body{width:100%;height:100%;}html, main{scroll-behavior:smooth;}body{background-color:var(--pdoc-background);}@media (max-width:769px){#navtoggle{cursor:pointer;position:absolute;width:50px;height:40px;top:1rem;right:1rem;border-color:var(--text);color:var(--text);display:flex;opacity:0.8;z-index:999;}#navtoggle:hover{opacity:1;}#togglestate + div{display:none;}#togglestate:checked + div{display:inherit;}main, header{padding:2rem 3vw;}header + main{margin-top:-3rem;}.git-button{display:none !important;}nav input[type="search"]{max-width:77%;}nav input[type="search"]:first-child{margin-top:-6px;}nav input[type="search"]:valid ~ *{display:none !important;}}@media (min-width:770px){:root{--sidebar-width:clamp(12.5rem, 28vw, 22rem);}nav{position:fixed;overflow:auto;height:100vh;width:var(--sidebar-width);}main, header{padding:3rem 2rem 3rem calc(var(--sidebar-width) + 3rem);width:calc(54rem + var(--sidebar-width));max-width:100%;}header + main{margin-top:-4rem;}#navtoggle{display:none;}}#togglestate{position:absolute;height:0;opacity:0;}nav.pdoc{--pad:clamp(0.5rem, 2vw, 1.75rem);--indent:1.5rem;background-color:var(--accent);border-right:1px solid var(--accent2);box-shadow:0 0 20px rgba(50, 50, 50, .2) inset;padding:0 0 0 var(--pad);overflow-wrap:anywhere;scrollbar-width:thin; scrollbar-color:var(--accent2) transparent; z-index:1}nav.pdoc::-webkit-scrollbar{width:.4rem; }nav.pdoc::-webkit-scrollbar-thumb{background-color:var(--accent2); }nav.pdoc > div{padding:var(--pad) 0;}nav.pdoc .module-list-button{display:inline-flex;align-items:center;color:var(--text);border-color:var(--muted);margin-bottom:1rem;}nav.pdoc .module-list-button:hover{border-color:var(--text);}nav.pdoc input[type=search]{display:block;outline-offset:0;width:calc(100% - var(--pad));}nav.pdoc .logo{max-width:calc(100% - var(--pad));max-height:35vh;display:block;margin:0 auto 1rem;transform:translate(calc(-.5 * var(--pad)), 0);}nav.pdoc ul{list-style:none;padding-left:0;}nav.pdoc > div > ul{margin-left:calc(0px - var(--pad));}nav.pdoc li a{padding:.2rem 0 .2rem calc(var(--pad) + var(--indent));}nav.pdoc > div > ul > li > a{padding-left:var(--pad);}nav.pdoc li{transition:all 100ms;}nav.pdoc li:hover{background-color:var(--nav-hover);}nav.pdoc a, nav.pdoc a:hover{color:var(--text);}nav.pdoc a{display:block;}nav.pdoc > h2:first-of-type{margin-top:1.5rem;}nav.pdoc .class:before{content:"class ";color:var(--muted);}nav.pdoc .function:after{content:"()";color:var(--muted);}nav.pdoc footer:before{content:"";display:block;width:calc(100% - var(--pad));border-top:solid var(--accent2) 1px;margin-top:1.5rem;padding-top:.5rem;}nav.pdoc footer{font-size:small;}</style>
     <style>/*! content.css */.pdoc{color:var(--text);box-sizing:border-box;line-height:1.5;background:none;}.pdoc .pdoc-button{cursor:pointer;display:inline-block;border:solid black 1px;border-radius:2px;font-size:.75rem;padding:calc(0.5em - 1px) 1em;transition:100ms all;}.pdoc .alert{padding:1rem 1rem 1rem calc(1.5rem + 24px);border:1px solid transparent;border-radius:.25rem;background-repeat:no-repeat;background-position:.75rem center;margin-bottom:1rem;}.pdoc .alert > em{display:none;}.pdoc .alert > *:last-child{margin-bottom:0;}.pdoc .alert.note {color:#084298;background-color:#cfe2ff;border-color:#b6d4fe;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%23084298%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M8%2016A8%208%200%201%200%208%200a8%208%200%200%200%200%2016zm.93-9.412-1%204.705c-.07.34.029.533.304.533.194%200%20.487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703%200-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381%202.29-.287zM8%205.5a1%201%200%201%201%200-2%201%201%200%200%201%200%202z%22/%3E%3C/svg%3E");}.pdoc .alert.warning{color:#664d03;background-color:#fff3cd;border-color:#ffecb5;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%23664d03%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M8.982%201.566a1.13%201.13%200%200%200-1.96%200L.165%2013.233c-.457.778.091%201.767.98%201.767h13.713c.889%200%201.438-.99.98-1.767L8.982%201.566zM8%205c.535%200%20.954.462.9.995l-.35%203.507a.552.552%200%200%201-1.1%200L7.1%205.995A.905.905%200%200%201%208%205zm.002%206a1%201%200%201%201%200%202%201%201%200%200%201%200-2z%22/%3E%3C/svg%3E");}.pdoc .alert.danger{color:#842029;background-color:#f8d7da;border-color:#f5c2c7;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%23842029%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M5.52.359A.5.5%200%200%201%206%200h4a.5.5%200%200%201%20.474.658L8.694%206H12.5a.5.5%200%200%201%20.395.807l-7%209a.5.5%200%200%201-.873-.454L6.823%209.5H3.5a.5.5%200%200%201-.48-.641l2.5-8.5z%22/%3E%3C/svg%3E");}.pdoc .visually-hidden{position:absolute !important;width:1px !important;height:1px !important;padding:0 !important;margin:-1px !important;overflow:hidden !important;clip:rect(0, 0, 0, 0) !important;white-space:nowrap !important;border:0 !important;}.pdoc h1, .pdoc h2, .pdoc h3{font-weight:300;margin:.3em 0;padding:.2em 0;}.pdoc > section:not(.module-info) h1{font-size:1.5rem;font-weight:500;}.pdoc > section:not(.module-info) h2{font-size:1.4rem;font-weight:500;}.pdoc > section:not(.module-info) h3{font-size:1.3rem;font-weight:500;}.pdoc > section:not(.module-info) h4{font-size:1.2rem;}.pdoc > section:not(.module-info) h5{font-size:1.1rem;}.pdoc a{text-decoration:none;color:var(--link);}.pdoc a:hover{color:var(--link-hover);}.pdoc blockquote{margin-left:2rem;}.pdoc pre{border-top:1px solid var(--accent2);border-bottom:1px solid var(--accent2);margin-top:0;margin-bottom:1em;padding:.5rem 0 .5rem .5rem;overflow-x:auto;background-color:var(--code);}.pdoc code{color:var(--text);padding:.2em .4em;margin:0;font-size:85%;background-color:var(--accent);border-radius:6px;}.pdoc a > code{color:inherit;}.pdoc pre > code{display:inline-block;font-size:inherit;background:none;border:none;padding:0;}.pdoc > section:not(.module-info){margin-bottom:1.5rem;}.pdoc .modulename{margin-top:0;font-weight:bold;}.pdoc .modulename a{color:var(--link);transition:100ms all;}.pdoc .git-button{float:right;border:solid var(--link) 1px;}.pdoc .git-button:hover{background-color:var(--link);color:var(--pdoc-background);}.view-source-toggle-state,.view-source-toggle-state ~ .pdoc-code{display:none;}.view-source-toggle-state:checked ~ .pdoc-code{display:block;}.view-source-button{display:inline-block;float:right;font-size:.75rem;line-height:1.5rem;color:var(--muted);padding:0 .4rem 0 1.3rem;cursor:pointer;text-indent:-2px;}.view-source-button > span{visibility:hidden;}.module-info .view-source-button{float:none;display:flex;justify-content:flex-end;margin:-1.2rem .4rem -.2rem 0;}.view-source-button::before{position:absolute;content:"View Source";display:list-item;list-style-type:disclosure-closed;}.view-source-toggle-state:checked ~ .attr .view-source-button::before,.view-source-toggle-state:checked ~ .view-source-button::before{list-style-type:disclosure-open;}.pdoc .docstring{margin-bottom:1.5rem;}.pdoc section:not(.module-info) .docstring{margin-left:clamp(0rem, 5vw - 2rem, 1rem);}.pdoc .docstring .pdoc-code{margin-left:1em;margin-right:1em;}.pdoc h1:target,.pdoc h2:target,.pdoc h3:target,.pdoc h4:target,.pdoc h5:target,.pdoc h6:target,.pdoc .pdoc-code > pre > span:target{background-color:var(--active);box-shadow:-1rem 0 0 0 var(--active);}.pdoc .pdoc-code > pre > span:target{display:block;}.pdoc div:target > .attr,.pdoc section:target > .attr,.pdoc dd:target > a{background-color:var(--active);}.pdoc *{scroll-margin:2rem;}.pdoc .pdoc-code .linenos{user-select:none;}.pdoc .attr:hover{filter:contrast(0.95);}.pdoc section, .pdoc .classattr{position:relative;}.pdoc .headerlink{--width:clamp(1rem, 3vw, 2rem);position:absolute;top:0;left:calc(0rem - var(--width));transition:all 100ms ease-in-out;opacity:0;}.pdoc .headerlink::before{content:"#";display:block;text-align:center;width:var(--width);height:2.3rem;line-height:2.3rem;font-size:1.5rem;}.pdoc .attr:hover ~ .headerlink,.pdoc *:target > .headerlink,.pdoc .headerlink:hover{opacity:1;}.pdoc .attr{display:block;margin:.5rem 0 .5rem;padding:.4rem .4rem .4rem 1rem;background-color:var(--accent);overflow-x:auto;}.pdoc .classattr{margin-left:2rem;}.pdoc .decorator-deprecated{color:#842029;}.pdoc .decorator-deprecated ~ span{filter:grayscale(1) opacity(0.8);}.pdoc .name{color:var(--name);font-weight:bold;}.pdoc .def{color:var(--def);font-weight:bold;}.pdoc .signature{background-color:transparent;}.pdoc .param, .pdoc .return-annotation{white-space:pre;}.pdoc .signature.multiline .param{display:block;}.pdoc .signature.condensed .param{display:inline-block;}.pdoc .annotation{color:var(--annotation);}.pdoc .view-value-toggle-state,.pdoc .view-value-toggle-state ~ .default_value{display:none;}.pdoc .view-value-toggle-state:checked ~ .default_value{display:inherit;}.pdoc .view-value-button{font-size:.5rem;vertical-align:middle;border-style:dashed;margin-top:-0.1rem;}.pdoc .view-value-button:hover{background:white;}.pdoc .view-value-button::before{content:"show";text-align:center;width:2.2em;display:inline-block;}.pdoc .view-value-toggle-state:checked ~ .view-value-button::before{content:"hide";}.pdoc .inherited{margin-left:2rem;}.pdoc .inherited dt{font-weight:700;}.pdoc .inherited dt, .pdoc .inherited dd{display:inline;margin-left:0;margin-bottom:.5rem;}.pdoc .inherited dd:not(:last-child):after{content:", ";}.pdoc .inherited .class:before{content:"class ";}.pdoc .inherited .function a:after{content:"()";}.pdoc .search-result .docstring{overflow:auto;max-height:25vh;}.pdoc .search-result.focused > .attr{background-color:var(--active);}.pdoc .attribution{margin-top:2rem;display:block;opacity:0.5;transition:all 200ms;filter:grayscale(100%);}.pdoc .attribution:hover{opacity:1;filter:grayscale(0%);}.pdoc .attribution img{margin-left:5px;height:35px;vertical-align:middle;width:70px;transition:all 200ms;}.pdoc table{display:block;width:max-content;max-width:100%;overflow:auto;margin-bottom:1rem;}.pdoc table th{font-weight:600;}.pdoc table th, .pdoc table td{padding:6px 13px;border:1px solid var(--accent2);}</style>
-    <style>/*! custom.css */</style></head>
+    <style>/*! custom.css */</style><script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']]
+        }
+    };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>
+    /* Re-invoke MathJax when DOM content changes, for example during search. */
+    document.addEventListener("DOMContentLoaded", () => {
+        new MutationObserver(() => MathJax.typeset()).observe(
+            document.querySelector("main.pdoc").parentNode,
+            {childList: true}
+        );
+    })
+</script>
+<style>
+    mjx-container {
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+</style></head>
 <body>
     <nav class="pdoc">
         <label id="navtoggle" for="togglestate" class="pdoc-button"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><path stroke-linecap='round' stroke="currentColor" stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/></svg></label>
@@ -34,15 +56,19 @@
 
             <h2>Submodules</h2>
             <ul>
-                    <li><a href="cl_algorithms/regularisers.html">regularisers</a></li>
+                    <li><a href="cl_algorithms/regularizers.html">regularizers</a></li>
                     <li><a href="cl_algorithms/finetuning.html">finetuning</a></li>
+                    <li><a href="cl_algorithms/independent.html">independent</a></li>
                     <li><a href="cl_algorithms/fix.html">fix</a></li>
+                    <li><a href="cl_algorithms/random.html">random</a></li>
                     <li><a href="cl_algorithms/lwf.html">lwf</a></li>
                     <li><a href="cl_algorithms/ewc.html">ewc</a></li>
-                    <li><a href="cl_algorithms/hat.html">hat</a></li>
                     <li><a href="cl_algorithms/cbp.html">cbp</a></li>
+                    <li><a href="cl_algorithms/hat.html">hat</a></li>
                     <li><a href="cl_algorithms/adahat.html">adahat</a></li>
-                    <li><a href="cl_algorithms/cbphat.html">cbphat</a></li>
+                    <li><a href="cl_algorithms/fgadahat.html">fgadahat</a></li>
+                    <li><a href="cl_algorithms/wsn.html">wsn</a></li>
+                    <li><a href="cl_algorithms/nispa.html">nispa</a></li>
             </ul>
 
             <h2>API Documentation</h2>
@@ -60,13 +86,22 @@
                                 <a class="variable" href="#CLAlgorithm.heads">heads</a>
                         </li>
                         <li>
-                                <a class="variable" href="#CLAlgorithm.optimizer">optimizer</a>
+                                <a class="variable" href="#CLAlgorithm.optimizer_t">optimizer_t</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#CLAlgorithm.lr_scheduler_t">lr_scheduler_t</a>
                         </li>
                         <li>
                                 <a class="variable" href="#CLAlgorithm.criterion">criterion</a>
                         </li>
                         <li>
+                                <a class="variable" href="#CLAlgorithm.if_forward_func_return_logits_only">if_forward_func_return_logits_only</a>
+                        </li>
+                        <li>
                                 <a class="variable" href="#CLAlgorithm.task_id">task_id</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#CLAlgorithm.processed_task_ids">processed_task_ids</a>
                         </li>
                         <li>
                                 <a class="function" href="#CLAlgorithm.sanity_check">sanity_check</a>
@@ -75,7 +110,43 @@
                                 <a class="function" href="#CLAlgorithm.setup_task_id">setup_task_id</a>
                         </li>
                         <li>
+                                <a class="function" href="#CLAlgorithm.get_test_task_id_from_dataloader_idx">get_test_task_id_from_dataloader_idx</a>
+                        </li>
+                        <li>
+                                <a class="function" href="#CLAlgorithm.set_forward_func_return_logits_only">set_forward_func_return_logits_only</a>
+                        </li>
+                        <li>
+                                <a class="function" href="#CLAlgorithm.preceding_layer">preceding_layer</a>
+                        </li>
+                        <li>
+                                <a class="function" href="#CLAlgorithm.next_layer">next_layer</a>
+                        </li>
+                        <li>
+                                <a class="function" href="#CLAlgorithm.forward">forward</a>
+                        </li>
+                        <li>
                                 <a class="function" href="#CLAlgorithm.configure_optimizers">configure_optimizers</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#UnlearnableCLAlgorithm">UnlearnableCLAlgorithm</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="function" href="#UnlearnableCLAlgorithm.__init__">UnlearnableCLAlgorithm</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#UnlearnableCLAlgorithm.unlearning_task_ids">unlearning_task_ids</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#UnlearnableCLAlgorithm.unlearned_task_ids">unlearned_task_ids</a>
+                        </li>
+                        <li>
+                                <a class="function" href="#UnlearnableCLAlgorithm.sanity_check">sanity_check</a>
+                        </li>
+                        <li>
+                                <a class="function" href="#UnlearnableCLAlgorithm.aggregated_backbone_output">aggregated_backbone_output</a>
                         </li>
                 </ul>
 
@@ -98,17 +169,17 @@
 
                         <div class="docstring"><h1 id="continual-learning-algorithms">Continual Learning Algorithms</h1>
 
-<p>This submodule provides the <strong>continual learning algorithms</strong> in CLArena. </p>
-
-<p>Please note that this is an API documantation. Please refer to the main documentation pages for more information about the backbone networks and how to configure and implement them:</p>
-
-<ul>
-<li><a href="https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiment/cl-algorithm"><strong>Configure CL Algorithm</strong></a></li>
-<li><a href="https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/cl-algorithm"><strong>Implement Your CL Algorithm Class</strong></a></li>
-<li><a href="https://pengxiang-wang.com/posts/continual-learning-beginners-guide#sec-methodology"><strong>A Beginners' Guide to Continual Learning (Methodology Overview)</strong></a></li>
-</ul>
+<p>This submodule provides the <strong>continual learning algorithms</strong> in CLArena.</p>
 
 <p>The algorithms are implemented as subclasses of <code><a href="#CLAlgorithm">CLAlgorithm</a></code>.</p>
+
+<p>Please note that this is an API documentation. Please refer to the main documentation pages for more information about and how to configure and implement CL algorithms:</p>
+
+<ul>
+<li><a href="https://pengxiang-wang.com/projects/continual-learning-arena/docs/continual-learning/configure-main-experiment/cl-algorithm"><strong>Configure CL Algorithm (CL Main)</strong></a></li>
+<li><a href="https://pengxiang-wang.com/projects/continual-learning-arena/docs/custom-implementation/cl-algorithm"><strong>Implement Custom CL Algorithm</strong></a></li>
+<li><a href="https://pengxiang-wang.com/posts/continual-learning-beginners-guide#sec-methodology"><strong>A Beginners' Guide to Continual Learning (Methodology Overview)</strong></a></li>
+</ul>
 </div>
 
                         <input id="mod-cl_algorithms-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
@@ -119,46 +190,55 @@
 </span><span id="L-2"><a href="#L-2"><span class="linenos"> 2</span></a>
 </span><span id="L-3"><a href="#L-3"><span class="linenos"> 3</span></a><span class="sd"># Continual Learning Algorithms</span>
 </span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a>
-</span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a><span class="sd">This submodule provides the **continual learning algorithms** in CLArena. </span>
+</span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a><span class="sd">This submodule provides the **continual learning algorithms** in CLArena.</span>
 </span><span id="L-6"><a href="#L-6"><span class="linenos"> 6</span></a>
-</span><span id="L-7"><a href="#L-7"><span class="linenos"> 7</span></a><span class="sd">Please note that this is an API documantation. Please refer to the main documentation pages for more information about the backbone networks and how to configure and implement them:</span>
+</span><span id="L-7"><a href="#L-7"><span class="linenos"> 7</span></a><span class="sd">The algorithms are implemented as subclasses of `CLAlgorithm`.</span>
 </span><span id="L-8"><a href="#L-8"><span class="linenos"> 8</span></a>
-</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a><span class="sd">- [**Configure CL Algorithm**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiment/cl-algorithm)</span>
-</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a><span class="sd">- [**Implement Your CL Algorithm Class**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/cl-algorithm)</span>
-</span><span id="L-11"><a href="#L-11"><span class="linenos">11</span></a><span class="sd">- [**A Beginners&#39; Guide to Continual Learning (Methodology Overview)**](https://pengxiang-wang.com/posts/continual-learning-beginners-guide#sec-methodology)</span>
-</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a>
-</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a>
-</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a><span class="sd">The algorithms are implemented as subclasses of `CLAlgorithm`.</span>
+</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a><span class="sd">Please note that this is an API documentation. Please refer to the main documentation pages for more information about and how to configure and implement CL algorithms:</span>
+</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a>
+</span><span id="L-11"><a href="#L-11"><span class="linenos">11</span></a><span class="sd">- [**Configure CL Algorithm (CL Main)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/continual-learning/configure-main-experiment/cl-algorithm)</span>
+</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a><span class="sd">- [**Implement Custom CL Algorithm**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/custom-implementation/cl-algorithm)</span>
+</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="sd">- [**A Beginners&#39; Guide to Continual Learning (Methodology Overview)**](https://pengxiang-wang.com/posts/continual-learning-beginners-guide#sec-methodology)</span>
+</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a>
 </span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a>
 </span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a>
-</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLAlgorithm</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLAlgorithm</span><span class="p">,</span> <span class="n">UnlearnableCLAlgorithm</span>
 </span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a>
 </span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="c1"># finetuning first</span>
 </span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.finetuning</span><span class="w"> </span><span class="kn">import</span> <span class="n">Finetuning</span>
-</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.fix</span><span class="w"> </span><span class="kn">import</span> <span class="n">Fix</span>
-</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a>
-</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.lwf</span><span class="w"> </span><span class="kn">import</span> <span class="n">LwF</span>
-</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.ewc</span><span class="w"> </span><span class="kn">import</span> <span class="n">EWC</span>
-</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.cbp</span><span class="w"> </span><span class="kn">import</span> <span class="n">CBP</span>
-</span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>
-</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.hat</span><span class="w"> </span><span class="kn">import</span> <span class="n">HAT</span>
-</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.adahat</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdaHAT</span>
-</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.cbphat</span><span class="w"> </span><span class="kn">import</span> <span class="n">CBPHAT</span>
-</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a>
-</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a>
-</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-</span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a>    <span class="s2">&quot;CLAlgorithm&quot;</span><span class="p">,</span>
-</span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a>    <span class="s2">&quot;regularisers&quot;</span><span class="p">,</span>
-</span><span id="L-36"><a href="#L-36"><span class="linenos">36</span></a>    <span class="s2">&quot;finetuning&quot;</span><span class="p">,</span>
-</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a>    <span class="s2">&quot;fix&quot;</span><span class="p">,</span>
-</span><span id="L-38"><a href="#L-38"><span class="linenos">38</span></a>    <span class="s2">&quot;lwf&quot;</span><span class="p">,</span>
-</span><span id="L-39"><a href="#L-39"><span class="linenos">39</span></a>    <span class="s2">&quot;ewc&quot;</span><span class="p">,</span>
-</span><span id="L-40"><a href="#L-40"><span class="linenos">40</span></a>    <span class="s2">&quot;hat&quot;</span><span class="p">,</span>
-</span><span id="L-41"><a href="#L-41"><span class="linenos">41</span></a>    <span class="s2">&quot;cbp&quot;</span><span class="p">,</span>
-</span><span id="L-42"><a href="#L-42"><span class="linenos">42</span></a>    <span class="s2">&quot;adahat&quot;</span><span class="p">,</span>
-</span><span id="L-43"><a href="#L-43"><span class="linenos">43</span></a>    <span class="s2">&quot;cbphat&quot;</span><span class="p">,</span>
-</span><span id="L-44"><a href="#L-44"><span class="linenos">44</span></a><span class="p">]</span>
+</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.independent</span><span class="w"> </span><span class="kn">import</span> <span class="n">Independent</span><span class="p">,</span> <span class="n">UnlearnableIndependent</span>
+</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.fix</span><span class="w"> </span><span class="kn">import</span> <span class="n">Fix</span>
+</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.random</span><span class="w"> </span><span class="kn">import</span> <span class="n">Random</span>
+</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a>
+</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.lwf</span><span class="w"> </span><span class="kn">import</span> <span class="n">LwF</span>
+</span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.ewc</span><span class="w"> </span><span class="kn">import</span> <span class="n">EWC</span>
+</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.cbp</span><span class="w"> </span><span class="kn">import</span> <span class="n">CBP</span>
+</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a>
+</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.hat</span><span class="w"> </span><span class="kn">import</span> <span class="n">HAT</span>
+</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.adahat</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdaHAT</span>
+</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.fgadahat</span><span class="w"> </span><span class="kn">import</span> <span class="n">FGAdaHAT</span>
+</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.wsn</span><span class="w"> </span><span class="kn">import</span> <span class="n">WSN</span>
+</span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.nispa</span><span class="w"> </span><span class="kn">import</span> <span class="n">NISPA</span>
+</span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a>
+</span><span id="L-36"><a href="#L-36"><span class="linenos">36</span></a>
+</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="L-38"><a href="#L-38"><span class="linenos">38</span></a>    <span class="s2">&quot;CLAlgorithm&quot;</span><span class="p">,</span>
+</span><span id="L-39"><a href="#L-39"><span class="linenos">39</span></a>    <span class="s2">&quot;UnlearnableCLAlgorithm&quot;</span><span class="p">,</span>
+</span><span id="L-40"><a href="#L-40"><span class="linenos">40</span></a>    <span class="s2">&quot;regularizers&quot;</span><span class="p">,</span>
+</span><span id="L-41"><a href="#L-41"><span class="linenos">41</span></a>    <span class="s2">&quot;finetuning&quot;</span><span class="p">,</span>
+</span><span id="L-42"><a href="#L-42"><span class="linenos">42</span></a>    <span class="s2">&quot;independent&quot;</span><span class="p">,</span>
+</span><span id="L-43"><a href="#L-43"><span class="linenos">43</span></a>    <span class="s2">&quot;fix&quot;</span><span class="p">,</span>
+</span><span id="L-44"><a href="#L-44"><span class="linenos">44</span></a>    <span class="s2">&quot;random&quot;</span><span class="p">,</span>
+</span><span id="L-45"><a href="#L-45"><span class="linenos">45</span></a>    <span class="s2">&quot;lwf&quot;</span><span class="p">,</span>
+</span><span id="L-46"><a href="#L-46"><span class="linenos">46</span></a>    <span class="s2">&quot;ewc&quot;</span><span class="p">,</span>
+</span><span id="L-47"><a href="#L-47"><span class="linenos">47</span></a>    <span class="s2">&quot;cbp&quot;</span><span class="p">,</span>
+</span><span id="L-48"><a href="#L-48"><span class="linenos">48</span></a>    <span class="s2">&quot;hat&quot;</span><span class="p">,</span>
+</span><span id="L-49"><a href="#L-49"><span class="linenos">49</span></a>    <span class="s2">&quot;adahat&quot;</span><span class="p">,</span>
+</span><span id="L-50"><a href="#L-50"><span class="linenos">50</span></a>    <span class="s2">&quot;fgadahat&quot;</span><span class="p">,</span>
+</span><span id="L-51"><a href="#L-51"><span class="linenos">51</span></a>    <span class="s2">&quot;wsn&quot;</span><span class="p">,</span>
+</span><span id="L-52"><a href="#L-52"><span class="linenos">52</span></a>    <span class="s2">&quot;nispa&quot;</span><span class="p">,</span>
+</span><span id="L-53"><a href="#L-53"><span class="linenos">53</span></a><span class="p">]</span>
 </span></pre></div>
 
 
@@ -174,72 +254,189 @@
 
     </div>
     <a class="headerlink" href="#CLAlgorithm"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm-21"><a href="#CLAlgorithm-21"><span class="linenos">21</span></a><span class="k">class</span><span class="w"> </span><span class="nc">CLAlgorithm</span><span class="p">(</span><span class="n">LightningModule</span><span class="p">):</span>
-</span><span id="CLAlgorithm-22"><a href="#CLAlgorithm-22"><span class="linenos">22</span></a><span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The base class of continual learning algorithms, inherited from `LightningModule`.&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm-23"><a href="#CLAlgorithm-23"><span class="linenos">23</span></a>
-</span><span id="CLAlgorithm-24"><a href="#CLAlgorithm-24"><span class="linenos">24</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-</span><span id="CLAlgorithm-25"><a href="#CLAlgorithm-25"><span class="linenos">25</span></a>        <span class="bp">self</span><span class="p">,</span>
-</span><span id="CLAlgorithm-26"><a href="#CLAlgorithm-26"><span class="linenos">26</span></a>        <span class="n">backbone</span><span class="p">:</span> <span class="n">CLBackbone</span><span class="p">,</span>
-</span><span id="CLAlgorithm-27"><a href="#CLAlgorithm-27"><span class="linenos">27</span></a>        <span class="n">heads</span><span class="p">:</span> <span class="n">HeadsTIL</span> <span class="o">|</span> <span class="n">HeadsCIL</span><span class="p">,</span>
-</span><span id="CLAlgorithm-28"><a href="#CLAlgorithm-28"><span class="linenos">28</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLAlgorithm-29"><a href="#CLAlgorithm-29"><span class="linenos">29</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Initialise the CL algorithm with the network.</span>
-</span><span id="CLAlgorithm-30"><a href="#CLAlgorithm-30"><span class="linenos">30</span></a>
-</span><span id="CLAlgorithm-31"><a href="#CLAlgorithm-31"><span class="linenos">31</span></a><span class="sd">        **Args:**</span>
-</span><span id="CLAlgorithm-32"><a href="#CLAlgorithm-32"><span class="linenos">32</span></a><span class="sd">        - **backbone** (`CLBackbone`): backbone network.</span>
-</span><span id="CLAlgorithm-33"><a href="#CLAlgorithm-33"><span class="linenos">33</span></a><span class="sd">        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.</span>
-</span><span id="CLAlgorithm-34"><a href="#CLAlgorithm-34"><span class="linenos">34</span></a><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm-35"><a href="#CLAlgorithm-35"><span class="linenos">35</span></a>        <span class="n">LightningModule</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-</span><span id="CLAlgorithm-36"><a href="#CLAlgorithm-36"><span class="linenos">36</span></a>
-</span><span id="CLAlgorithm-37"><a href="#CLAlgorithm-37"><span class="linenos">37</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">:</span> <span class="n">CLBackbone</span> <span class="o">=</span> <span class="n">backbone</span>
-</span><span id="CLAlgorithm-38"><a href="#CLAlgorithm-38"><span class="linenos">38</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Store the backbone network.&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm-39"><a href="#CLAlgorithm-39"><span class="linenos">39</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">:</span> <span class="n">HeadsTIL</span> <span class="o">|</span> <span class="n">HeadsCIL</span> <span class="o">=</span> <span class="n">heads</span>
-</span><span id="CLAlgorithm-40"><a href="#CLAlgorithm-40"><span class="linenos">40</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Store the output heads.&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm-41"><a href="#CLAlgorithm-41"><span class="linenos">41</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span>
-</span><span id="CLAlgorithm-42"><a href="#CLAlgorithm-42"><span class="linenos">42</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Store the optimizer object (partially initialised) for the backpropagation of task `self.task_id`. Will be equipped with parameters in `configure_optimizers()`.&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm-43"><a href="#CLAlgorithm-43"><span class="linenos">43</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
-</span><span id="CLAlgorithm-44"><a href="#CLAlgorithm-44"><span class="linenos">44</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The loss function bewteen the output logits and the target labels. Default is cross-entropy loss.&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm-45"><a href="#CLAlgorithm-45"><span class="linenos">45</span></a>
-</span><span id="CLAlgorithm-46"><a href="#CLAlgorithm-46"><span class="linenos">46</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span>
-</span><span id="CLAlgorithm-47"><a href="#CLAlgorithm-47"><span class="linenos">47</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task ID counter indicating which task is being processed. Self updated during the task loop.&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm-48"><a href="#CLAlgorithm-48"><span class="linenos">48</span></a>
-</span><span id="CLAlgorithm-49"><a href="#CLAlgorithm-49"><span class="linenos">49</span></a>        <span class="n">CLAlgorithm</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-</span><span id="CLAlgorithm-50"><a href="#CLAlgorithm-50"><span class="linenos">50</span></a>
-</span><span id="CLAlgorithm-51"><a href="#CLAlgorithm-51"><span class="linenos">51</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLAlgorithm-52"><a href="#CLAlgorithm-52"><span class="linenos">52</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.</span>
-</span><span id="CLAlgorithm-53"><a href="#CLAlgorithm-53"><span class="linenos">53</span></a>
-</span><span id="CLAlgorithm-54"><a href="#CLAlgorithm-54"><span class="linenos">54</span></a><span class="sd">        **Raises:**</span>
-</span><span id="CLAlgorithm-55"><a href="#CLAlgorithm-55"><span class="linenos">55</span></a><span class="sd">        - **ValueError**: if the `output_dim` of backbone network is not equal to the `input_dim` of CL heads.</span>
-</span><span id="CLAlgorithm-56"><a href="#CLAlgorithm-56"><span class="linenos">56</span></a><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm-57"><a href="#CLAlgorithm-57"><span class="linenos">57</span></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">output_dim</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="o">.</span><span class="n">input_dim</span><span class="p">:</span>
-</span><span id="CLAlgorithm-58"><a href="#CLAlgorithm-58"><span class="linenos">58</span></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="CLAlgorithm-59"><a href="#CLAlgorithm-59"><span class="linenos">59</span></a>                <span class="s2">&quot;The output_dim of backbone network should be equal to the input_dim of CL heads!&quot;</span>
-</span><span id="CLAlgorithm-60"><a href="#CLAlgorithm-60"><span class="linenos">60</span></a>            <span class="p">)</span>
-</span><span id="CLAlgorithm-61"><a href="#CLAlgorithm-61"><span class="linenos">61</span></a>
-</span><span id="CLAlgorithm-62"><a href="#CLAlgorithm-62"><span class="linenos">62</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_task_id</span><span class="p">(</span>
-</span><span id="CLAlgorithm-63"><a href="#CLAlgorithm-63"><span class="linenos">63</span></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">num_classes_t</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span>
-</span><span id="CLAlgorithm-64"><a href="#CLAlgorithm-64"><span class="linenos">64</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLAlgorithm-65"><a href="#CLAlgorithm-65"><span class="linenos">65</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up which task&#39;s dataset the CL experiment is on. This must be done before `forward()` method is called.</span>
-</span><span id="CLAlgorithm-66"><a href="#CLAlgorithm-66"><span class="linenos">66</span></a>
-</span><span id="CLAlgorithm-67"><a href="#CLAlgorithm-67"><span class="linenos">67</span></a><span class="sd">        **Args:**</span>
-</span><span id="CLAlgorithm-68"><a href="#CLAlgorithm-68"><span class="linenos">68</span></a><span class="sd">        - **task_id** (`int`): the target task ID.</span>
-</span><span id="CLAlgorithm-69"><a href="#CLAlgorithm-69"><span class="linenos">69</span></a><span class="sd">        - **num_classes_t** (`int`): the number of classes in the task.</span>
-</span><span id="CLAlgorithm-70"><a href="#CLAlgorithm-70"><span class="linenos">70</span></a><span class="sd">        - **optimizer** (`Optimizer`): the optimizer object (partially initialised) for the task `self.task_id`.</span>
-</span><span id="CLAlgorithm-71"><a href="#CLAlgorithm-71"><span class="linenos">71</span></a><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm-72"><a href="#CLAlgorithm-72"><span class="linenos">72</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span> <span class="o">=</span> <span class="n">task_id</span>
-</span><span id="CLAlgorithm-73"><a href="#CLAlgorithm-73"><span class="linenos">73</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="o">.</span><span class="n">setup_task_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">num_classes_t</span><span class="p">)</span>
-</span><span id="CLAlgorithm-74"><a href="#CLAlgorithm-74"><span class="linenos">74</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">optimizer</span>
-</span><span id="CLAlgorithm-75"><a href="#CLAlgorithm-75"><span class="linenos">75</span></a>
-</span><span id="CLAlgorithm-76"><a href="#CLAlgorithm-76"><span class="linenos">76</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">configure_optimizers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optimizer</span><span class="p">:</span>
-</span><span id="CLAlgorithm-77"><a href="#CLAlgorithm-77"><span class="linenos">77</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm-78"><a href="#CLAlgorithm-78"><span class="linenos">78</span></a><span class="sd">        Configure optimizer hooks by Lightning.</span>
-</span><span id="CLAlgorithm-79"><a href="#CLAlgorithm-79"><span class="linenos">79</span></a><span class="sd">        See [Lightning docs](https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#configure-optimizers) for more details.</span>
-</span><span id="CLAlgorithm-80"><a href="#CLAlgorithm-80"><span class="linenos">80</span></a><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm-81"><a href="#CLAlgorithm-81"><span class="linenos">81</span></a>        <span class="c1"># finish partially initialised optimizer by specifying model parameters. The `parameters()` method of this `CLAlrogithm` (inherited from `LightningModule`) returns both backbone and heads parameters</span>
-</span><span id="CLAlgorithm-82"><a href="#CLAlgorithm-82"><span class="linenos">82</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm-22"><a href="#CLAlgorithm-22"><span class="linenos"> 22</span></a><span class="k">class</span><span class="w"> </span><span class="nc">CLAlgorithm</span><span class="p">(</span><span class="n">LightningModule</span><span class="p">):</span>
+</span><span id="CLAlgorithm-23"><a href="#CLAlgorithm-23"><span class="linenos"> 23</span></a><span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The base class of continual learning algorithms, inherits from `LightningModule`.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-24"><a href="#CLAlgorithm-24"><span class="linenos"> 24</span></a>
+</span><span id="CLAlgorithm-25"><a href="#CLAlgorithm-25"><span class="linenos"> 25</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+</span><span id="CLAlgorithm-26"><a href="#CLAlgorithm-26"><span class="linenos"> 26</span></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="CLAlgorithm-27"><a href="#CLAlgorithm-27"><span class="linenos"> 27</span></a>        <span class="n">backbone</span><span class="p">:</span> <span class="n">CLBackbone</span><span class="p">,</span>
+</span><span id="CLAlgorithm-28"><a href="#CLAlgorithm-28"><span class="linenos"> 28</span></a>        <span class="n">heads</span><span class="p">:</span> <span class="n">HeadsTIL</span> <span class="o">|</span> <span class="n">HeadsCIL</span><span class="p">,</span>
+</span><span id="CLAlgorithm-29"><a href="#CLAlgorithm-29"><span class="linenos"> 29</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm-30"><a href="#CLAlgorithm-30"><span class="linenos"> 30</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Initialize the CL algorithm with the network.</span>
+</span><span id="CLAlgorithm-31"><a href="#CLAlgorithm-31"><span class="linenos"> 31</span></a>
+</span><span id="CLAlgorithm-32"><a href="#CLAlgorithm-32"><span class="linenos"> 32</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm-33"><a href="#CLAlgorithm-33"><span class="linenos"> 33</span></a><span class="sd">        - **backbone** (`CLBackbone`): backbone network.</span>
+</span><span id="CLAlgorithm-34"><a href="#CLAlgorithm-34"><span class="linenos"> 34</span></a><span class="sd">        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.</span>
+</span><span id="CLAlgorithm-35"><a href="#CLAlgorithm-35"><span class="linenos"> 35</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-36"><a href="#CLAlgorithm-36"><span class="linenos"> 36</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+</span><span id="CLAlgorithm-37"><a href="#CLAlgorithm-37"><span class="linenos"> 37</span></a>
+</span><span id="CLAlgorithm-38"><a href="#CLAlgorithm-38"><span class="linenos"> 38</span></a>        <span class="c1"># components</span>
+</span><span id="CLAlgorithm-39"><a href="#CLAlgorithm-39"><span class="linenos"> 39</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">:</span> <span class="n">CLBackbone</span> <span class="o">=</span> <span class="n">backbone</span>
+</span><span id="CLAlgorithm-40"><a href="#CLAlgorithm-40"><span class="linenos"> 40</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The backbone network.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-41"><a href="#CLAlgorithm-41"><span class="linenos"> 41</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">:</span> <span class="n">HeadsTIL</span> <span class="o">|</span> <span class="n">HeadsCIL</span> <span class="o">=</span> <span class="n">heads</span>
+</span><span id="CLAlgorithm-42"><a href="#CLAlgorithm-42"><span class="linenos"> 42</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The output heads.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-43"><a href="#CLAlgorithm-43"><span class="linenos"> 43</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer_t</span><span class="p">:</span> <span class="n">Optimizer</span>
+</span><span id="CLAlgorithm-44"><a href="#CLAlgorithm-44"><span class="linenos"> 44</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Optimizer (partially initialized) for backpropagation of task `self.task_id`. Will be equipped with parameters in `configure_optimizers()`.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-45"><a href="#CLAlgorithm-45"><span class="linenos"> 45</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">lr_scheduler_t</span><span class="p">:</span> <span class="n">LRScheduler</span> <span class="o">|</span> <span class="kc">None</span>
+</span><span id="CLAlgorithm-46"><a href="#CLAlgorithm-46"><span class="linenos"> 46</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Learning rate scheduler for the optimizer. If `None`, no scheduler is used.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-47"><a href="#CLAlgorithm-47"><span class="linenos"> 47</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
+</span><span id="CLAlgorithm-48"><a href="#CLAlgorithm-48"><span class="linenos"> 48</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Loss function between the output logits and the target labels. Default is cross-entropy loss.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-49"><a href="#CLAlgorithm-49"><span class="linenos"> 49</span></a>
+</span><span id="CLAlgorithm-50"><a href="#CLAlgorithm-50"><span class="linenos"> 50</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">if_forward_func_return_logits_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span id="CLAlgorithm-51"><a href="#CLAlgorithm-51"><span class="linenos"> 51</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Whether the `forward()` method returns logits only. If `False`, it returns a dictionary containing logits and other information. Default is `False`.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-52"><a href="#CLAlgorithm-52"><span class="linenos"> 52</span></a>
+</span><span id="CLAlgorithm-53"><a href="#CLAlgorithm-53"><span class="linenos"> 53</span></a>        <span class="c1"># task ID controls</span>
+</span><span id="CLAlgorithm-54"><a href="#CLAlgorithm-54"><span class="linenos"> 54</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span>
+</span><span id="CLAlgorithm-55"><a href="#CLAlgorithm-55"><span class="linenos"> 55</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-56"><a href="#CLAlgorithm-56"><span class="linenos"> 56</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="CLAlgorithm-57"><a href="#CLAlgorithm-57"><span class="linenos"> 57</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed in the experiment.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-58"><a href="#CLAlgorithm-58"><span class="linenos"> 58</span></a>
+</span><span id="CLAlgorithm-59"><a href="#CLAlgorithm-59"><span class="linenos"> 59</span></a>        <span class="n">CLAlgorithm</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span id="CLAlgorithm-60"><a href="#CLAlgorithm-60"><span class="linenos"> 60</span></a>
+</span><span id="CLAlgorithm-61"><a href="#CLAlgorithm-61"><span class="linenos"> 61</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm-62"><a href="#CLAlgorithm-62"><span class="linenos"> 62</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-63"><a href="#CLAlgorithm-63"><span class="linenos"> 63</span></a>
+</span><span id="CLAlgorithm-64"><a href="#CLAlgorithm-64"><span class="linenos"> 64</span></a>        <span class="c1"># check backbone and heads compatibility</span>
+</span><span id="CLAlgorithm-65"><a href="#CLAlgorithm-65"><span class="linenos"> 65</span></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">output_dim</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="o">.</span><span class="n">input_dim</span><span class="p">:</span>
+</span><span id="CLAlgorithm-66"><a href="#CLAlgorithm-66"><span class="linenos"> 66</span></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+</span><span id="CLAlgorithm-67"><a href="#CLAlgorithm-67"><span class="linenos"> 67</span></a>                <span class="s2">&quot;The output_dim of the backbone must equal the input_dim of the CL heads.&quot;</span>
+</span><span id="CLAlgorithm-68"><a href="#CLAlgorithm-68"><span class="linenos"> 68</span></a>            <span class="p">)</span>
+</span><span id="CLAlgorithm-69"><a href="#CLAlgorithm-69"><span class="linenos"> 69</span></a>
+</span><span id="CLAlgorithm-70"><a href="#CLAlgorithm-70"><span class="linenos"> 70</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_task_id</span><span class="p">(</span>
+</span><span id="CLAlgorithm-71"><a href="#CLAlgorithm-71"><span class="linenos"> 71</span></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="CLAlgorithm-72"><a href="#CLAlgorithm-72"><span class="linenos"> 72</span></a>        <span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="CLAlgorithm-73"><a href="#CLAlgorithm-73"><span class="linenos"> 73</span></a>        <span class="n">num_classes_t</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="CLAlgorithm-74"><a href="#CLAlgorithm-74"><span class="linenos"> 74</span></a>        <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span><span class="p">,</span>
+</span><span id="CLAlgorithm-75"><a href="#CLAlgorithm-75"><span class="linenos"> 75</span></a>        <span class="n">lr_scheduler</span><span class="p">:</span> <span class="n">LRScheduler</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="CLAlgorithm-76"><a href="#CLAlgorithm-76"><span class="linenos"> 76</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm-77"><a href="#CLAlgorithm-77"><span class="linenos"> 77</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up which task the CL experiment is on. This must be done before `forward()` method is called.</span>
+</span><span id="CLAlgorithm-78"><a href="#CLAlgorithm-78"><span class="linenos"> 78</span></a>
+</span><span id="CLAlgorithm-79"><a href="#CLAlgorithm-79"><span class="linenos"> 79</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm-80"><a href="#CLAlgorithm-80"><span class="linenos"> 80</span></a><span class="sd">        - **task_id** (`int`): the target task ID.</span>
+</span><span id="CLAlgorithm-81"><a href="#CLAlgorithm-81"><span class="linenos"> 81</span></a><span class="sd">        - **num_classes_t** (`int`): the number of classes in the task.</span>
+</span><span id="CLAlgorithm-82"><a href="#CLAlgorithm-82"><span class="linenos"> 82</span></a><span class="sd">        - **optimizer** (`Optimizer`): the optimizer object (partially initialized) for the task `self.task_id`.</span>
+</span><span id="CLAlgorithm-83"><a href="#CLAlgorithm-83"><span class="linenos"> 83</span></a><span class="sd">        - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.</span>
+</span><span id="CLAlgorithm-84"><a href="#CLAlgorithm-84"><span class="linenos"> 84</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-85"><a href="#CLAlgorithm-85"><span class="linenos"> 85</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span> <span class="o">=</span> <span class="n">task_id</span>
+</span><span id="CLAlgorithm-86"><a href="#CLAlgorithm-86"><span class="linenos"> 86</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+</span><span id="CLAlgorithm-87"><a href="#CLAlgorithm-87"><span class="linenos"> 87</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="o">.</span><span class="n">setup_task_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">num_classes_t</span><span class="p">)</span>
+</span><span id="CLAlgorithm-88"><a href="#CLAlgorithm-88"><span class="linenos"> 88</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer_t</span> <span class="o">=</span> <span class="n">optimizer</span>
+</span><span id="CLAlgorithm-89"><a href="#CLAlgorithm-89"><span class="linenos"> 89</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">lr_scheduler_t</span> <span class="o">=</span> <span class="n">lr_scheduler</span>
+</span><span id="CLAlgorithm-90"><a href="#CLAlgorithm-90"><span class="linenos"> 90</span></a>
+</span><span id="CLAlgorithm-91"><a href="#CLAlgorithm-91"><span class="linenos"> 91</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_test_task_id_from_dataloader_idx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataloader_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+</span><span id="CLAlgorithm-92"><a href="#CLAlgorithm-92"><span class="linenos"> 92</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Get the test task ID from the dataloader index.</span>
+</span><span id="CLAlgorithm-93"><a href="#CLAlgorithm-93"><span class="linenos"> 93</span></a>
+</span><span id="CLAlgorithm-94"><a href="#CLAlgorithm-94"><span class="linenos"> 94</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm-95"><a href="#CLAlgorithm-95"><span class="linenos"> 95</span></a><span class="sd">        - **dataloader_idx** (`int`): the dataloader index.</span>
+</span><span id="CLAlgorithm-96"><a href="#CLAlgorithm-96"><span class="linenos"> 96</span></a>
+</span><span id="CLAlgorithm-97"><a href="#CLAlgorithm-97"><span class="linenos"> 97</span></a><span class="sd">        **Returns:**</span>
+</span><span id="CLAlgorithm-98"><a href="#CLAlgorithm-98"><span class="linenos"> 98</span></a><span class="sd">        - **test_task_id** (`str`): the test task ID.</span>
+</span><span id="CLAlgorithm-99"><a href="#CLAlgorithm-99"><span class="linenos"> 99</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-100"><a href="#CLAlgorithm-100"><span class="linenos">100</span></a>        <span class="n">dataset_test</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">dataset_test</span>
+</span><span id="CLAlgorithm-101"><a href="#CLAlgorithm-101"><span class="linenos">101</span></a>        <span class="n">test_task_id</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dataset_test</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="n">dataloader_idx</span><span class="p">]</span>
+</span><span id="CLAlgorithm-102"><a href="#CLAlgorithm-102"><span class="linenos">102</span></a>        <span class="k">return</span> <span class="n">test_task_id</span>
+</span><span id="CLAlgorithm-103"><a href="#CLAlgorithm-103"><span class="linenos">103</span></a>
+</span><span id="CLAlgorithm-104"><a href="#CLAlgorithm-104"><span class="linenos">104</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">set_forward_func_return_logits_only</span><span class="p">(</span>
+</span><span id="CLAlgorithm-105"><a href="#CLAlgorithm-105"><span class="linenos">105</span></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">forward_func_return_logits_only</span><span class="p">:</span> <span class="nb">bool</span>
+</span><span id="CLAlgorithm-106"><a href="#CLAlgorithm-106"><span class="linenos">106</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm-107"><a href="#CLAlgorithm-107"><span class="linenos">107</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set whether the `forward()` method returns logits only.</span>
+</span><span id="CLAlgorithm-108"><a href="#CLAlgorithm-108"><span class="linenos">108</span></a>
+</span><span id="CLAlgorithm-109"><a href="#CLAlgorithm-109"><span class="linenos">109</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm-110"><a href="#CLAlgorithm-110"><span class="linenos">110</span></a><span class="sd">        - **forward_func_return_logits_only** (`bool`): whether the `forward()` method returns logits only. If `False`, it returns a dictionary containing logits and other information.</span>
+</span><span id="CLAlgorithm-111"><a href="#CLAlgorithm-111"><span class="linenos">111</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-112"><a href="#CLAlgorithm-112"><span class="linenos">112</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">if_forward_func_return_logits_only</span> <span class="o">=</span> <span class="n">forward_func_return_logits_only</span>
+</span><span id="CLAlgorithm-113"><a href="#CLAlgorithm-113"><span class="linenos">113</span></a>
+</span><span id="CLAlgorithm-114"><a href="#CLAlgorithm-114"><span class="linenos">114</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">preceding_layer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm-115"><a href="#CLAlgorithm-115"><span class="linenos">115</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Get the preceding layer of the given layer. If the given layer is the first layer, return `None`.</span>
+</span><span id="CLAlgorithm-116"><a href="#CLAlgorithm-116"><span class="linenos">116</span></a>
+</span><span id="CLAlgorithm-117"><a href="#CLAlgorithm-117"><span class="linenos">117</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm-118"><a href="#CLAlgorithm-118"><span class="linenos">118</span></a><span class="sd">        - **layer_name** (`str`): the name of the layer.</span>
+</span><span id="CLAlgorithm-119"><a href="#CLAlgorithm-119"><span class="linenos">119</span></a>
+</span><span id="CLAlgorithm-120"><a href="#CLAlgorithm-120"><span class="linenos">120</span></a><span class="sd">        **Returns:**</span>
+</span><span id="CLAlgorithm-121"><a href="#CLAlgorithm-121"><span class="linenos">121</span></a><span class="sd">        - **preceding_layer** (`nn.Module` | `None`): the preceding layer.</span>
+</span><span id="CLAlgorithm-122"><a href="#CLAlgorithm-122"><span class="linenos">122</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-123"><a href="#CLAlgorithm-123"><span class="linenos">123</span></a>
+</span><span id="CLAlgorithm-124"><a href="#CLAlgorithm-124"><span class="linenos">124</span></a>        <span class="k">if</span> <span class="n">layer_name</span> <span class="o">==</span> <span class="s2">&quot;heads&quot;</span><span class="p">:</span>
+</span><span id="CLAlgorithm-125"><a href="#CLAlgorithm-125"><span class="linenos">125</span></a>            <span class="n">backbone_last_layer_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">weighted_layer_names</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</span><span id="CLAlgorithm-126"><a href="#CLAlgorithm-126"><span class="linenos">126</span></a>            <span class="n">backbone_last_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">get_layer_by_name</span><span class="p">(</span>
+</span><span id="CLAlgorithm-127"><a href="#CLAlgorithm-127"><span class="linenos">127</span></a>                <span class="n">backbone_last_layer_name</span>
+</span><span id="CLAlgorithm-128"><a href="#CLAlgorithm-128"><span class="linenos">128</span></a>            <span class="p">)</span>
+</span><span id="CLAlgorithm-129"><a href="#CLAlgorithm-129"><span class="linenos">129</span></a>            <span class="k">return</span> <span class="n">backbone_last_layer</span>
+</span><span id="CLAlgorithm-130"><a href="#CLAlgorithm-130"><span class="linenos">130</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="CLAlgorithm-131"><a href="#CLAlgorithm-131"><span class="linenos">131</span></a>            <span class="n">preceding_layer_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">preceding_layer_name</span><span class="p">(</span><span class="n">layer_name</span><span class="p">)</span>
+</span><span id="CLAlgorithm-132"><a href="#CLAlgorithm-132"><span class="linenos">132</span></a>            <span class="n">preceding_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">get_layer_by_name</span><span class="p">(</span><span class="n">preceding_layer_name</span><span class="p">)</span>
+</span><span id="CLAlgorithm-133"><a href="#CLAlgorithm-133"><span class="linenos">133</span></a>
+</span><span id="CLAlgorithm-134"><a href="#CLAlgorithm-134"><span class="linenos">134</span></a>        <span class="k">return</span> <span class="n">preceding_layer</span>
+</span><span id="CLAlgorithm-135"><a href="#CLAlgorithm-135"><span class="linenos">135</span></a>
+</span><span id="CLAlgorithm-136"><a href="#CLAlgorithm-136"><span class="linenos">136</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">next_layer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm-137"><a href="#CLAlgorithm-137"><span class="linenos">137</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Get the next layer of the given layer. If the given layer is the last layer, return `None`.</span>
+</span><span id="CLAlgorithm-138"><a href="#CLAlgorithm-138"><span class="linenos">138</span></a>
+</span><span id="CLAlgorithm-139"><a href="#CLAlgorithm-139"><span class="linenos">139</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm-140"><a href="#CLAlgorithm-140"><span class="linenos">140</span></a><span class="sd">        - **layer_name** (`str`): the name of the layer.</span>
+</span><span id="CLAlgorithm-141"><a href="#CLAlgorithm-141"><span class="linenos">141</span></a>
+</span><span id="CLAlgorithm-142"><a href="#CLAlgorithm-142"><span class="linenos">142</span></a><span class="sd">        **Returns:**</span>
+</span><span id="CLAlgorithm-143"><a href="#CLAlgorithm-143"><span class="linenos">143</span></a><span class="sd">        - **preceding_layer** (`nn.Module` | `None`): the next layer.</span>
+</span><span id="CLAlgorithm-144"><a href="#CLAlgorithm-144"><span class="linenos">144</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-145"><a href="#CLAlgorithm-145"><span class="linenos">145</span></a>
+</span><span id="CLAlgorithm-146"><a href="#CLAlgorithm-146"><span class="linenos">146</span></a>        <span class="k">if</span> <span class="n">layer_name</span> <span class="o">==</span> <span class="s2">&quot;heads&quot;</span><span class="p">:</span>
+</span><span id="CLAlgorithm-147"><a href="#CLAlgorithm-147"><span class="linenos">147</span></a>            <span class="k">return</span> <span class="kc">None</span>
+</span><span id="CLAlgorithm-148"><a href="#CLAlgorithm-148"><span class="linenos">148</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="CLAlgorithm-149"><a href="#CLAlgorithm-149"><span class="linenos">149</span></a>            <span class="n">next_layer_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">next_layer_name</span><span class="p">(</span><span class="n">layer_name</span><span class="p">)</span>
+</span><span id="CLAlgorithm-150"><a href="#CLAlgorithm-150"><span class="linenos">150</span></a>            <span class="k">if</span> <span class="n">next_layer_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm-151"><a href="#CLAlgorithm-151"><span class="linenos">151</span></a>                <span class="n">next_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">get_layer_by_name</span><span class="p">(</span><span class="n">next_layer_name</span><span class="p">)</span>
+</span><span id="CLAlgorithm-152"><a href="#CLAlgorithm-152"><span class="linenos">152</span></a>            <span class="k">else</span><span class="p">:</span>
+</span><span id="CLAlgorithm-153"><a href="#CLAlgorithm-153"><span class="linenos">153</span></a>                <span class="n">next_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="o">.</span><span class="n">get_head</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">)</span>
+</span><span id="CLAlgorithm-154"><a href="#CLAlgorithm-154"><span class="linenos">154</span></a>
+</span><span id="CLAlgorithm-155"><a href="#CLAlgorithm-155"><span class="linenos">155</span></a>        <span class="k">return</span> <span class="n">next_layer</span>
+</span><span id="CLAlgorithm-156"><a href="#CLAlgorithm-156"><span class="linenos">156</span></a>
+</span><span id="CLAlgorithm-157"><a href="#CLAlgorithm-157"><span class="linenos">157</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
+</span><span id="CLAlgorithm-158"><a href="#CLAlgorithm-158"><span class="linenos">158</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`. This definition provides a template that many CL algorithm including the vanilla Finetuning algorithm use. It works both for TIL and CIL.</span>
+</span><span id="CLAlgorithm-159"><a href="#CLAlgorithm-159"><span class="linenos">159</span></a>
+</span><span id="CLAlgorithm-160"><a href="#CLAlgorithm-160"><span class="linenos">160</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm-161"><a href="#CLAlgorithm-161"><span class="linenos">161</span></a><span class="sd">        - **input** (`Tensor`): the input tensor from data.</span>
+</span><span id="CLAlgorithm-162"><a href="#CLAlgorithm-162"><span class="linenos">162</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="CLAlgorithm-163"><a href="#CLAlgorithm-163"><span class="linenos">163</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
+</span><span id="CLAlgorithm-164"><a href="#CLAlgorithm-164"><span class="linenos">164</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
+</span><span id="CLAlgorithm-165"><a href="#CLAlgorithm-165"><span class="linenos">165</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
+</span><span id="CLAlgorithm-166"><a href="#CLAlgorithm-166"><span class="linenos">166</span></a><span class="sd">        - **task_id** (`int`): the task ID where the data are from. If stage is &#39;train&#39; or `validation`, it is usually from the current task `self.task_id`. If stage is &#39;test&#39;, it could be from any seen task. In TIL, the task IDs of test data are provided thus this argument can be used. In CIL, they are not provided, so it is just a placeholder for API consistence but never used, and best practices are not to provide this argument and leave it as the default value.</span>
+</span><span id="CLAlgorithm-167"><a href="#CLAlgorithm-167"><span class="linenos">167</span></a>
+</span><span id="CLAlgorithm-168"><a href="#CLAlgorithm-168"><span class="linenos">168</span></a><span class="sd">        **Returns:**</span>
+</span><span id="CLAlgorithm-169"><a href="#CLAlgorithm-169"><span class="linenos">169</span></a><span class="sd">        - **logits** (`Tensor`): the output logits tensor.</span>
+</span><span id="CLAlgorithm-170"><a href="#CLAlgorithm-170"><span class="linenos">170</span></a><span class="sd">        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.</span>
+</span><span id="CLAlgorithm-171"><a href="#CLAlgorithm-171"><span class="linenos">171</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-172"><a href="#CLAlgorithm-172"><span class="linenos">172</span></a>        <span class="n">feature</span><span class="p">,</span> <span class="n">activations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="n">stage</span><span class="p">,</span> <span class="n">task_id</span><span class="o">=</span><span class="n">task_id</span><span class="p">)</span>
+</span><span id="CLAlgorithm-173"><a href="#CLAlgorithm-173"><span class="linenos">173</span></a>        <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">task_id</span><span class="p">)</span>
+</span><span id="CLAlgorithm-174"><a href="#CLAlgorithm-174"><span class="linenos">174</span></a>        <span class="k">return</span> <span class="p">(</span>
+</span><span id="CLAlgorithm-175"><a href="#CLAlgorithm-175"><span class="linenos">175</span></a>            <span class="n">logits</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">if_forward_func_return_logits_only</span> <span class="k">else</span> <span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">activations</span><span class="p">)</span>
+</span><span id="CLAlgorithm-176"><a href="#CLAlgorithm-176"><span class="linenos">176</span></a>        <span class="p">)</span>
+</span><span id="CLAlgorithm-177"><a href="#CLAlgorithm-177"><span class="linenos">177</span></a>
+</span><span id="CLAlgorithm-178"><a href="#CLAlgorithm-178"><span class="linenos">178</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">configure_optimizers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optimizer</span><span class="p">:</span>
+</span><span id="CLAlgorithm-179"><a href="#CLAlgorithm-179"><span class="linenos">179</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-180"><a href="#CLAlgorithm-180"><span class="linenos">180</span></a><span class="sd">        Configure optimizer hooks by Lightning. See [Lightning docs](https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#configure-optimizers) for more details.</span>
+</span><span id="CLAlgorithm-181"><a href="#CLAlgorithm-181"><span class="linenos">181</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm-182"><a href="#CLAlgorithm-182"><span class="linenos">182</span></a>        <span class="c1"># finish partially initialized optimizer by specifying model parameters. The `parameters()` method of this `CLAlgorithm` (inherited from `LightningModule`) returns both backbone and heads parameters</span>
+</span><span id="CLAlgorithm-183"><a href="#CLAlgorithm-183"><span class="linenos">183</span></a>        <span class="n">fully_initialized_optimizer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer_t</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+</span><span id="CLAlgorithm-184"><a href="#CLAlgorithm-184"><span class="linenos">184</span></a>
+</span><span id="CLAlgorithm-185"><a href="#CLAlgorithm-185"><span class="linenos">185</span></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr_scheduler_t</span><span class="p">:</span>
+</span><span id="CLAlgorithm-186"><a href="#CLAlgorithm-186"><span class="linenos">186</span></a>            <span class="n">fully_initialized_lr_scheduler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr_scheduler_t</span><span class="p">(</span>
+</span><span id="CLAlgorithm-187"><a href="#CLAlgorithm-187"><span class="linenos">187</span></a>                <span class="n">optimizer</span><span class="o">=</span><span class="n">fully_initialized_optimizer</span>
+</span><span id="CLAlgorithm-188"><a href="#CLAlgorithm-188"><span class="linenos">188</span></a>            <span class="p">)</span>
+</span><span id="CLAlgorithm-189"><a href="#CLAlgorithm-189"><span class="linenos">189</span></a>
+</span><span id="CLAlgorithm-190"><a href="#CLAlgorithm-190"><span class="linenos">190</span></a>            <span class="k">return</span> <span class="p">{</span>
+</span><span id="CLAlgorithm-191"><a href="#CLAlgorithm-191"><span class="linenos">191</span></a>                <span class="s2">&quot;optimizer&quot;</span><span class="p">:</span> <span class="n">fully_initialized_optimizer</span><span class="p">,</span>
+</span><span id="CLAlgorithm-192"><a href="#CLAlgorithm-192"><span class="linenos">192</span></a>                <span class="s2">&quot;lr_scheduler&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="CLAlgorithm-193"><a href="#CLAlgorithm-193"><span class="linenos">193</span></a>                    <span class="s2">&quot;scheduler&quot;</span><span class="p">:</span> <span class="n">fully_initialized_lr_scheduler</span><span class="p">,</span>
+</span><span id="CLAlgorithm-194"><a href="#CLAlgorithm-194"><span class="linenos">194</span></a>                    <span class="s2">&quot;monitor&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;task_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="si">}</span><span class="s2">/learning_curve/val/loss_cls&quot;</span><span class="p">,</span>
+</span><span id="CLAlgorithm-195"><a href="#CLAlgorithm-195"><span class="linenos">195</span></a>                    <span class="s2">&quot;interval&quot;</span><span class="p">:</span> <span class="s2">&quot;epoch&quot;</span><span class="p">,</span>
+</span><span id="CLAlgorithm-196"><a href="#CLAlgorithm-196"><span class="linenos">196</span></a>                    <span class="s2">&quot;frequency&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span id="CLAlgorithm-197"><a href="#CLAlgorithm-197"><span class="linenos">197</span></a>                <span class="p">},</span>
+</span><span id="CLAlgorithm-198"><a href="#CLAlgorithm-198"><span class="linenos">198</span></a>            <span class="p">}</span>
+</span><span id="CLAlgorithm-199"><a href="#CLAlgorithm-199"><span class="linenos">199</span></a>
+</span><span id="CLAlgorithm-200"><a href="#CLAlgorithm-200"><span class="linenos">200</span></a>        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;optimizer&quot;</span><span class="p">:</span> <span class="n">fully_initialized_optimizer</span><span class="p">}</span>
 </span></pre></div>
 
 
-            <div class="docstring"><p>The base class of continual learning algorithms, inherited from <code>LightningModule</code>.</p>
+            <div class="docstring"><p>The base class of continual learning algorithms, inherits from <code>LightningModule</code>.</p>
 </div>
 
 
@@ -247,42 +444,51 @@
                                         <input id="CLAlgorithm.__init__-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
 <div class="attr function">
             
-        <span class="name">CLAlgorithm</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">backbone</span><span class="p">:</span> <span class="n"><a href="backbones.html#CLBackbone">clarena.backbones.CLBackbone</a></span>,</span><span class="param">	<span class="n">heads</span><span class="p">:</span> <span class="n"><a href="cl_heads.html#HeadsTIL">clarena.cl_heads.HeadsTIL</a></span> <span class="o">|</span> <span class="n"><a href="cl_heads.html#HeadsCIL">clarena.cl_heads.HeadsCIL</a></span></span>)</span>
+        <span class="name">CLAlgorithm</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">backbone</span><span class="p">:</span> <span class="n"><a href="backbones.html#CLBackbone">clarena.backbones.CLBackbone</a></span>,</span><span class="param">	<span class="n">heads</span><span class="p">:</span> <span class="n"><a href="heads.html#HeadsTIL">clarena.heads.HeadsTIL</a></span> <span class="o">|</span> <span class="n"><a href="heads.html#HeadsCIL">clarena.heads.HeadsCIL</a></span></span>)</span>
 
                 <label class="view-source-button" for="CLAlgorithm.__init__-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#CLAlgorithm.__init__"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.__init__-24"><a href="#CLAlgorithm.__init__-24"><span class="linenos">24</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-</span><span id="CLAlgorithm.__init__-25"><a href="#CLAlgorithm.__init__-25"><span class="linenos">25</span></a>        <span class="bp">self</span><span class="p">,</span>
-</span><span id="CLAlgorithm.__init__-26"><a href="#CLAlgorithm.__init__-26"><span class="linenos">26</span></a>        <span class="n">backbone</span><span class="p">:</span> <span class="n">CLBackbone</span><span class="p">,</span>
-</span><span id="CLAlgorithm.__init__-27"><a href="#CLAlgorithm.__init__-27"><span class="linenos">27</span></a>        <span class="n">heads</span><span class="p">:</span> <span class="n">HeadsTIL</span> <span class="o">|</span> <span class="n">HeadsCIL</span><span class="p">,</span>
-</span><span id="CLAlgorithm.__init__-28"><a href="#CLAlgorithm.__init__-28"><span class="linenos">28</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLAlgorithm.__init__-29"><a href="#CLAlgorithm.__init__-29"><span class="linenos">29</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Initialise the CL algorithm with the network.</span>
-</span><span id="CLAlgorithm.__init__-30"><a href="#CLAlgorithm.__init__-30"><span class="linenos">30</span></a>
-</span><span id="CLAlgorithm.__init__-31"><a href="#CLAlgorithm.__init__-31"><span class="linenos">31</span></a><span class="sd">        **Args:**</span>
-</span><span id="CLAlgorithm.__init__-32"><a href="#CLAlgorithm.__init__-32"><span class="linenos">32</span></a><span class="sd">        - **backbone** (`CLBackbone`): backbone network.</span>
-</span><span id="CLAlgorithm.__init__-33"><a href="#CLAlgorithm.__init__-33"><span class="linenos">33</span></a><span class="sd">        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.</span>
-</span><span id="CLAlgorithm.__init__-34"><a href="#CLAlgorithm.__init__-34"><span class="linenos">34</span></a><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm.__init__-35"><a href="#CLAlgorithm.__init__-35"><span class="linenos">35</span></a>        <span class="n">LightningModule</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-</span><span id="CLAlgorithm.__init__-36"><a href="#CLAlgorithm.__init__-36"><span class="linenos">36</span></a>
-</span><span id="CLAlgorithm.__init__-37"><a href="#CLAlgorithm.__init__-37"><span class="linenos">37</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">:</span> <span class="n">CLBackbone</span> <span class="o">=</span> <span class="n">backbone</span>
-</span><span id="CLAlgorithm.__init__-38"><a href="#CLAlgorithm.__init__-38"><span class="linenos">38</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Store the backbone network.&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm.__init__-39"><a href="#CLAlgorithm.__init__-39"><span class="linenos">39</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">:</span> <span class="n">HeadsTIL</span> <span class="o">|</span> <span class="n">HeadsCIL</span> <span class="o">=</span> <span class="n">heads</span>
-</span><span id="CLAlgorithm.__init__-40"><a href="#CLAlgorithm.__init__-40"><span class="linenos">40</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Store the output heads.&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm.__init__-41"><a href="#CLAlgorithm.__init__-41"><span class="linenos">41</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span>
-</span><span id="CLAlgorithm.__init__-42"><a href="#CLAlgorithm.__init__-42"><span class="linenos">42</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Store the optimizer object (partially initialised) for the backpropagation of task `self.task_id`. Will be equipped with parameters in `configure_optimizers()`.&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm.__init__-43"><a href="#CLAlgorithm.__init__-43"><span class="linenos">43</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
-</span><span id="CLAlgorithm.__init__-44"><a href="#CLAlgorithm.__init__-44"><span class="linenos">44</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The loss function bewteen the output logits and the target labels. Default is cross-entropy loss.&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm.__init__-45"><a href="#CLAlgorithm.__init__-45"><span class="linenos">45</span></a>
-</span><span id="CLAlgorithm.__init__-46"><a href="#CLAlgorithm.__init__-46"><span class="linenos">46</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span>
-</span><span id="CLAlgorithm.__init__-47"><a href="#CLAlgorithm.__init__-47"><span class="linenos">47</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task ID counter indicating which task is being processed. Self updated during the task loop.&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm.__init__-48"><a href="#CLAlgorithm.__init__-48"><span class="linenos">48</span></a>
-</span><span id="CLAlgorithm.__init__-49"><a href="#CLAlgorithm.__init__-49"><span class="linenos">49</span></a>        <span class="n">CLAlgorithm</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.__init__-25"><a href="#CLAlgorithm.__init__-25"><span class="linenos">25</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+</span><span id="CLAlgorithm.__init__-26"><a href="#CLAlgorithm.__init__-26"><span class="linenos">26</span></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="CLAlgorithm.__init__-27"><a href="#CLAlgorithm.__init__-27"><span class="linenos">27</span></a>        <span class="n">backbone</span><span class="p">:</span> <span class="n">CLBackbone</span><span class="p">,</span>
+</span><span id="CLAlgorithm.__init__-28"><a href="#CLAlgorithm.__init__-28"><span class="linenos">28</span></a>        <span class="n">heads</span><span class="p">:</span> <span class="n">HeadsTIL</span> <span class="o">|</span> <span class="n">HeadsCIL</span><span class="p">,</span>
+</span><span id="CLAlgorithm.__init__-29"><a href="#CLAlgorithm.__init__-29"><span class="linenos">29</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm.__init__-30"><a href="#CLAlgorithm.__init__-30"><span class="linenos">30</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Initialize the CL algorithm with the network.</span>
+</span><span id="CLAlgorithm.__init__-31"><a href="#CLAlgorithm.__init__-31"><span class="linenos">31</span></a>
+</span><span id="CLAlgorithm.__init__-32"><a href="#CLAlgorithm.__init__-32"><span class="linenos">32</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm.__init__-33"><a href="#CLAlgorithm.__init__-33"><span class="linenos">33</span></a><span class="sd">        - **backbone** (`CLBackbone`): backbone network.</span>
+</span><span id="CLAlgorithm.__init__-34"><a href="#CLAlgorithm.__init__-34"><span class="linenos">34</span></a><span class="sd">        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.</span>
+</span><span id="CLAlgorithm.__init__-35"><a href="#CLAlgorithm.__init__-35"><span class="linenos">35</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.__init__-36"><a href="#CLAlgorithm.__init__-36"><span class="linenos">36</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+</span><span id="CLAlgorithm.__init__-37"><a href="#CLAlgorithm.__init__-37"><span class="linenos">37</span></a>
+</span><span id="CLAlgorithm.__init__-38"><a href="#CLAlgorithm.__init__-38"><span class="linenos">38</span></a>        <span class="c1"># components</span>
+</span><span id="CLAlgorithm.__init__-39"><a href="#CLAlgorithm.__init__-39"><span class="linenos">39</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">:</span> <span class="n">CLBackbone</span> <span class="o">=</span> <span class="n">backbone</span>
+</span><span id="CLAlgorithm.__init__-40"><a href="#CLAlgorithm.__init__-40"><span class="linenos">40</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The backbone network.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.__init__-41"><a href="#CLAlgorithm.__init__-41"><span class="linenos">41</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">:</span> <span class="n">HeadsTIL</span> <span class="o">|</span> <span class="n">HeadsCIL</span> <span class="o">=</span> <span class="n">heads</span>
+</span><span id="CLAlgorithm.__init__-42"><a href="#CLAlgorithm.__init__-42"><span class="linenos">42</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The output heads.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.__init__-43"><a href="#CLAlgorithm.__init__-43"><span class="linenos">43</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer_t</span><span class="p">:</span> <span class="n">Optimizer</span>
+</span><span id="CLAlgorithm.__init__-44"><a href="#CLAlgorithm.__init__-44"><span class="linenos">44</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Optimizer (partially initialized) for backpropagation of task `self.task_id`. Will be equipped with parameters in `configure_optimizers()`.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.__init__-45"><a href="#CLAlgorithm.__init__-45"><span class="linenos">45</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">lr_scheduler_t</span><span class="p">:</span> <span class="n">LRScheduler</span> <span class="o">|</span> <span class="kc">None</span>
+</span><span id="CLAlgorithm.__init__-46"><a href="#CLAlgorithm.__init__-46"><span class="linenos">46</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Learning rate scheduler for the optimizer. If `None`, no scheduler is used.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.__init__-47"><a href="#CLAlgorithm.__init__-47"><span class="linenos">47</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
+</span><span id="CLAlgorithm.__init__-48"><a href="#CLAlgorithm.__init__-48"><span class="linenos">48</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Loss function between the output logits and the target labels. Default is cross-entropy loss.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.__init__-49"><a href="#CLAlgorithm.__init__-49"><span class="linenos">49</span></a>
+</span><span id="CLAlgorithm.__init__-50"><a href="#CLAlgorithm.__init__-50"><span class="linenos">50</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">if_forward_func_return_logits_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span id="CLAlgorithm.__init__-51"><a href="#CLAlgorithm.__init__-51"><span class="linenos">51</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Whether the `forward()` method returns logits only. If `False`, it returns a dictionary containing logits and other information. Default is `False`.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.__init__-52"><a href="#CLAlgorithm.__init__-52"><span class="linenos">52</span></a>
+</span><span id="CLAlgorithm.__init__-53"><a href="#CLAlgorithm.__init__-53"><span class="linenos">53</span></a>        <span class="c1"># task ID controls</span>
+</span><span id="CLAlgorithm.__init__-54"><a href="#CLAlgorithm.__init__-54"><span class="linenos">54</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span>
+</span><span id="CLAlgorithm.__init__-55"><a href="#CLAlgorithm.__init__-55"><span class="linenos">55</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.__init__-56"><a href="#CLAlgorithm.__init__-56"><span class="linenos">56</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="CLAlgorithm.__init__-57"><a href="#CLAlgorithm.__init__-57"><span class="linenos">57</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed in the experiment.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.__init__-58"><a href="#CLAlgorithm.__init__-58"><span class="linenos">58</span></a>
+</span><span id="CLAlgorithm.__init__-59"><a href="#CLAlgorithm.__init__-59"><span class="linenos">59</span></a>        <span class="n">CLAlgorithm</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span></pre></div>
 
 
-            <div class="docstring"><p>Initialise the CL algorithm with the network.</p>
+            <div class="docstring"><p>Initialize the CL algorithm with the network.</p>
 
 <p><strong>Args:</strong></p>
 
@@ -302,33 +508,46 @@
     </div>
     <a class="headerlink" href="#CLAlgorithm.backbone"></a>
     
-            <div class="docstring"><p>Store the backbone network.</p>
+            <div class="docstring"><p>The backbone network.</p>
 </div>
 
 
                             </div>
                             <div id="CLAlgorithm.heads" class="classattr">
                                 <div class="attr variable">
-            <span class="name">heads</span><span class="annotation">: <a href="cl_heads.html#HeadsTIL">clarena.cl_heads.HeadsTIL</a> | <a href="cl_heads.html#HeadsCIL">clarena.cl_heads.HeadsCIL</a></span>
+            <span class="name">heads</span><span class="annotation">: <a href="heads.html#HeadsTIL">clarena.heads.HeadsTIL</a> | <a href="heads.html#HeadsCIL">clarena.heads.HeadsCIL</a></span>
 
         
     </div>
     <a class="headerlink" href="#CLAlgorithm.heads"></a>
     
-            <div class="docstring"><p>Store the output heads.</p>
+            <div class="docstring"><p>The output heads.</p>
 </div>
 
 
                             </div>
-                            <div id="CLAlgorithm.optimizer" class="classattr">
+                            <div id="CLAlgorithm.optimizer_t" class="classattr">
                                 <div class="attr variable">
-            <span class="name">optimizer</span><span class="annotation">: torch.optim.optimizer.Optimizer</span>
+            <span class="name">optimizer_t</span><span class="annotation">: torch.optim.optimizer.Optimizer</span>
 
         
     </div>
-    <a class="headerlink" href="#CLAlgorithm.optimizer"></a>
+    <a class="headerlink" href="#CLAlgorithm.optimizer_t"></a>
     
-            <div class="docstring"><p>Store the optimizer object (partially initialised) for the backpropagation of task <code>self.task_id</code>. Will be equipped with parameters in <code><a href="#CLAlgorithm.configure_optimizers">configure_optimizers()</a></code>.</p>
+            <div class="docstring"><p>Optimizer (partially initialized) for backpropagation of task <code>self.task_id</code>. Will be equipped with parameters in <code><a href="#CLAlgorithm.configure_optimizers">configure_optimizers()</a></code>.</p>
+</div>
+
+
+                            </div>
+                            <div id="CLAlgorithm.lr_scheduler_t" class="classattr">
+                                <div class="attr variable">
+            <span class="name">lr_scheduler_t</span><span class="annotation">: torch.optim.lr_scheduler.LRScheduler | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#CLAlgorithm.lr_scheduler_t"></a>
+    
+            <div class="docstring"><p>Learning rate scheduler for the optimizer. If <code>None</code>, no scheduler is used.</p>
 </div>
 
 
@@ -341,7 +560,20 @@
     </div>
     <a class="headerlink" href="#CLAlgorithm.criterion"></a>
     
-            <div class="docstring"><p>The loss function bewteen the output logits and the target labels. Default is cross-entropy loss.</p>
+            <div class="docstring"><p>Loss function between the output logits and the target labels. Default is cross-entropy loss.</p>
+</div>
+
+
+                            </div>
+                            <div id="CLAlgorithm.if_forward_func_return_logits_only" class="classattr">
+                                <div class="attr variable">
+            <span class="name">if_forward_func_return_logits_only</span><span class="annotation">: bool</span>
+
+        
+    </div>
+    <a class="headerlink" href="#CLAlgorithm.if_forward_func_return_logits_only"></a>
+    
+            <div class="docstring"><p>Whether the <code><a href="#CLAlgorithm.forward">forward()</a></code> method returns logits only. If <code>False</code>, it returns a dictionary containing logits and other information. Default is <code>False</code>.</p>
 </div>
 
 
@@ -354,7 +586,20 @@
     </div>
     <a class="headerlink" href="#CLAlgorithm.task_id"></a>
     
-            <div class="docstring"><p>Task ID counter indicating which task is being processed. Self updated during the task loop.</p>
+            <div class="docstring"><p>Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to <code>cl_dataset.num_tasks</code>.</p>
+</div>
+
+
+                            </div>
+                            <div id="CLAlgorithm.processed_task_ids" class="classattr">
+                                <div class="attr variable">
+            <span class="name">processed_task_ids</span><span class="annotation">: list[int]</span>
+
+        
+    </div>
+    <a class="headerlink" href="#CLAlgorithm.processed_task_ids"></a>
+    
+            <div class="docstring"><p>Task IDs that have been processed in the experiment.</p>
 </div>
 
 
@@ -370,26 +615,18 @@
 
     </div>
     <a class="headerlink" href="#CLAlgorithm.sanity_check"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.sanity_check-51"><a href="#CLAlgorithm.sanity_check-51"><span class="linenos">51</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLAlgorithm.sanity_check-52"><a href="#CLAlgorithm.sanity_check-52"><span class="linenos">52</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.</span>
-</span><span id="CLAlgorithm.sanity_check-53"><a href="#CLAlgorithm.sanity_check-53"><span class="linenos">53</span></a>
-</span><span id="CLAlgorithm.sanity_check-54"><a href="#CLAlgorithm.sanity_check-54"><span class="linenos">54</span></a><span class="sd">        **Raises:**</span>
-</span><span id="CLAlgorithm.sanity_check-55"><a href="#CLAlgorithm.sanity_check-55"><span class="linenos">55</span></a><span class="sd">        - **ValueError**: if the `output_dim` of backbone network is not equal to the `input_dim` of CL heads.</span>
-</span><span id="CLAlgorithm.sanity_check-56"><a href="#CLAlgorithm.sanity_check-56"><span class="linenos">56</span></a><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm.sanity_check-57"><a href="#CLAlgorithm.sanity_check-57"><span class="linenos">57</span></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">output_dim</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="o">.</span><span class="n">input_dim</span><span class="p">:</span>
-</span><span id="CLAlgorithm.sanity_check-58"><a href="#CLAlgorithm.sanity_check-58"><span class="linenos">58</span></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-</span><span id="CLAlgorithm.sanity_check-59"><a href="#CLAlgorithm.sanity_check-59"><span class="linenos">59</span></a>                <span class="s2">&quot;The output_dim of backbone network should be equal to the input_dim of CL heads!&quot;</span>
-</span><span id="CLAlgorithm.sanity_check-60"><a href="#CLAlgorithm.sanity_check-60"><span class="linenos">60</span></a>            <span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.sanity_check-61"><a href="#CLAlgorithm.sanity_check-61"><span class="linenos">61</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm.sanity_check-62"><a href="#CLAlgorithm.sanity_check-62"><span class="linenos">62</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.sanity_check-63"><a href="#CLAlgorithm.sanity_check-63"><span class="linenos">63</span></a>
+</span><span id="CLAlgorithm.sanity_check-64"><a href="#CLAlgorithm.sanity_check-64"><span class="linenos">64</span></a>        <span class="c1"># check backbone and heads compatibility</span>
+</span><span id="CLAlgorithm.sanity_check-65"><a href="#CLAlgorithm.sanity_check-65"><span class="linenos">65</span></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">output_dim</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="o">.</span><span class="n">input_dim</span><span class="p">:</span>
+</span><span id="CLAlgorithm.sanity_check-66"><a href="#CLAlgorithm.sanity_check-66"><span class="linenos">66</span></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+</span><span id="CLAlgorithm.sanity_check-67"><a href="#CLAlgorithm.sanity_check-67"><span class="linenos">67</span></a>                <span class="s2">&quot;The output_dim of the backbone must equal the input_dim of the CL heads.&quot;</span>
+</span><span id="CLAlgorithm.sanity_check-68"><a href="#CLAlgorithm.sanity_check-68"><span class="linenos">68</span></a>            <span class="p">)</span>
 </span></pre></div>
 
 
             <div class="docstring"><p>Check the sanity of the arguments.</p>
-
-<p><strong>Raises:</strong></p>
-
-<ul>
-<li><strong>ValueError</strong>: if the <code>output_dim</code> of backbone network is not equal to the <code>input_dim</code> of CL heads.</li>
-</ul>
 </div>
 
 
@@ -399,36 +636,283 @@
 <div class="attr function">
             
         <span class="def">def</span>
-        <span class="name">setup_task_id</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span>,</span><span class="param">	<span class="n">num_classes_t</span><span class="p">:</span> <span class="nb">int</span>,</span><span class="param">	<span class="n">optimizer</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">optimizer</span><span class="o">.</span><span class="n">Optimizer</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+        <span class="name">setup_task_id</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span>,</span><span class="param">	<span class="n">num_classes_t</span><span class="p">:</span> <span class="nb">int</span>,</span><span class="param">	<span class="n">optimizer</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">optimizer</span><span class="o">.</span><span class="n">Optimizer</span>,</span><span class="param">	<span class="n">lr_scheduler</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">LRScheduler</span> <span class="o">|</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
 
                 <label class="view-source-button" for="CLAlgorithm.setup_task_id-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#CLAlgorithm.setup_task_id"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.setup_task_id-62"><a href="#CLAlgorithm.setup_task_id-62"><span class="linenos">62</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_task_id</span><span class="p">(</span>
-</span><span id="CLAlgorithm.setup_task_id-63"><a href="#CLAlgorithm.setup_task_id-63"><span class="linenos">63</span></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">num_classes_t</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span>
-</span><span id="CLAlgorithm.setup_task_id-64"><a href="#CLAlgorithm.setup_task_id-64"><span class="linenos">64</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLAlgorithm.setup_task_id-65"><a href="#CLAlgorithm.setup_task_id-65"><span class="linenos">65</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up which task&#39;s dataset the CL experiment is on. This must be done before `forward()` method is called.</span>
-</span><span id="CLAlgorithm.setup_task_id-66"><a href="#CLAlgorithm.setup_task_id-66"><span class="linenos">66</span></a>
-</span><span id="CLAlgorithm.setup_task_id-67"><a href="#CLAlgorithm.setup_task_id-67"><span class="linenos">67</span></a><span class="sd">        **Args:**</span>
-</span><span id="CLAlgorithm.setup_task_id-68"><a href="#CLAlgorithm.setup_task_id-68"><span class="linenos">68</span></a><span class="sd">        - **task_id** (`int`): the target task ID.</span>
-</span><span id="CLAlgorithm.setup_task_id-69"><a href="#CLAlgorithm.setup_task_id-69"><span class="linenos">69</span></a><span class="sd">        - **num_classes_t** (`int`): the number of classes in the task.</span>
-</span><span id="CLAlgorithm.setup_task_id-70"><a href="#CLAlgorithm.setup_task_id-70"><span class="linenos">70</span></a><span class="sd">        - **optimizer** (`Optimizer`): the optimizer object (partially initialised) for the task `self.task_id`.</span>
-</span><span id="CLAlgorithm.setup_task_id-71"><a href="#CLAlgorithm.setup_task_id-71"><span class="linenos">71</span></a><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm.setup_task_id-72"><a href="#CLAlgorithm.setup_task_id-72"><span class="linenos">72</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span> <span class="o">=</span> <span class="n">task_id</span>
-</span><span id="CLAlgorithm.setup_task_id-73"><a href="#CLAlgorithm.setup_task_id-73"><span class="linenos">73</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="o">.</span><span class="n">setup_task_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">num_classes_t</span><span class="p">)</span>
-</span><span id="CLAlgorithm.setup_task_id-74"><a href="#CLAlgorithm.setup_task_id-74"><span class="linenos">74</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">optimizer</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.setup_task_id-70"><a href="#CLAlgorithm.setup_task_id-70"><span class="linenos">70</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_task_id</span><span class="p">(</span>
+</span><span id="CLAlgorithm.setup_task_id-71"><a href="#CLAlgorithm.setup_task_id-71"><span class="linenos">71</span></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="CLAlgorithm.setup_task_id-72"><a href="#CLAlgorithm.setup_task_id-72"><span class="linenos">72</span></a>        <span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="CLAlgorithm.setup_task_id-73"><a href="#CLAlgorithm.setup_task_id-73"><span class="linenos">73</span></a>        <span class="n">num_classes_t</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="CLAlgorithm.setup_task_id-74"><a href="#CLAlgorithm.setup_task_id-74"><span class="linenos">74</span></a>        <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span><span class="p">,</span>
+</span><span id="CLAlgorithm.setup_task_id-75"><a href="#CLAlgorithm.setup_task_id-75"><span class="linenos">75</span></a>        <span class="n">lr_scheduler</span><span class="p">:</span> <span class="n">LRScheduler</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="CLAlgorithm.setup_task_id-76"><a href="#CLAlgorithm.setup_task_id-76"><span class="linenos">76</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm.setup_task_id-77"><a href="#CLAlgorithm.setup_task_id-77"><span class="linenos">77</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up which task the CL experiment is on. This must be done before `forward()` method is called.</span>
+</span><span id="CLAlgorithm.setup_task_id-78"><a href="#CLAlgorithm.setup_task_id-78"><span class="linenos">78</span></a>
+</span><span id="CLAlgorithm.setup_task_id-79"><a href="#CLAlgorithm.setup_task_id-79"><span class="linenos">79</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm.setup_task_id-80"><a href="#CLAlgorithm.setup_task_id-80"><span class="linenos">80</span></a><span class="sd">        - **task_id** (`int`): the target task ID.</span>
+</span><span id="CLAlgorithm.setup_task_id-81"><a href="#CLAlgorithm.setup_task_id-81"><span class="linenos">81</span></a><span class="sd">        - **num_classes_t** (`int`): the number of classes in the task.</span>
+</span><span id="CLAlgorithm.setup_task_id-82"><a href="#CLAlgorithm.setup_task_id-82"><span class="linenos">82</span></a><span class="sd">        - **optimizer** (`Optimizer`): the optimizer object (partially initialized) for the task `self.task_id`.</span>
+</span><span id="CLAlgorithm.setup_task_id-83"><a href="#CLAlgorithm.setup_task_id-83"><span class="linenos">83</span></a><span class="sd">        - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.</span>
+</span><span id="CLAlgorithm.setup_task_id-84"><a href="#CLAlgorithm.setup_task_id-84"><span class="linenos">84</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.setup_task_id-85"><a href="#CLAlgorithm.setup_task_id-85"><span class="linenos">85</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span> <span class="o">=</span> <span class="n">task_id</span>
+</span><span id="CLAlgorithm.setup_task_id-86"><a href="#CLAlgorithm.setup_task_id-86"><span class="linenos">86</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+</span><span id="CLAlgorithm.setup_task_id-87"><a href="#CLAlgorithm.setup_task_id-87"><span class="linenos">87</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="o">.</span><span class="n">setup_task_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">num_classes_t</span><span class="p">)</span>
+</span><span id="CLAlgorithm.setup_task_id-88"><a href="#CLAlgorithm.setup_task_id-88"><span class="linenos">88</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer_t</span> <span class="o">=</span> <span class="n">optimizer</span>
+</span><span id="CLAlgorithm.setup_task_id-89"><a href="#CLAlgorithm.setup_task_id-89"><span class="linenos">89</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">lr_scheduler_t</span> <span class="o">=</span> <span class="n">lr_scheduler</span>
 </span></pre></div>
 
 
-            <div class="docstring"><p>Set up which task's dataset the CL experiment is on. This must be done before <code><a href="#CLAlgorithm.forward">forward()</a></code> method is called.</p>
+            <div class="docstring"><p>Set up which task the CL experiment is on. This must be done before <code><a href="#CLAlgorithm.forward">forward()</a></code> method is called.</p>
 
 <p><strong>Args:</strong></p>
 
 <ul>
 <li><strong>task_id</strong> (<code>int</code>): the target task ID.</li>
 <li><strong>num_classes_t</strong> (<code>int</code>): the number of classes in the task.</li>
-<li><strong>optimizer</strong> (<code>Optimizer</code>): the optimizer object (partially initialised) for the task <code>self.task_id</code>.</li>
+<li><strong>optimizer</strong> (<code>Optimizer</code>): the optimizer object (partially initialized) for the task <code>self.task_id</code>.</li>
+<li><strong>lr_scheduler</strong> (<code>LRScheduler</code> | <code>None</code>): the learning rate scheduler for the optimizer. If <code>None</code>, no scheduler is used.</li>
+</ul>
+</div>
+
+
+                            </div>
+                            <div id="CLAlgorithm.get_test_task_id_from_dataloader_idx" class="classattr">
+                                        <input id="CLAlgorithm.get_test_task_id_from_dataloader_idx-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">get_test_task_id_from_dataloader_idx</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">dataloader_idx</span><span class="p">:</span> <span class="nb">int</span></span><span class="return-annotation">) -> <span class="nb">int</span>:</span></span>
+
+                <label class="view-source-button" for="CLAlgorithm.get_test_task_id_from_dataloader_idx-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#CLAlgorithm.get_test_task_id_from_dataloader_idx"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-91"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-91"><span class="linenos"> 91</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_test_task_id_from_dataloader_idx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataloader_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+</span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-92"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-92"><span class="linenos"> 92</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Get the test task ID from the dataloader index.</span>
+</span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-93"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-93"><span class="linenos"> 93</span></a>
+</span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-94"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-94"><span class="linenos"> 94</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-95"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-95"><span class="linenos"> 95</span></a><span class="sd">        - **dataloader_idx** (`int`): the dataloader index.</span>
+</span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-96"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-96"><span class="linenos"> 96</span></a>
+</span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-97"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-97"><span class="linenos"> 97</span></a><span class="sd">        **Returns:**</span>
+</span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-98"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-98"><span class="linenos"> 98</span></a><span class="sd">        - **test_task_id** (`str`): the test task ID.</span>
+</span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-99"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-99"><span class="linenos"> 99</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-100"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-100"><span class="linenos">100</span></a>        <span class="n">dataset_test</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainer</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">dataset_test</span>
+</span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-101"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-101"><span class="linenos">101</span></a>        <span class="n">test_task_id</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dataset_test</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="n">dataloader_idx</span><span class="p">]</span>
+</span><span id="CLAlgorithm.get_test_task_id_from_dataloader_idx-102"><a href="#CLAlgorithm.get_test_task_id_from_dataloader_idx-102"><span class="linenos">102</span></a>        <span class="k">return</span> <span class="n">test_task_id</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Get the test task ID from the dataloader index.</p>
+
+<p><strong>Args:</strong></p>
+
+<ul>
+<li><strong>dataloader_idx</strong> (<code>int</code>): the dataloader index.</li>
+</ul>
+
+<p><strong>Returns:</strong></p>
+
+<ul>
+<li><strong>test_task_id</strong> (<code>str</code>): the test task ID.</li>
+</ul>
+</div>
+
+
+                            </div>
+                            <div id="CLAlgorithm.set_forward_func_return_logits_only" class="classattr">
+                                        <input id="CLAlgorithm.set_forward_func_return_logits_only-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">set_forward_func_return_logits_only</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">forward_func_return_logits_only</span><span class="p">:</span> <span class="nb">bool</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+                <label class="view-source-button" for="CLAlgorithm.set_forward_func_return_logits_only-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#CLAlgorithm.set_forward_func_return_logits_only"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.set_forward_func_return_logits_only-104"><a href="#CLAlgorithm.set_forward_func_return_logits_only-104"><span class="linenos">104</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">set_forward_func_return_logits_only</span><span class="p">(</span>
+</span><span id="CLAlgorithm.set_forward_func_return_logits_only-105"><a href="#CLAlgorithm.set_forward_func_return_logits_only-105"><span class="linenos">105</span></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">forward_func_return_logits_only</span><span class="p">:</span> <span class="nb">bool</span>
+</span><span id="CLAlgorithm.set_forward_func_return_logits_only-106"><a href="#CLAlgorithm.set_forward_func_return_logits_only-106"><span class="linenos">106</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm.set_forward_func_return_logits_only-107"><a href="#CLAlgorithm.set_forward_func_return_logits_only-107"><span class="linenos">107</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set whether the `forward()` method returns logits only.</span>
+</span><span id="CLAlgorithm.set_forward_func_return_logits_only-108"><a href="#CLAlgorithm.set_forward_func_return_logits_only-108"><span class="linenos">108</span></a>
+</span><span id="CLAlgorithm.set_forward_func_return_logits_only-109"><a href="#CLAlgorithm.set_forward_func_return_logits_only-109"><span class="linenos">109</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm.set_forward_func_return_logits_only-110"><a href="#CLAlgorithm.set_forward_func_return_logits_only-110"><span class="linenos">110</span></a><span class="sd">        - **forward_func_return_logits_only** (`bool`): whether the `forward()` method returns logits only. If `False`, it returns a dictionary containing logits and other information.</span>
+</span><span id="CLAlgorithm.set_forward_func_return_logits_only-111"><a href="#CLAlgorithm.set_forward_func_return_logits_only-111"><span class="linenos">111</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.set_forward_func_return_logits_only-112"><a href="#CLAlgorithm.set_forward_func_return_logits_only-112"><span class="linenos">112</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">if_forward_func_return_logits_only</span> <span class="o">=</span> <span class="n">forward_func_return_logits_only</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Set whether the <code><a href="#CLAlgorithm.forward">forward()</a></code> method returns logits only.</p>
+
+<p><strong>Args:</strong></p>
+
+<ul>
+<li><strong>forward_func_return_logits_only</strong> (<code>bool</code>): whether the <code><a href="#CLAlgorithm.forward">forward()</a></code> method returns logits only. If <code>False</code>, it returns a dictionary containing logits and other information.</li>
+</ul>
+</div>
+
+
+                            </div>
+                            <div id="CLAlgorithm.preceding_layer" class="classattr">
+                                        <input id="CLAlgorithm.preceding_layer-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">preceding_layer</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">layer_name</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">modules</span><span class="o">.</span><span class="n">module</span><span class="o">.</span><span class="n">Module</span> <span class="o">|</span> <span class="kc">None</span>:</span></span>
+
+                <label class="view-source-button" for="CLAlgorithm.preceding_layer-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#CLAlgorithm.preceding_layer"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.preceding_layer-114"><a href="#CLAlgorithm.preceding_layer-114"><span class="linenos">114</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">preceding_layer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm.preceding_layer-115"><a href="#CLAlgorithm.preceding_layer-115"><span class="linenos">115</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Get the preceding layer of the given layer. If the given layer is the first layer, return `None`.</span>
+</span><span id="CLAlgorithm.preceding_layer-116"><a href="#CLAlgorithm.preceding_layer-116"><span class="linenos">116</span></a>
+</span><span id="CLAlgorithm.preceding_layer-117"><a href="#CLAlgorithm.preceding_layer-117"><span class="linenos">117</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm.preceding_layer-118"><a href="#CLAlgorithm.preceding_layer-118"><span class="linenos">118</span></a><span class="sd">        - **layer_name** (`str`): the name of the layer.</span>
+</span><span id="CLAlgorithm.preceding_layer-119"><a href="#CLAlgorithm.preceding_layer-119"><span class="linenos">119</span></a>
+</span><span id="CLAlgorithm.preceding_layer-120"><a href="#CLAlgorithm.preceding_layer-120"><span class="linenos">120</span></a><span class="sd">        **Returns:**</span>
+</span><span id="CLAlgorithm.preceding_layer-121"><a href="#CLAlgorithm.preceding_layer-121"><span class="linenos">121</span></a><span class="sd">        - **preceding_layer** (`nn.Module` | `None`): the preceding layer.</span>
+</span><span id="CLAlgorithm.preceding_layer-122"><a href="#CLAlgorithm.preceding_layer-122"><span class="linenos">122</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.preceding_layer-123"><a href="#CLAlgorithm.preceding_layer-123"><span class="linenos">123</span></a>
+</span><span id="CLAlgorithm.preceding_layer-124"><a href="#CLAlgorithm.preceding_layer-124"><span class="linenos">124</span></a>        <span class="k">if</span> <span class="n">layer_name</span> <span class="o">==</span> <span class="s2">&quot;heads&quot;</span><span class="p">:</span>
+</span><span id="CLAlgorithm.preceding_layer-125"><a href="#CLAlgorithm.preceding_layer-125"><span class="linenos">125</span></a>            <span class="n">backbone_last_layer_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">weighted_layer_names</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</span><span id="CLAlgorithm.preceding_layer-126"><a href="#CLAlgorithm.preceding_layer-126"><span class="linenos">126</span></a>            <span class="n">backbone_last_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">get_layer_by_name</span><span class="p">(</span>
+</span><span id="CLAlgorithm.preceding_layer-127"><a href="#CLAlgorithm.preceding_layer-127"><span class="linenos">127</span></a>                <span class="n">backbone_last_layer_name</span>
+</span><span id="CLAlgorithm.preceding_layer-128"><a href="#CLAlgorithm.preceding_layer-128"><span class="linenos">128</span></a>            <span class="p">)</span>
+</span><span id="CLAlgorithm.preceding_layer-129"><a href="#CLAlgorithm.preceding_layer-129"><span class="linenos">129</span></a>            <span class="k">return</span> <span class="n">backbone_last_layer</span>
+</span><span id="CLAlgorithm.preceding_layer-130"><a href="#CLAlgorithm.preceding_layer-130"><span class="linenos">130</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="CLAlgorithm.preceding_layer-131"><a href="#CLAlgorithm.preceding_layer-131"><span class="linenos">131</span></a>            <span class="n">preceding_layer_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">preceding_layer_name</span><span class="p">(</span><span class="n">layer_name</span><span class="p">)</span>
+</span><span id="CLAlgorithm.preceding_layer-132"><a href="#CLAlgorithm.preceding_layer-132"><span class="linenos">132</span></a>            <span class="n">preceding_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">get_layer_by_name</span><span class="p">(</span><span class="n">preceding_layer_name</span><span class="p">)</span>
+</span><span id="CLAlgorithm.preceding_layer-133"><a href="#CLAlgorithm.preceding_layer-133"><span class="linenos">133</span></a>
+</span><span id="CLAlgorithm.preceding_layer-134"><a href="#CLAlgorithm.preceding_layer-134"><span class="linenos">134</span></a>        <span class="k">return</span> <span class="n">preceding_layer</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Get the preceding layer of the given layer. If the given layer is the first layer, return <code>None</code>.</p>
+
+<p><strong>Args:</strong></p>
+
+<ul>
+<li><strong>layer_name</strong> (<code>str</code>): the name of the layer.</li>
+</ul>
+
+<p><strong>Returns:</strong></p>
+
+<ul>
+<li><strong>preceding_layer</strong> (<code>nn.Module</code> | <code>None</code>): the preceding layer.</li>
+</ul>
+</div>
+
+
+                            </div>
+                            <div id="CLAlgorithm.next_layer" class="classattr">
+                                        <input id="CLAlgorithm.next_layer-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">next_layer</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">layer_name</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">modules</span><span class="o">.</span><span class="n">module</span><span class="o">.</span><span class="n">Module</span> <span class="o">|</span> <span class="kc">None</span>:</span></span>
+
+                <label class="view-source-button" for="CLAlgorithm.next_layer-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#CLAlgorithm.next_layer"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.next_layer-136"><a href="#CLAlgorithm.next_layer-136"><span class="linenos">136</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">next_layer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm.next_layer-137"><a href="#CLAlgorithm.next_layer-137"><span class="linenos">137</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Get the next layer of the given layer. If the given layer is the last layer, return `None`.</span>
+</span><span id="CLAlgorithm.next_layer-138"><a href="#CLAlgorithm.next_layer-138"><span class="linenos">138</span></a>
+</span><span id="CLAlgorithm.next_layer-139"><a href="#CLAlgorithm.next_layer-139"><span class="linenos">139</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm.next_layer-140"><a href="#CLAlgorithm.next_layer-140"><span class="linenos">140</span></a><span class="sd">        - **layer_name** (`str`): the name of the layer.</span>
+</span><span id="CLAlgorithm.next_layer-141"><a href="#CLAlgorithm.next_layer-141"><span class="linenos">141</span></a>
+</span><span id="CLAlgorithm.next_layer-142"><a href="#CLAlgorithm.next_layer-142"><span class="linenos">142</span></a><span class="sd">        **Returns:**</span>
+</span><span id="CLAlgorithm.next_layer-143"><a href="#CLAlgorithm.next_layer-143"><span class="linenos">143</span></a><span class="sd">        - **preceding_layer** (`nn.Module` | `None`): the next layer.</span>
+</span><span id="CLAlgorithm.next_layer-144"><a href="#CLAlgorithm.next_layer-144"><span class="linenos">144</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.next_layer-145"><a href="#CLAlgorithm.next_layer-145"><span class="linenos">145</span></a>
+</span><span id="CLAlgorithm.next_layer-146"><a href="#CLAlgorithm.next_layer-146"><span class="linenos">146</span></a>        <span class="k">if</span> <span class="n">layer_name</span> <span class="o">==</span> <span class="s2">&quot;heads&quot;</span><span class="p">:</span>
+</span><span id="CLAlgorithm.next_layer-147"><a href="#CLAlgorithm.next_layer-147"><span class="linenos">147</span></a>            <span class="k">return</span> <span class="kc">None</span>
+</span><span id="CLAlgorithm.next_layer-148"><a href="#CLAlgorithm.next_layer-148"><span class="linenos">148</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="CLAlgorithm.next_layer-149"><a href="#CLAlgorithm.next_layer-149"><span class="linenos">149</span></a>            <span class="n">next_layer_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">next_layer_name</span><span class="p">(</span><span class="n">layer_name</span><span class="p">)</span>
+</span><span id="CLAlgorithm.next_layer-150"><a href="#CLAlgorithm.next_layer-150"><span class="linenos">150</span></a>            <span class="k">if</span> <span class="n">next_layer_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CLAlgorithm.next_layer-151"><a href="#CLAlgorithm.next_layer-151"><span class="linenos">151</span></a>                <span class="n">next_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">get_layer_by_name</span><span class="p">(</span><span class="n">next_layer_name</span><span class="p">)</span>
+</span><span id="CLAlgorithm.next_layer-152"><a href="#CLAlgorithm.next_layer-152"><span class="linenos">152</span></a>            <span class="k">else</span><span class="p">:</span>
+</span><span id="CLAlgorithm.next_layer-153"><a href="#CLAlgorithm.next_layer-153"><span class="linenos">153</span></a>                <span class="n">next_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="o">.</span><span class="n">get_head</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">)</span>
+</span><span id="CLAlgorithm.next_layer-154"><a href="#CLAlgorithm.next_layer-154"><span class="linenos">154</span></a>
+</span><span id="CLAlgorithm.next_layer-155"><a href="#CLAlgorithm.next_layer-155"><span class="linenos">155</span></a>        <span class="k">return</span> <span class="n">next_layer</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Get the next layer of the given layer. If the given layer is the last layer, return <code>None</code>.</p>
+
+<p><strong>Args:</strong></p>
+
+<ul>
+<li><strong>layer_name</strong> (<code>str</code>): the name of the layer.</li>
+</ul>
+
+<p><strong>Returns:</strong></p>
+
+<ul>
+<li><strong>preceding_layer</strong> (<code>nn.Module</code> | <code>None</code>): the next layer.</li>
+</ul>
+</div>
+
+
+                            </div>
+                            <div id="CLAlgorithm.forward" class="classattr">
+                                        <input id="CLAlgorithm.forward-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">forward</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="nb">input</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>,</span><span class="param">	<span class="n">stage</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>:</span></span>
+
+                <label class="view-source-button" for="CLAlgorithm.forward-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#CLAlgorithm.forward"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.forward-157"><a href="#CLAlgorithm.forward-157"><span class="linenos">157</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
+</span><span id="CLAlgorithm.forward-158"><a href="#CLAlgorithm.forward-158"><span class="linenos">158</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`. This definition provides a template that many CL algorithm including the vanilla Finetuning algorithm use. It works both for TIL and CIL.</span>
+</span><span id="CLAlgorithm.forward-159"><a href="#CLAlgorithm.forward-159"><span class="linenos">159</span></a>
+</span><span id="CLAlgorithm.forward-160"><a href="#CLAlgorithm.forward-160"><span class="linenos">160</span></a><span class="sd">        **Args:**</span>
+</span><span id="CLAlgorithm.forward-161"><a href="#CLAlgorithm.forward-161"><span class="linenos">161</span></a><span class="sd">        - **input** (`Tensor`): the input tensor from data.</span>
+</span><span id="CLAlgorithm.forward-162"><a href="#CLAlgorithm.forward-162"><span class="linenos">162</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="CLAlgorithm.forward-163"><a href="#CLAlgorithm.forward-163"><span class="linenos">163</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
+</span><span id="CLAlgorithm.forward-164"><a href="#CLAlgorithm.forward-164"><span class="linenos">164</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
+</span><span id="CLAlgorithm.forward-165"><a href="#CLAlgorithm.forward-165"><span class="linenos">165</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
+</span><span id="CLAlgorithm.forward-166"><a href="#CLAlgorithm.forward-166"><span class="linenos">166</span></a><span class="sd">        - **task_id** (`int`): the task ID where the data are from. If stage is &#39;train&#39; or `validation`, it is usually from the current task `self.task_id`. If stage is &#39;test&#39;, it could be from any seen task. In TIL, the task IDs of test data are provided thus this argument can be used. In CIL, they are not provided, so it is just a placeholder for API consistence but never used, and best practices are not to provide this argument and leave it as the default value.</span>
+</span><span id="CLAlgorithm.forward-167"><a href="#CLAlgorithm.forward-167"><span class="linenos">167</span></a>
+</span><span id="CLAlgorithm.forward-168"><a href="#CLAlgorithm.forward-168"><span class="linenos">168</span></a><span class="sd">        **Returns:**</span>
+</span><span id="CLAlgorithm.forward-169"><a href="#CLAlgorithm.forward-169"><span class="linenos">169</span></a><span class="sd">        - **logits** (`Tensor`): the output logits tensor.</span>
+</span><span id="CLAlgorithm.forward-170"><a href="#CLAlgorithm.forward-170"><span class="linenos">170</span></a><span class="sd">        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.</span>
+</span><span id="CLAlgorithm.forward-171"><a href="#CLAlgorithm.forward-171"><span class="linenos">171</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.forward-172"><a href="#CLAlgorithm.forward-172"><span class="linenos">172</span></a>        <span class="n">feature</span><span class="p">,</span> <span class="n">activations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="n">stage</span><span class="p">,</span> <span class="n">task_id</span><span class="o">=</span><span class="n">task_id</span><span class="p">)</span>
+</span><span id="CLAlgorithm.forward-173"><a href="#CLAlgorithm.forward-173"><span class="linenos">173</span></a>        <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">heads</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">task_id</span><span class="p">)</span>
+</span><span id="CLAlgorithm.forward-174"><a href="#CLAlgorithm.forward-174"><span class="linenos">174</span></a>        <span class="k">return</span> <span class="p">(</span>
+</span><span id="CLAlgorithm.forward-175"><a href="#CLAlgorithm.forward-175"><span class="linenos">175</span></a>            <span class="n">logits</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">if_forward_func_return_logits_only</span> <span class="k">else</span> <span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">activations</span><span class="p">)</span>
+</span><span id="CLAlgorithm.forward-176"><a href="#CLAlgorithm.forward-176"><span class="linenos">176</span></a>        <span class="p">)</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>The forward pass for data from task <code><a href="#CLAlgorithm.task_id">task_id</a></code>. Note that it is nothing to do with <code><a href="#CLAlgorithm.forward">forward()</a></code> method in <code>nn.Module</code>. This definition provides a template that many CL algorithm including the vanilla Finetuning algorithm use. It works both for TIL and CIL.</p>
+
+<p><strong>Args:</strong></p>
+
+<ul>
+<li><strong>input</strong> (<code>Tensor</code>): the input tensor from data.</li>
+<li><strong>stage</strong> (<code>str</code>): the stage of the forward pass, should be one of the following:
+<ol>
+<li>'train': training stage.</li>
+<li>'validation': validation stage.</li>
+<li>'test': testing stage.</li>
+</ol></li>
+<li><strong>task_id</strong> (<code>int</code>): the task ID where the data are from. If stage is 'train' or <code>validation</code>, it is usually from the current task <code>self.task_id</code>. If stage is 'test', it could be from any seen task. In TIL, the task IDs of test data are provided thus this argument can be used. In CIL, they are not provided, so it is just a placeholder for API consistence but never used, and best practices are not to provide this argument and leave it as the default value.</li>
+</ul>
+
+<p><strong>Returns:</strong></p>
+
+<ul>
+<li><strong>logits</strong> (<code>Tensor</code>): the output logits tensor.</li>
+<li><strong>activations</strong> (<code>dict[str, Tensor]</code>): the hidden features (after activation) in each weighted layer. Key (<code>str</code>) is the weighted layer name, value (<code>Tensor</code>) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.</li>
 </ul>
 </div>
 
@@ -445,18 +929,248 @@
 
     </div>
     <a class="headerlink" href="#CLAlgorithm.configure_optimizers"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.configure_optimizers-76"><a href="#CLAlgorithm.configure_optimizers-76"><span class="linenos">76</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">configure_optimizers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optimizer</span><span class="p">:</span>
-</span><span id="CLAlgorithm.configure_optimizers-77"><a href="#CLAlgorithm.configure_optimizers-77"><span class="linenos">77</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm.configure_optimizers-78"><a href="#CLAlgorithm.configure_optimizers-78"><span class="linenos">78</span></a><span class="sd">        Configure optimizer hooks by Lightning.</span>
-</span><span id="CLAlgorithm.configure_optimizers-79"><a href="#CLAlgorithm.configure_optimizers-79"><span class="linenos">79</span></a><span class="sd">        See [Lightning docs](https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#configure-optimizers) for more details.</span>
-</span><span id="CLAlgorithm.configure_optimizers-80"><a href="#CLAlgorithm.configure_optimizers-80"><span class="linenos">80</span></a><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="CLAlgorithm.configure_optimizers-81"><a href="#CLAlgorithm.configure_optimizers-81"><span class="linenos">81</span></a>        <span class="c1"># finish partially initialised optimizer by specifying model parameters. The `parameters()` method of this `CLAlrogithm` (inherited from `LightningModule`) returns both backbone and heads parameters</span>
-</span><span id="CLAlgorithm.configure_optimizers-82"><a href="#CLAlgorithm.configure_optimizers-82"><span class="linenos">82</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CLAlgorithm.configure_optimizers-178"><a href="#CLAlgorithm.configure_optimizers-178"><span class="linenos">178</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">configure_optimizers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optimizer</span><span class="p">:</span>
+</span><span id="CLAlgorithm.configure_optimizers-179"><a href="#CLAlgorithm.configure_optimizers-179"><span class="linenos">179</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.configure_optimizers-180"><a href="#CLAlgorithm.configure_optimizers-180"><span class="linenos">180</span></a><span class="sd">        Configure optimizer hooks by Lightning. See [Lightning docs](https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#configure-optimizers) for more details.</span>
+</span><span id="CLAlgorithm.configure_optimizers-181"><a href="#CLAlgorithm.configure_optimizers-181"><span class="linenos">181</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CLAlgorithm.configure_optimizers-182"><a href="#CLAlgorithm.configure_optimizers-182"><span class="linenos">182</span></a>        <span class="c1"># finish partially initialized optimizer by specifying model parameters. The `parameters()` method of this `CLAlgorithm` (inherited from `LightningModule`) returns both backbone and heads parameters</span>
+</span><span id="CLAlgorithm.configure_optimizers-183"><a href="#CLAlgorithm.configure_optimizers-183"><span class="linenos">183</span></a>        <span class="n">fully_initialized_optimizer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer_t</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+</span><span id="CLAlgorithm.configure_optimizers-184"><a href="#CLAlgorithm.configure_optimizers-184"><span class="linenos">184</span></a>
+</span><span id="CLAlgorithm.configure_optimizers-185"><a href="#CLAlgorithm.configure_optimizers-185"><span class="linenos">185</span></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr_scheduler_t</span><span class="p">:</span>
+</span><span id="CLAlgorithm.configure_optimizers-186"><a href="#CLAlgorithm.configure_optimizers-186"><span class="linenos">186</span></a>            <span class="n">fully_initialized_lr_scheduler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr_scheduler_t</span><span class="p">(</span>
+</span><span id="CLAlgorithm.configure_optimizers-187"><a href="#CLAlgorithm.configure_optimizers-187"><span class="linenos">187</span></a>                <span class="n">optimizer</span><span class="o">=</span><span class="n">fully_initialized_optimizer</span>
+</span><span id="CLAlgorithm.configure_optimizers-188"><a href="#CLAlgorithm.configure_optimizers-188"><span class="linenos">188</span></a>            <span class="p">)</span>
+</span><span id="CLAlgorithm.configure_optimizers-189"><a href="#CLAlgorithm.configure_optimizers-189"><span class="linenos">189</span></a>
+</span><span id="CLAlgorithm.configure_optimizers-190"><a href="#CLAlgorithm.configure_optimizers-190"><span class="linenos">190</span></a>            <span class="k">return</span> <span class="p">{</span>
+</span><span id="CLAlgorithm.configure_optimizers-191"><a href="#CLAlgorithm.configure_optimizers-191"><span class="linenos">191</span></a>                <span class="s2">&quot;optimizer&quot;</span><span class="p">:</span> <span class="n">fully_initialized_optimizer</span><span class="p">,</span>
+</span><span id="CLAlgorithm.configure_optimizers-192"><a href="#CLAlgorithm.configure_optimizers-192"><span class="linenos">192</span></a>                <span class="s2">&quot;lr_scheduler&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="CLAlgorithm.configure_optimizers-193"><a href="#CLAlgorithm.configure_optimizers-193"><span class="linenos">193</span></a>                    <span class="s2">&quot;scheduler&quot;</span><span class="p">:</span> <span class="n">fully_initialized_lr_scheduler</span><span class="p">,</span>
+</span><span id="CLAlgorithm.configure_optimizers-194"><a href="#CLAlgorithm.configure_optimizers-194"><span class="linenos">194</span></a>                    <span class="s2">&quot;monitor&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;task_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="si">}</span><span class="s2">/learning_curve/val/loss_cls&quot;</span><span class="p">,</span>
+</span><span id="CLAlgorithm.configure_optimizers-195"><a href="#CLAlgorithm.configure_optimizers-195"><span class="linenos">195</span></a>                    <span class="s2">&quot;interval&quot;</span><span class="p">:</span> <span class="s2">&quot;epoch&quot;</span><span class="p">,</span>
+</span><span id="CLAlgorithm.configure_optimizers-196"><a href="#CLAlgorithm.configure_optimizers-196"><span class="linenos">196</span></a>                    <span class="s2">&quot;frequency&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span id="CLAlgorithm.configure_optimizers-197"><a href="#CLAlgorithm.configure_optimizers-197"><span class="linenos">197</span></a>                <span class="p">},</span>
+</span><span id="CLAlgorithm.configure_optimizers-198"><a href="#CLAlgorithm.configure_optimizers-198"><span class="linenos">198</span></a>            <span class="p">}</span>
+</span><span id="CLAlgorithm.configure_optimizers-199"><a href="#CLAlgorithm.configure_optimizers-199"><span class="linenos">199</span></a>
+</span><span id="CLAlgorithm.configure_optimizers-200"><a href="#CLAlgorithm.configure_optimizers-200"><span class="linenos">200</span></a>        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;optimizer&quot;</span><span class="p">:</span> <span class="n">fully_initialized_optimizer</span><span class="p">}</span>
 </span></pre></div>
 
 
-            <div class="docstring"><p>Configure optimizer hooks by Lightning.
-See <a href="https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#configure-optimizers">Lightning docs</a> for more details.</p>
+            <div class="docstring"><p>Configure optimizer hooks by Lightning. See <a href="https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#configure-optimizers">Lightning docs</a> for more details.</p>
+</div>
+
+
+                            </div>
+                </section>
+                <section id="UnlearnableCLAlgorithm">
+                            <input id="UnlearnableCLAlgorithm-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">UnlearnableCLAlgorithm</span><wbr>(<span class="base"><a href="#CLAlgorithm">clarena.cl_algorithms.CLAlgorithm</a></span>):
+
+                <label class="view-source-button" for="UnlearnableCLAlgorithm-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#UnlearnableCLAlgorithm"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="UnlearnableCLAlgorithm-203"><a href="#UnlearnableCLAlgorithm-203"><span class="linenos">203</span></a><span class="k">class</span><span class="w"> </span><span class="nc">UnlearnableCLAlgorithm</span><span class="p">(</span><span class="n">CLAlgorithm</span><span class="p">):</span>
+</span><span id="UnlearnableCLAlgorithm-204"><a href="#UnlearnableCLAlgorithm-204"><span class="linenos">204</span></a><span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The base class of unlearnable continual learning algorithms, inherits from `CLAlgorithm`.&quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm-205"><a href="#UnlearnableCLAlgorithm-205"><span class="linenos">205</span></a>
+</span><span id="UnlearnableCLAlgorithm-206"><a href="#UnlearnableCLAlgorithm-206"><span class="linenos">206</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+</span><span id="UnlearnableCLAlgorithm-207"><a href="#UnlearnableCLAlgorithm-207"><span class="linenos">207</span></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="UnlearnableCLAlgorithm-208"><a href="#UnlearnableCLAlgorithm-208"><span class="linenos">208</span></a>        <span class="n">backbone</span><span class="p">:</span> <span class="n">CLBackbone</span><span class="p">,</span>
+</span><span id="UnlearnableCLAlgorithm-209"><a href="#UnlearnableCLAlgorithm-209"><span class="linenos">209</span></a>        <span class="n">heads</span><span class="p">:</span> <span class="n">HeadsTIL</span> <span class="o">|</span> <span class="n">HeadsCIL</span><span class="p">,</span>
+</span><span id="UnlearnableCLAlgorithm-210"><a href="#UnlearnableCLAlgorithm-210"><span class="linenos">210</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="UnlearnableCLAlgorithm-211"><a href="#UnlearnableCLAlgorithm-211"><span class="linenos">211</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Initialize the CL algorithm with the network.</span>
+</span><span id="UnlearnableCLAlgorithm-212"><a href="#UnlearnableCLAlgorithm-212"><span class="linenos">212</span></a>
+</span><span id="UnlearnableCLAlgorithm-213"><a href="#UnlearnableCLAlgorithm-213"><span class="linenos">213</span></a><span class="sd">        **Args:**</span>
+</span><span id="UnlearnableCLAlgorithm-214"><a href="#UnlearnableCLAlgorithm-214"><span class="linenos">214</span></a><span class="sd">        - **backbone** (`CLBackbone`): backbone network.</span>
+</span><span id="UnlearnableCLAlgorithm-215"><a href="#UnlearnableCLAlgorithm-215"><span class="linenos">215</span></a><span class="sd">        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.</span>
+</span><span id="UnlearnableCLAlgorithm-216"><a href="#UnlearnableCLAlgorithm-216"><span class="linenos">216</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm-217"><a href="#UnlearnableCLAlgorithm-217"><span class="linenos">217</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">backbone</span><span class="o">=</span><span class="n">backbone</span><span class="p">,</span> <span class="n">heads</span><span class="o">=</span><span class="n">heads</span><span class="p">)</span>
+</span><span id="UnlearnableCLAlgorithm-218"><a href="#UnlearnableCLAlgorithm-218"><span class="linenos">218</span></a>
+</span><span id="UnlearnableCLAlgorithm-219"><a href="#UnlearnableCLAlgorithm-219"><span class="linenos">219</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_task_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+</span><span id="UnlearnableCLAlgorithm-220"><a href="#UnlearnableCLAlgorithm-220"><span class="linenos">220</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The list of task IDs to be unlearned after `self.task_id`. &quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm-221"><a href="#UnlearnableCLAlgorithm-221"><span class="linenos">221</span></a>
+</span><span id="UnlearnableCLAlgorithm-222"><a href="#UnlearnableCLAlgorithm-222"><span class="linenos">222</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearned_task_ids</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+</span><span id="UnlearnableCLAlgorithm-223"><a href="#UnlearnableCLAlgorithm-223"><span class="linenos">223</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The list of task IDs that have been unlearned in the experiment.&quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm-224"><a href="#UnlearnableCLAlgorithm-224"><span class="linenos">224</span></a>
+</span><span id="UnlearnableCLAlgorithm-225"><a href="#UnlearnableCLAlgorithm-225"><span class="linenos">225</span></a>        <span class="c1"># self.cfg_unlearning_test_reference: DictConfig</span>
+</span><span id="UnlearnableCLAlgorithm-226"><a href="#UnlearnableCLAlgorithm-226"><span class="linenos">226</span></a>        <span class="c1"># r&quot;&quot;&quot;The reference experiment configuration for unlearning test.&quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm-227"><a href="#UnlearnableCLAlgorithm-227"><span class="linenos">227</span></a>
+</span><span id="UnlearnableCLAlgorithm-228"><a href="#UnlearnableCLAlgorithm-228"><span class="linenos">228</span></a>        <span class="n">UnlearnableCLAlgorithm</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span id="UnlearnableCLAlgorithm-229"><a href="#UnlearnableCLAlgorithm-229"><span class="linenos">229</span></a>
+</span><span id="UnlearnableCLAlgorithm-230"><a href="#UnlearnableCLAlgorithm-230"><span class="linenos">230</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="UnlearnableCLAlgorithm-231"><a href="#UnlearnableCLAlgorithm-231"><span class="linenos">231</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm-232"><a href="#UnlearnableCLAlgorithm-232"><span class="linenos">232</span></a>
+</span><span id="UnlearnableCLAlgorithm-233"><a href="#UnlearnableCLAlgorithm-233"><span class="linenos">233</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">aggregated_backbone_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
+</span><span id="UnlearnableCLAlgorithm-234"><a href="#UnlearnableCLAlgorithm-234"><span class="linenos">234</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Get the aggregated backbone output for the input data. All parts of backbones should be aggregated together.</span>
+</span><span id="UnlearnableCLAlgorithm-235"><a href="#UnlearnableCLAlgorithm-235"><span class="linenos">235</span></a>
+</span><span id="UnlearnableCLAlgorithm-236"><a href="#UnlearnableCLAlgorithm-236"><span class="linenos">236</span></a><span class="sd">        This output feature is used for measuring unlearning metrics, such as Distribution Distance (DD). An aggregated output involving every part of the backbone is needed to ensure the fairness of the metric.</span>
+</span><span id="UnlearnableCLAlgorithm-237"><a href="#UnlearnableCLAlgorithm-237"><span class="linenos">237</span></a>
+</span><span id="UnlearnableCLAlgorithm-238"><a href="#UnlearnableCLAlgorithm-238"><span class="linenos">238</span></a><span class="sd">        **Args:**</span>
+</span><span id="UnlearnableCLAlgorithm-239"><a href="#UnlearnableCLAlgorithm-239"><span class="linenos">239</span></a><span class="sd">        - **input** (`Tensor`): the input tensor from data.</span>
+</span><span id="UnlearnableCLAlgorithm-240"><a href="#UnlearnableCLAlgorithm-240"><span class="linenos">240</span></a>
+</span><span id="UnlearnableCLAlgorithm-241"><a href="#UnlearnableCLAlgorithm-241"><span class="linenos">241</span></a><span class="sd">        **Returns:**</span>
+</span><span id="UnlearnableCLAlgorithm-242"><a href="#UnlearnableCLAlgorithm-242"><span class="linenos">242</span></a><span class="sd">        - **output** (`Tensor`): the aggregated backbone output tensor.</span>
+</span><span id="UnlearnableCLAlgorithm-243"><a href="#UnlearnableCLAlgorithm-243"><span class="linenos">243</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm-244"><a href="#UnlearnableCLAlgorithm-244"><span class="linenos">244</span></a>        <span class="n">feature</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="UnlearnableCLAlgorithm-245"><a href="#UnlearnableCLAlgorithm-245"><span class="linenos">245</span></a>
+</span><span id="UnlearnableCLAlgorithm-246"><a href="#UnlearnableCLAlgorithm-246"><span class="linenos">246</span></a>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="p">:</span>
+</span><span id="UnlearnableCLAlgorithm-247"><a href="#UnlearnableCLAlgorithm-247"><span class="linenos">247</span></a>            <span class="n">feature_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="n">task_id</span><span class="o">=</span><span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="UnlearnableCLAlgorithm-248"><a href="#UnlearnableCLAlgorithm-248"><span class="linenos">248</span></a>            <span class="n">feature</span> <span class="o">+=</span> <span class="n">feature_i</span>
+</span><span id="UnlearnableCLAlgorithm-249"><a href="#UnlearnableCLAlgorithm-249"><span class="linenos">249</span></a>        <span class="n">feature</span> <span class="o">=</span> <span class="n">feature</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="p">)</span>
+</span><span id="UnlearnableCLAlgorithm-250"><a href="#UnlearnableCLAlgorithm-250"><span class="linenos">250</span></a>
+</span><span id="UnlearnableCLAlgorithm-251"><a href="#UnlearnableCLAlgorithm-251"><span class="linenos">251</span></a>        <span class="k">return</span> <span class="n">feature</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>The base class of unlearnable continual learning algorithms, inherits from <code><a href="#CLAlgorithm">CLAlgorithm</a></code>.</p>
+</div>
+
+
+                            <div id="UnlearnableCLAlgorithm.__init__" class="classattr">
+                                        <input id="UnlearnableCLAlgorithm.__init__-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="name">UnlearnableCLAlgorithm</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">backbone</span><span class="p">:</span> <span class="n"><a href="backbones.html#CLBackbone">clarena.backbones.CLBackbone</a></span>,</span><span class="param">	<span class="n">heads</span><span class="p">:</span> <span class="n"><a href="heads.html#HeadsTIL">clarena.heads.HeadsTIL</a></span> <span class="o">|</span> <span class="n"><a href="heads.html#HeadsCIL">clarena.heads.HeadsCIL</a></span></span>)</span>
+
+                <label class="view-source-button" for="UnlearnableCLAlgorithm.__init__-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#UnlearnableCLAlgorithm.__init__"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="UnlearnableCLAlgorithm.__init__-206"><a href="#UnlearnableCLAlgorithm.__init__-206"><span class="linenos">206</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-207"><a href="#UnlearnableCLAlgorithm.__init__-207"><span class="linenos">207</span></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-208"><a href="#UnlearnableCLAlgorithm.__init__-208"><span class="linenos">208</span></a>        <span class="n">backbone</span><span class="p">:</span> <span class="n">CLBackbone</span><span class="p">,</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-209"><a href="#UnlearnableCLAlgorithm.__init__-209"><span class="linenos">209</span></a>        <span class="n">heads</span><span class="p">:</span> <span class="n">HeadsTIL</span> <span class="o">|</span> <span class="n">HeadsCIL</span><span class="p">,</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-210"><a href="#UnlearnableCLAlgorithm.__init__-210"><span class="linenos">210</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-211"><a href="#UnlearnableCLAlgorithm.__init__-211"><span class="linenos">211</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Initialize the CL algorithm with the network.</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-212"><a href="#UnlearnableCLAlgorithm.__init__-212"><span class="linenos">212</span></a>
+</span><span id="UnlearnableCLAlgorithm.__init__-213"><a href="#UnlearnableCLAlgorithm.__init__-213"><span class="linenos">213</span></a><span class="sd">        **Args:**</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-214"><a href="#UnlearnableCLAlgorithm.__init__-214"><span class="linenos">214</span></a><span class="sd">        - **backbone** (`CLBackbone`): backbone network.</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-215"><a href="#UnlearnableCLAlgorithm.__init__-215"><span class="linenos">215</span></a><span class="sd">        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-216"><a href="#UnlearnableCLAlgorithm.__init__-216"><span class="linenos">216</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-217"><a href="#UnlearnableCLAlgorithm.__init__-217"><span class="linenos">217</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">backbone</span><span class="o">=</span><span class="n">backbone</span><span class="p">,</span> <span class="n">heads</span><span class="o">=</span><span class="n">heads</span><span class="p">)</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-218"><a href="#UnlearnableCLAlgorithm.__init__-218"><span class="linenos">218</span></a>
+</span><span id="UnlearnableCLAlgorithm.__init__-219"><a href="#UnlearnableCLAlgorithm.__init__-219"><span class="linenos">219</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_task_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-220"><a href="#UnlearnableCLAlgorithm.__init__-220"><span class="linenos">220</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The list of task IDs to be unlearned after `self.task_id`. &quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-221"><a href="#UnlearnableCLAlgorithm.__init__-221"><span class="linenos">221</span></a>
+</span><span id="UnlearnableCLAlgorithm.__init__-222"><a href="#UnlearnableCLAlgorithm.__init__-222"><span class="linenos">222</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearned_task_ids</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-223"><a href="#UnlearnableCLAlgorithm.__init__-223"><span class="linenos">223</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The list of task IDs that have been unlearned in the experiment.&quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-224"><a href="#UnlearnableCLAlgorithm.__init__-224"><span class="linenos">224</span></a>
+</span><span id="UnlearnableCLAlgorithm.__init__-225"><a href="#UnlearnableCLAlgorithm.__init__-225"><span class="linenos">225</span></a>        <span class="c1"># self.cfg_unlearning_test_reference: DictConfig</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-226"><a href="#UnlearnableCLAlgorithm.__init__-226"><span class="linenos">226</span></a>        <span class="c1"># r&quot;&quot;&quot;The reference experiment configuration for unlearning test.&quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm.__init__-227"><a href="#UnlearnableCLAlgorithm.__init__-227"><span class="linenos">227</span></a>
+</span><span id="UnlearnableCLAlgorithm.__init__-228"><a href="#UnlearnableCLAlgorithm.__init__-228"><span class="linenos">228</span></a>        <span class="n">UnlearnableCLAlgorithm</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Initialize the CL algorithm with the network.</p>
+
+<p><strong>Args:</strong></p>
+
+<ul>
+<li><strong>backbone</strong> (<code>CLBackbone</code>): backbone network.</li>
+<li><strong>heads</strong> (<code>HeadsTIL</code> | <code>HeadsCIL</code>): output heads.</li>
+</ul>
+</div>
+
+
+                            </div>
+                            <div id="UnlearnableCLAlgorithm.unlearning_task_ids" class="classattr">
+                                <div class="attr variable">
+            <span class="name">unlearning_task_ids</span><span class="annotation">: list[int]</span>
+
+        
+    </div>
+    <a class="headerlink" href="#UnlearnableCLAlgorithm.unlearning_task_ids"></a>
+    
+            <div class="docstring"><p>The list of task IDs to be unlearned after <code>self.task_id</code>.</p>
+</div>
+
+
+                            </div>
+                            <div id="UnlearnableCLAlgorithm.unlearned_task_ids" class="classattr">
+                                <div class="attr variable">
+            <span class="name">unlearned_task_ids</span><span class="annotation">: set[int]</span>
+
+        
+    </div>
+    <a class="headerlink" href="#UnlearnableCLAlgorithm.unlearned_task_ids"></a>
+    
+            <div class="docstring"><p>The list of task IDs that have been unlearned in the experiment.</p>
+</div>
+
+
+                            </div>
+                            <div id="UnlearnableCLAlgorithm.sanity_check" class="classattr">
+                                        <input id="UnlearnableCLAlgorithm.sanity_check-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">sanity_check</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+                <label class="view-source-button" for="UnlearnableCLAlgorithm.sanity_check-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#UnlearnableCLAlgorithm.sanity_check"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="UnlearnableCLAlgorithm.sanity_check-230"><a href="#UnlearnableCLAlgorithm.sanity_check-230"><span class="linenos">230</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="UnlearnableCLAlgorithm.sanity_check-231"><a href="#UnlearnableCLAlgorithm.sanity_check-231"><span class="linenos">231</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Check the sanity of the arguments.</p>
+</div>
+
+
+                            </div>
+                            <div id="UnlearnableCLAlgorithm.aggregated_backbone_output" class="classattr">
+                                        <input id="UnlearnableCLAlgorithm.aggregated_backbone_output-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">aggregated_backbone_output</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="nb">input</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span></span><span class="return-annotation">) -> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>:</span></span>
+
+                <label class="view-source-button" for="UnlearnableCLAlgorithm.aggregated_backbone_output-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#UnlearnableCLAlgorithm.aggregated_backbone_output"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-233"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-233"><span class="linenos">233</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">aggregated_backbone_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-234"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-234"><span class="linenos">234</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Get the aggregated backbone output for the input data. All parts of backbones should be aggregated together.</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-235"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-235"><span class="linenos">235</span></a>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-236"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-236"><span class="linenos">236</span></a><span class="sd">        This output feature is used for measuring unlearning metrics, such as Distribution Distance (DD). An aggregated output involving every part of the backbone is needed to ensure the fairness of the metric.</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-237"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-237"><span class="linenos">237</span></a>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-238"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-238"><span class="linenos">238</span></a><span class="sd">        **Args:**</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-239"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-239"><span class="linenos">239</span></a><span class="sd">        - **input** (`Tensor`): the input tensor from data.</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-240"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-240"><span class="linenos">240</span></a>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-241"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-241"><span class="linenos">241</span></a><span class="sd">        **Returns:**</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-242"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-242"><span class="linenos">242</span></a><span class="sd">        - **output** (`Tensor`): the aggregated backbone output tensor.</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-243"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-243"><span class="linenos">243</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-244"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-244"><span class="linenos">244</span></a>        <span class="n">feature</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-245"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-245"><span class="linenos">245</span></a>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-246"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-246"><span class="linenos">246</span></a>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="p">:</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-247"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-247"><span class="linenos">247</span></a>            <span class="n">feature_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="n">task_id</span><span class="o">=</span><span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-248"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-248"><span class="linenos">248</span></a>            <span class="n">feature</span> <span class="o">+=</span> <span class="n">feature_i</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-249"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-249"><span class="linenos">249</span></a>        <span class="n">feature</span> <span class="o">=</span> <span class="n">feature</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="p">)</span>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-250"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-250"><span class="linenos">250</span></a>
+</span><span id="UnlearnableCLAlgorithm.aggregated_backbone_output-251"><a href="#UnlearnableCLAlgorithm.aggregated_backbone_output-251"><span class="linenos">251</span></a>        <span class="k">return</span> <span class="n">feature</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Get the aggregated backbone output for the input data. All parts of backbones should be aggregated together.</p>
+
+<p>This output feature is used for measuring unlearning metrics, such as Distribution Distance (DD). An aggregated output involving every part of the backbone is needed to ensure the fairness of the metric.</p>
+
+<p><strong>Args:</strong></p>
+
+<ul>
+<li><strong>input</strong> (<code>Tensor</code>): the input tensor from data.</li>
+</ul>
+
+<p><strong>Returns:</strong></p>
+
+<ul>
+<li><strong>output</strong> (<code>Tensor</code>): the aggregated backbone output tensor.</li>
+</ul>
 </div>
 
 

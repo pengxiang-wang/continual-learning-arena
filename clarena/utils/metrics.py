@@ -1,9 +1,9 @@
-"""The submodule in `utils` for plotting utils."""
+r"""
+The submodule in `utils` for custom torchmetrics.
+"""
 
-__all__ = [
-    "MeanMetricBatch",
-    "HATNetworkCapacity",
-]
+__all__ = ["MeanMetricBatch", "HATNetworkCapacityMetric"]
+
 
 import logging
 from typing import Any
@@ -23,7 +23,7 @@ class MeanMetricBatch(BaseAggregator):
     """
 
     def __init__(self, nan_strategy: str | float = "error", **kwargs: Any) -> None:
-        r"""Initialise the metric. Add state variables."""
+        r"""Initialize the metric. Add state variables."""
         BaseAggregator.__init__(
             self,
             "sum",
@@ -67,7 +67,7 @@ class MeanMetricBatch(BaseAggregator):
         return self.sum / self.num
 
 
-class HATNetworkCapacity(BaseAggregator):
+class HATNetworkCapacityMetric(BaseAggregator):
     r"""A torchmetrics metric to calculate the network capacity of HAT (Hard Attention to the Task) algorithm.
 
     Network capacity is defined as the average adjustment rate over all parameters. See chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).

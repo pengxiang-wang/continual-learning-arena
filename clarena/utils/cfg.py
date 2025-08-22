@@ -12,7 +12,7 @@ import os
 from copy import deepcopy
 
 import rich
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from rich.syntax import Syntax
 from rich.tree import Tree
 
@@ -20,8 +20,8 @@ from rich.tree import Tree
 pylogger = logging.getLogger(__name__)
 
 
-def preprocess_config(cfg: DictConfig) -> None:
-    r"""Preprocess the configuration before constructing experiment, which may include:
+def preprocess_config(cfg: DictConfig, expr_type: str) -> None:
+    r"""Preprocess the configuration before constructing experiment, which include:
 
     1. Convert the `DictConfig` to a Rich `Tree`.
     2. Print the Rich `Tree`.
@@ -29,7 +29,250 @@ def preprocess_config(cfg: DictConfig) -> None:
 
     **Args:**
     - **cfg** (`DictConfig`): the config dict to preprocess.
+    - **expr_type** (`str`): the type of the experiment, should be one of the following:
+        1. 'clmain_train': continual learning main experiment.
+        2. 'clmain_eval': evaluating trained continual learning main experiment.
+        3. 'clrefjl_train': joint learning as a reference experiment of continual learning.
+        4. 'clrefil_train': independent learning as a reference experiment of continual learning.
+        5. 'clrefrandom_train': random stratified model as a reference experiment of continual learning.
+        6. 'cl_eval': full evaluating trained continual learning experiment.
+        7. 'culmain_train': continual unlearning main experiment.
+        8. 'culref_train': the reference experiment of continual unlearning.
+        9. 'culreffull_train': the reference full experiment of continual unlearning.
+        10. 'cul_eval': full evaluating trained continual unlearning experiment.
+        12. 'mtl_train': multi-task learning experiment.
+        13. 'mtl_eval': evaluating trained multi-task learning experiment.
+        14. 'stl_train': single-task learning experiment.
+        15. 'stl_eval': evaluating trained single-task learning experiment.
+
+    **Returns:**
+    - **cfg** (`DictConfig`): the preprocessed config dict.
     """
+    OmegaConf.set_struct(cfg, False)  # enable editing
+
+    if expr_type in [
+        "clmain_train",
+        "clmain_eval",
+        "cl_eval",
+        "culmain_train",
+        "cul_eval",
+        "mtl_train",
+        "mtl_eval",
+        "stl_train",
+        "stl_eval",
+    ]:
+        pass
+
+    if expr_type == "clrefjl_train":
+
+        # set the output directory under the CL main experiment output directory
+        cfg.output_dir = os.path.join(cfg.output_dir, "clrefjl")
+
+        # set the CL paradigm to None, since this is a joint learning experiment
+        del cfg.cl_paradigm
+
+        # set the eval tasks to the train tasks
+        cfg.eval_tasks = cfg.train_tasks
+
+        # set the eval after tasks to None, since this is a joint learning experiment
+        del cfg.eval_after_tasks
+
+        # delete the cl_algorithm, since this is a joint learning experiment
+        del cfg.cl_algorithm
+
+        # add the mtl_algorithm to the config
+        cfg.mtl_algorithm = {"_target_": "clarena.mtl_algorithms.JointLearning"}
+
+        # revise metrics
+        # Remove CLAccuracy and CLLoss metrics entirely, and add MTL metrics
+        # Use a new list to avoid modifying the list while iterating
+        new_metrics = []
+        for metric in cfg.metrics:
+            target = metric.get("_target_")
+            if target == "clarena.metrics.CLAccuracy":
+                new_metrics.append(
+                    {
+                        "_target_": "clarena.metrics.MTLAccuracy",
+                        "save_dir": "${output_dir}/results/",
+                        "test_acc_csv_name": "acc.csv",
+                        "test_acc_plot_name": "acc.png",
+                    }
+                )
+            elif target == "clarena.metrics.CLLoss":
+                new_metrics.append(
+                    {
+                        "_target_": "clarena.metrics.MTLLoss",
+                        "save_dir": "${output_dir}/results/",
+                        "test_loss_cls_csv_name": "loss_cls.csv",
+                        "test_loss_cls_plot_name": "loss_cls.png",
+                    }
+                )
+            else:
+                new_metrics.append(metric)
+        cfg.metrics = new_metrics
+
+        # revise callbacks
+        for cb in cfg.callbacks:
+            if cb.get("_target_") == "clarena.callbacks.CLPylogger":
+                cb["_target_"] = "clarena.callbacks.MTLPylogger"
+
+    elif expr_type == "clrefil_train":
+
+        # set the output directory under the CL main experiment output directory
+        cfg.output_dir = os.path.join(cfg.output_dir, "clrefil")
+
+        # add the cl_algorithm to the config
+        cfg.cl_algorithm = {"_target_": "clarena.cl_algorithms.Independent"}
+
+    elif expr_type == "clrefrandom_train":
+
+        # set the output directory under the CL main experiment output directory
+        cfg.output_dir = os.path.join(cfg.output_dir, "clrefrandom")
+
+        # add the cl_algorithm to the config
+        cfg.cl_algorithm = {"_target_": "clarena.cl_algorithms.Random"}
+
+    elif expr_type == "cl_eval_attached":
+
+        calculate_tasks = cfg.train_tasks
+
+        main_acc_csv_path = os.path.join(cfg.output_dir, "results", "acc.csv")
+
+        if cfg.get("refjl_acc_csv_path"):
+            refjl_acc_csv_path = cfg.refjl_acc_csv_path
+        else:
+            refjl_acc_csv_path = os.path.join(
+                cfg.output_dir, "clrefjl", "results", "acc.csv"
+            )
+
+        if cfg.get("refil_acc_csv_path"):
+            refil_acc_csv_path = cfg.refil_acc_csv_path
+        else:
+            refil_acc_csv_path = os.path.join(
+                cfg.output_dir, "clrefil", "results", "acc.csv"
+            )
+
+        if cfg.get("refrandom_acc_csv_path"):
+            refrandom_acc_csv_path = cfg.refrandom_acc_csv_path
+        else:
+            refrandom_acc_csv_path = os.path.join(
+                cfg.output_dir, "clrefrandom", "results", "acc.csv"
+            )
+
+        output_dir = cfg.output_dir
+        bwt_save_dir = os.path.join(output_dir, "results")
+        bwt_csv_name = "bwt.csv"
+        bwt_plot_name = "bwt.png"
+        fwt_save_dir = os.path.join(output_dir, "results")
+        fwt_csv_name = "fwt.csv"
+        fwt_plot_name = "fwt.png"
+        fr_save_dir = os.path.join(output_dir, "results")
+        fr_csv_name = "fr.csv"
+        fr_plot_name = "fr.png"
+        misc_cfg = cfg.misc
+
+        cfg = OmegaConf.create(
+            {
+                "calculate_tasks": calculate_tasks,
+                "main_acc_csv_path": main_acc_csv_path,
+                "refjl_acc_csv_path": refjl_acc_csv_path,
+                "refil_acc_csv_path": refil_acc_csv_path,
+                "refrandom_acc_csv_path": refrandom_acc_csv_path,
+                "output_dir": output_dir,
+                "bwt_save_dir": bwt_save_dir,
+                "bwt_csv_name": bwt_csv_name,
+                "bwt_plot_name": bwt_plot_name,
+                "fwt_save_dir": fwt_save_dir,
+                "fwt_csv_name": fwt_csv_name,
+                "fwt_plot_name": fwt_plot_name,
+                "fr_save_dir": fr_save_dir,
+                "fr_csv_name": fr_csv_name,
+                "fr_plot_name": fr_plot_name,
+                "misc": misc_cfg,
+            }
+        )
+
+    elif expr_type == "culrefretrain_train":
+
+        # set the output directory under the main experiment output directory
+        cfg.output_dir = os.path.join(cfg.output_dir, "culrefretrain")
+
+        # skip the unlearning tasks specified in unlearning_requests
+
+        train_tasks = (
+            cfg.train_tasks
+            if isinstance(cfg.train_tasks, ListConfig)
+            else ListConfig(list(range(1, cfg.train_tasks + 1)))
+        )
+        for unlearning_task_ids in cfg.unlearning_requests.values():
+            for unlearning_task_id in unlearning_task_ids:
+                if unlearning_task_id in train_tasks:
+                    train_tasks.remove(unlearning_task_id)
+
+        cfg.train_tasks = train_tasks
+
+        # delete the unlearning_algorithm, since this is a joint learning experiment
+        del cfg.unlearning_algorithm
+
+        # revise callbacks
+        for cb in cfg.callbacks:
+            if cb.get("_target_") == "clarena.callbacks.CULPylogger":
+                cb["_target_"] = "clarena.callbacks.CLPylogger"
+
+    elif expr_type == "culreforiginal_train":
+
+        # set the output directory under the main experiment output directory
+        cfg.output_dir = os.path.join(cfg.output_dir, "culreforiginal")
+
+        # just do the CLExperiment using the unlearning experiment config will automatically ignore the unlearning process, which is exactly the full experiment
+
+        # delete the unlearning_algorithm, since this is a joint learning experiment
+        del cfg.unlearning_algorithm
+
+        # revise callbacks
+        for cb in cfg.callbacks:
+            if cb.get("_target_") == "clarena.callbacks.CULPylogger":
+                cb["_target_"] = "clarena.callbacks.CLPylogger"
+
+    elif expr_type == "cul_eval_attached":
+
+        cfg.dd_eval_tasks = cfg.train_tasks
+        cfg.ad_eval_tasks = cfg.train_tasks
+
+        cfg.main_model_path = os.path.join(
+            cfg.output_dir, "saved_models", "cl_model.pth"
+        )
+
+        if not cfg.get("refretrain_model_path"):
+            cfg.refretrain_model_path = os.path.join(
+                cfg.output_dir, "culrefretrain", "saved_models", "cl_model.pth"
+            )
+
+        if not cfg.get("reforiginal_model_path"):
+            cfg.reforiginal_model_path = os.path.join(
+                cfg.output_dir, "culreforiginal", "saved_models", "cl_model.pth"
+            )
+
+        cfg.metrics = OmegaConf.create([
+            {
+            "_target_": "clarena.metrics.CULDistributionDistance",
+            "save_dir": "${output_dir}/results/",
+            "distribution_distance_type": "cosine",
+            "distribution_distance_csv_name": "dd.csv",
+            "distribution_distance_plot_name": "dd.png",
+            },
+            {
+            "_target_": "clarena.metrics.CULAccuracyDifference",
+            "save_dir": "${output_dir}/results/",
+            "accuracy_difference_csv_name": "ad.csv",
+            "accuracy_difference_plot_name": "ad.png",
+            },
+        ])
+
+    else:
+        pass  # only process the reference experiment config, not the others
+
+    OmegaConf.set_struct(cfg, True)
 
     if cfg.get("misc"):
         if cfg.misc.get("config_tree"):
@@ -49,6 +292,8 @@ def preprocess_config(cfg: DictConfig) -> None:
             if save:
                 save_tree_to_file(tree, save_path)  # save the tree to file
 
+    return cfg
+
 
 def cfg_to_tree(cfg: DictConfig, config_tree_cfg: DictConfig) -> Tree:
     r"""Convert the configuration to a Rich `Tree`.
@@ -65,7 +310,7 @@ def cfg_to_tree(cfg: DictConfig, config_tree_cfg: DictConfig) -> Tree:
     guide_style = config_tree_cfg.guide_style
     fields_order = config_tree_cfg.fields_order
 
-    # initialise the tree
+    # initialize the tree
     tree = rich.tree.Tree(label="CONFIG", style=style, guide_style=guide_style)
 
     queue = []
@@ -132,8 +377,42 @@ def construct_unlearning_ref_config(
         ulref_cfg.output_dir, "unlearning_ref"
     )  # set the output directory for unlearning reference experiment
 
+    OmegaConf.set_struct(ulref_cfg, False)
     ulref_cfg.skip_unlearning_tasks = (
         True  # skip the unlearning tasks specified in unlearning_requests
     )
+    OmegaConf.set_struct(ulref_cfg, True)
 
     return ulref_cfg
+
+
+def construct_cl_full_metrics_calculation_cfg(cfg: DictConfig) -> DictConfig:
+    r"""Construct the config for CL full metrics calculation experiment from the continual learning experiment.
+
+    **Args:**
+    - **cfg** (`DictConfig`): the config dict of the continual learning experiment to calculate full metrics for.
+
+    **Returns:**
+    - **full_metrics_calculation_cfg** (`DictConfig`): the constructed CL full metrics calculation config.
+    """
+
+    full_metrics_calculation_cfg = DictConfig({})
+
+    full_metrics_calculation_cfg.main_acc_csv_path = cfg.callbacks.acc.csv_path
+    full_metrics_calculation_cfg.refjl_acc_csv_path = (
+        cfg.output_dir,
+        "clrefjl",
+        "acc.csv",
+    )
+    full_metrics_calculation_cfg.refil_acc_csv_path = (
+        cfg.output_dir,
+        "clrefil",
+        "acc.csv",
+    )
+    full_metrics_calculation_cfg.refrandom_acc_csv_path = (
+        cfg.output_dir,
+        "clrefrandom",
+        "acc.csv",
+    )
+
+    return full_metrics_calculation_cfg

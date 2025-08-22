@@ -12,17 +12,17 @@ from torch import Tensor
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning
-from clarena.cl_heads import HeadsCIL, HeadsTIL
-from clarena.utils.transforms import min_max_normalise
+from clarena.heads import HeadsCIL, HeadsTIL
+from clarena.utils.transforms import min_max_normalize
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 class CBP(Finetuning):
-    r"""CBP (Continual Backpropagation) algorithm.
+    r"""[CBP (Continual Backpropagation)](https://www.nature.com/articles/s41586-024-07711-7) algorithm.
 
-    [CBP (Continual Backpropagation, 2024)](https://www.nature.com/articles/s41586-024-07711-7) is a continual learning approach that reinitialises a small number of units during training, using an utility measures to determine which units to reinitialise. It aims to address loss of plasticity problem for learning new tasks, yet not very well solve the catastrophic forgetting problem in continual learning.
+    A continual learning approach that reinitializes a small number of units during training, using an utility measures to determine which units to reinitialize. It aims to address loss of plasticity problem for learning new tasks, yet not very well solve the catastrophic forgetting problem in continual learning.
 
     We implement CBP as a subclass of Finetuning algorithm, as CBP has the same `forward()`, `training_step()`, `validation_step()` and `test_step()` method as `Finetuning` class.
     """
@@ -35,16 +35,16 @@ class CBP(Finetuning):
         maturity_threshold: int,
         utility_decay_rate: float,
     ) -> None:
-        r"""Initialise the Finetuning algorithm with the network. It has no additional hyperparameters.
+        r"""Initialize the Finetuning algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
-        - **replacement_rate** (`float`): the replacement rate of units. It is the precentage of units to be reinitialised during training.
-        - **maturity_threshold** (`int`): the maturity threshold of units. It is the number of training steps before a unit can be reinitialised.
+        - **replacement_rate** (`float`): the replacement rate of units. It is the precentage of units to be reinitialized during training.
+        - **maturity_threshold** (`int`): the maturity threshold of units. It is the number of training steps before a unit can be reinitialized.
         - **utility_decay_rate** (`float`): the utility decay rate of units. It is the rate at which the utility of a unit decays over time.
         """
-        Finetuning.__init__(self, backbone=backbone, heads=heads)
+        super().__init__(backbone=backbone, heads=heads)
 
         self.replacement_rate: float = replacement_rate
         r"""Store the replacement rate of units. """
@@ -61,9 +61,9 @@ class CBP(Finetuning):
         r"""Store the age of units. Keys are layer names and values are the age tensor for the layer. The age tensor is the same size as the feature tensor with size (1, number of units). """
 
     def on_train_start(self) -> None:
-        r"""Initialise the utility, number of replacements and age for each layer as zeros."""
+        r"""Initialize the utility, number of replacements and age for each layer as zeros."""
 
-        # initialise the utility, number of replacements and age as zeros at the beginning of first task. This should not be called in `__init__()` method as the `self.device` is not available at that time.
+        # initialize the utility, number of replacements and age as zeros at the beginning of first task. This should not be called in `__init__()` method as the `self.device` is not available at that time.
         if self.task_id == 1:
             for layer_name in self.backbone.weighted_layer_names:
                 layer = self.backbone.get_layer_by_name(
@@ -80,7 +80,7 @@ class CBP(Finetuning):
     def on_train_batch_end(
         self, outputs: dict[str, Any], batch: Any, batch_idx: int
     ) -> None:
-        r"""Update the contribution utility and age of units after each training step, and conduct reinitialisation of units based on utility measures. This is the core of the CBP algorithm.
+        r"""Update the contribution utility and age of units after each training step, and conduct reinitialization of units based on utility measures. This is the core of the CBP algorithm.
 
         **Args:**
         - **outputs** (`dict[str, Any]`): the outputs of the training step, which is the returns of the `training_step()` method in the `CLAlgorithm`.
@@ -111,9 +111,9 @@ class CBP(Finetuning):
                     dim=1,  # sum over the output dimension
                 )
             ).detach()
-            current_contribution_utility = min_max_normalise(
+            current_contribution_utility = min_max_normalize(
                 current_contribution_utility
-            )  # normalise the utility to [0,1] to avoid linearly increasing utility
+            )  # normalize the utility to [0,1] to avoid linearly increasing utility
 
             # update utility
             self.contribution_utility[layer_name] = (
@@ -142,7 +142,7 @@ class CBP(Finetuning):
                     ).item()
                 ]
 
-                # reinitialise the input weights of the unit
+                # reinitialize the input weights of the unit
                 preceding_layer = self.backbone.preceding_layer(layer_name)
                 if preceding_layer is not None:
 
@@ -152,16 +152,16 @@ class CBP(Finetuning):
                             preceding_layer.weight[:, replaced_unit_idx]
                         )
 
-                # reinitalise the output weights of the unit
+                # reinitalize the output weights of the unit
                 with torch.no_grad():
                     layer.weight[replaced_unit_idx] = torch.rand_like(
                         layer.weight[replaced_unit_idx]
                     )
 
-                # reinitialise utility
+                # reinitialize utility
                 self.contribution_utility[layer_name][replaced_unit_idx] = 0.0
 
-                # reintialise age
+                # reintialize age
                 self.age[layer_name][replaced_unit_idx] = 0
 
                 # update the number of replacements

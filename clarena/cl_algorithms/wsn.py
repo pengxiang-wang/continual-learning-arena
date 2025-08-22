@@ -13,16 +13,16 @@ from torch.utils.data import DataLoader
 
 from clarena.backbones import WSNMaskBackbone
 from clarena.cl_algorithms import CLAlgorithm
-from clarena.cl_heads import HeadsTIL
+from clarena.heads import HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 class WSN(CLAlgorithm):
-    r"""WSN (Winning Subnetworks) algorithm.
+    r"""[WSN (Winning Subnetworks)](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf) algorithm.
 
-    [WSN (Winning Subnetworks, 2022)](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf) is an architecture-based continual learning algorithm. It trains learnable parameter-wise score and select the most scored $c\%$ of the network parameters to be used for each task.
+    An architecture-based continual learning approach that trains learnable parameter-wise scores and selects the most scored c% of network parameters per task.
     """
 
     def __init__(
@@ -32,61 +32,60 @@ class WSN(CLAlgorithm):
         mask_percentage: float,
         parameter_score_init_mode: str = "default",
     ) -> None:
-        r"""Initialise the WSN algorithm with the network.
+        r"""Initialize the WSN algorithm with the network.
 
         **Args:**
-        - **backbone** (`WSNMaskBackbone`): must be a backbone network with WSN mask mechanism.
-        - **heads** (`HeadsTIL`): output heads. WSN algorithm only supports TIL (Task-Incremental Learning).
-        - **mask_percentage** (`float`): the percentage of parameters to be used for each task. See $c\%$ in [WSN paper](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf).
-        - **parameter_score_init_mode** (`str`): the initialisation mode for parameter scores, should be one of the following:
-            1. 'default': the default initialisation mode in original WSN codes.
+        - **backbone** (`WSNMaskBackbone`): must be a backbone network with the WSN mask mechanism.
+        - **heads** (`HeadsTIL`): output heads. WSN only supports TIL (Task-Incremental Learning).
+        - **mask_percentage** (`float`): the percentage $c\%$ of parameters to be used for each task. See Sec. 3 and Eq. (4) in the [WSN paper](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf).
+        - **parameter_score_init_mode** (`str`): the initialization mode for parameter scores, must be one of:
+            1. 'default': the default initialization in the original WSN code.
             2. 'N01': standard normal distribution $N(0, 1)$.
             3. 'U01': uniform distribution $U(0, 1)$.
         """
-        CLAlgorithm.__init__(self, backbone=backbone, heads=heads)
+        super().__init__(backbone=backbone, heads=heads)
 
         self.mask_percentage: float = mask_percentage
-        r"""Store the percentage of parameters to be used for each task."""
+        r"""The percentage of parameters to be used for each task."""
         self.parameter_score_init_mode: str = parameter_score_init_mode
-        r"""Store the parameter score initialisation mode."""
+        r"""The parameter score initialization mode."""
 
-        self.weight_masks: dict[str, dict[str, Tensor]] = {}
-        r"""Store the binary weight mask of each previous task percentile gated from the weight score. Keys are task IDs (string type) and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has the same size (output features, input features) as weight. """
-        self.bias_masks: dict[str, dict[str, Tensor]] = {}
-        r"""Store the binary bias mask of each previous task percentile gated from the bias score. Keys are task IDs (string type) and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has the same size (output features, ) as bias. If the layer doesn't have bias, it is `None`."""
+        self.weight_masks: dict[int, dict[str, Tensor]] = {}
+        r"""The binary weight mask of each previous task percentile-gated from the weight score. Keys are task IDs and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has the same size (output features, input features) as weight."""
+        self.bias_masks: dict[int, dict[str, Tensor]] = {}
+        r"""The binary bias mask of each previous task percentile-gated from the bias score. Keys are task IDs and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has the same size (output features, ) as bias. If the layer doesn't have bias, it is `None`."""
 
-        self.cumulative_weight_mask_for_previous_tasks: dict[str, dict[str, Tensor]] = (
-            {}
-        )
-        r"""Store the cumulative binary weight mask $\mathbf{M}_{t-1}$  of previous tasks $1, \cdots, t-1$, percentile gated from the weight score. Keys are task IDs (string type) and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has the same size (output features, input features) as weight. """
+        self.cumulative_weight_mask_for_previous_tasks: dict[str, Tensor] = {}
+        r"""The cumulative binary weight mask $\mathbf{M}_{t-1}$ of previous tasks $1, \cdots, t-1$, percentile-gated from the weight score. It is a dict where keys are layer names and values are the binary mask tensors for the layers. The mask tensor has the same size (output features, input features) as weight."""
         self.cumulative_bias_mask_for_previous_tasks: dict[str, dict[str, Tensor]] = {}
-        r"""Store the cumulative binary bias mask $\mathbf{M}_{t-1}$ of previous tasks $1, \cdots, t-1$, percentile gated from the bias score. Keys are task IDs (string type) and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has the same size (output features, ) as bias. If the layer doesn't have bias, it is `None`."""
+        r"""The cumulative binary bias mask $\mathbf{M}_{t-1}$ of previous tasks $1, \cdots, t-1$, percentile-gated from the bias score. It is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has the same size (output features, ) as bias. If the layer doesn't have bias, it is `None`."""
 
-        # set manual optimisation
+        # set manual optimization
         self.automatic_optimization = False
 
         WSN.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the algorithm is correctly initialised.
+        r"""Check the sanity of the arguments."""
 
-        **Raises:**
-        - **ValueError**: when backbone is not designed for WSN, or the mask percentage is not in (0, 1].
-        """
+        # check the backbone and heads
         if not isinstance(self.backbone, WSNMaskBackbone):
             raise ValueError("The backbone should be an instance of WSNMaskBackbone.")
+        if not isinstance(self.heads, HeadsTIL):
+            raise ValueError("The heads should be an instance of `HeadsTIL`.")
 
+        # check the mask percentage
         if not (0 < self.mask_percentage <= 1):
             raise ValueError(
                 f"Mask percentage should be in (0, 1], but got {self.mask_percentage}."
             )
 
     def on_train_start(self) -> None:
-        r"""Initialise the parameter score before training the next task and initialise the cumulative mask at the beginning of first task."""
+        r"""Initialize the parameter scores before training the next task and initialize the cumulative masks at the beginning of the first task."""
 
-        self.backbone.initialise_parameter_score(mode=self.parameter_score_init_mode)
+        self.backbone.initialize_parameter_score(mode=self.parameter_score_init_mode)
 
-        # initialise the cumulative mask at the beginning of first task. This should not be called in `__init__()` method as the `self.device` is not available at that time.
+        # initialize the cumulative mask at the beginning of the first task. This should not be called in `__init__()` because `self.device` is not available at that time.
         if self.task_id == 1:
             for layer_name in self.backbone.weighted_layer_names:
                 layer = self.backbone.get_layer_by_name(
@@ -102,12 +101,12 @@ class WSN(CLAlgorithm):
                     )
                 else:
                     self.cumulative_bias_mask_for_previous_tasks[layer_name] = None
-                # the cumulative mask $\mathrm{M}_{t-1}$ is initialised as zeros mask ($t = 1$)
+                # the cumulative mask $\mathrm{M}_{t-1}$ is initialized as zeros mask ($t = 1$)
 
     def clip_grad_by_mask(
         self,
     ) -> None:
-        r"""Clip the gradient by the cumulative mask. The gradient is multiplied by (1 - the cumulative previous mask) making previous masked parameters fixed. See equation (4) in [WSN paper](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf)."""
+        r"""Clip the gradients by the cumulative masks. The gradients are multiplied by (1 - cumulative_previous_mask) to keep previously masked parameters fixed. See Eq. (4) in the [WSN paper](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf)."""
 
         for layer_name in self.backbone.weighted_layer_names:
             layer = self.backbone.get_layer_by_name(layer_name)
@@ -129,12 +128,12 @@ class WSN(CLAlgorithm):
         r"""The forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`.
 
         **Args:**
-        - **input** (`Tensor`): The input tensor from data.
-        - **stage** (`str`): the stage of the forward pass, should be one of the following:
+        - **input** (`Tensor`): the input tensor from data.
+        - **stage** (`str`): the stage of the forward pass, should be one of:
             1. 'train': training stage.
             2. 'validation': validation stage.
-            3. 'test': testing stage.Applies only to training stage. For other stages, it is default `None`.
-        - **task_id** (`int`| `None`): the task ID where the data are from. If the stage is 'train' or 'validation', it should be the current task `self.task_id`. If stage is 'test', it could be from any seen task. In TIL, the task IDs of test data are provided thus this argument can be used. WSN algorithm works only for TIL.
+            3. 'test': testing stage.
+        - **task_id** (`int` | `None`): the task ID where the data are from. If the stage is 'train' or 'validation', it should be the current task `self.task_id`. If the stage is 'test', it could be from any seen task (TIL uses the provided task IDs for testing).
 
         **Returns:**
         - **logits** (`Tensor`): the output logits tensor.
@@ -147,7 +146,7 @@ class WSN(CLAlgorithm):
             stage=stage,
             mask_percentage=self.mask_percentage,
             test_mask=(
-                (self.weight_masks[f"{task_id}"], self.bias_masks[f"{task_id}"])
+                (self.weight_masks[task_id], self.bias_masks[task_id])
                 if stage == "test"
                 else None
             ),
@@ -167,11 +166,11 @@ class WSN(CLAlgorithm):
         - **batch** (`Any`): a batch of training data.
 
         **Returns:**
-        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this training step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs. For WSN, it includes 'weight_mask' and 'bias_mask' for logging.
+        - **outputs** (`dict[str, Tensor]`): a dictionary containing loss and other metrics from this training step. Keys (`str`) are the metrics names, and values (`Tensor`) are the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs. For WSN, it includes 'weight_mask' and 'bias_mask' for logging.
         """
         x, y = batch
 
-        # zero the gradients before forward pass in manual optimisation mode
+        # zero the gradients before forward pass in manual optimization mode
         opt = self.optimizers()
         opt.zero_grad()
 
@@ -186,7 +185,7 @@ class WSN(CLAlgorithm):
 
         # backward step (manually)
         self.manual_backward(loss)  # calculate the gradients
-        # WSN hard clip gradients by the cumulative masks. See equation (4) in [WSN paper](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf).
+        # WSN hard-clips gradients using the cumulative masks. See Eq. (4) in the [WSN paper](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf).
         self.clip_grad_by_mask()
 
         # update parameters with the modified gradients
@@ -196,16 +195,16 @@ class WSN(CLAlgorithm):
         acc = (logits.argmax(dim=1) == y).float().mean()
 
         return {
-            "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
+            "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,
             "activations": activations,
-            "weight_mask": weight_mask,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
+            "weight_mask": weight_mask,  # return other metrics for Lightning loggers callback to handle at `on_train_batch_end()`
             "bias_mask": bias_mask,
         }
 
     def on_train_end(self) -> None:
-        r"""Store the weight and bias masks and update the cumulative mask after training the task."""
+        r"""Store the weight and bias masks and update the cumulative masks after training the task."""
 
         # get the weight and bias mask for the current task
         weight_mask_t = {}
@@ -227,8 +226,8 @@ class WSN(CLAlgorithm):
                 bias_mask_t[layer_name] = None
 
         # store the weight and bias mask for the current task
-        self.weight_masks[f"{self.task_id}"] = weight_mask_t
-        self.bias_masks[f"{self.task_id}"] = bias_mask_t
+        self.weight_masks[self.task_id] = weight_mask_t
+        self.bias_masks[self.task_id] = bias_mask_t
 
         # update the cumulative mask
         for layer_name in self.backbone.weighted_layer_names:
@@ -259,18 +258,16 @@ class WSN(CLAlgorithm):
         - **batch** (`Any`): a batch of validation data.
 
         **Returns:**
-        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this validation step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this validation step. Keys (`str`) are the metrics names, and values (`Tensor`) are the metrics.
         """
         x, y = batch
-        logits, weight_mask, bias_mask, activations = self.forward(
-            x, stage="validation", task_id=self.task_id
-        )
+        logits, _, _, _ = self.forward(x, stage="validation", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
         acc = (logits.argmax(dim=1) == y).float().mean()
 
         return {
             "loss_cls": loss_cls,
-            "acc": acc,  # Return metrics for lightning loggers callback to handle at `on_validation_batch_end()`
+            "acc": acc,  # return metrics for Lightning loggers callback to handle at `on_validation_batch_end()`
         }
 
     def test_step(
@@ -283,12 +280,12 @@ class WSN(CLAlgorithm):
         - **dataloader_idx** (`int`): the task ID of seen tasks to be tested. A default value of 0 is given otherwise the LightningModule will raise a `RuntimeError`.
 
         **Returns:**
-        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this test step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this test step. Keys (`str`) are the metrics names, and values (`Tensor`) are the metrics.
         """
         test_task_id = self.get_test_task_id_from_dataloader_idx(dataloader_idx)
 
         x, y = batch
-        logits, weight_mask, bias_mask, activations = self.forward(
+        logits, _, _, _ = self.forward(
             x,
             stage="test",
             task_id=test_task_id,
@@ -298,5 +295,5 @@ class WSN(CLAlgorithm):
 
         return {
             "loss_cls": loss_cls,
-            "acc": acc,  # Return metrics for lightning loggers callback to handle at `on_test_batch_end()`
+            "acc": acc,  # return metrics for Lightning loggers callback to handle at `on_test_batch_end()`
         }

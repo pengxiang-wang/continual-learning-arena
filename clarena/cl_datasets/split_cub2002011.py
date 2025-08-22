@@ -11,15 +11,16 @@ import torch
 from torch.utils.data import Dataset, random_split
 from torchvision import transforms
 
-from clarena.cl_datasets import CLClassMapping, CLSplitDataset
-from clarena.cl_datasets.original import CUB2002011
+from clarena.cl_datasets import CLSplitDataset
+from clarena.stl_datasets.raw import CUB2002011
+from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 class SplitCUB2002011(CLSplitDataset):
-    r"""Split CUB-200-2011 dataset. [CUB(Caltech-UCSD Birds)-200-2011)](https://www.vision.caltech.edu/datasets/cub_200_2011/) is a bird image dataset. It consists of 120,000 64x64 colour images in 200 classes, with 500 training, 50 validation and 50 test examples per class."""
+    r"""Split CUB-200-2011 dataset. The [CUB (Caltech-UCSD Birds)-200-2011)](https://www.vision.caltech.edu/datasets/cub_200_2011/) is a bird image dataset. It consists of 100,000 training, 10,000 validation, 10,000 test images of 200 bird species (classes), each 64x64 color image."""
 
     original_dataset_python_class: type[Dataset] = CUB2002011
     r"""The original dataset class."""
@@ -27,35 +28,41 @@ class SplitCUB2002011(CLSplitDataset):
     def __init__(
         self,
         root: str,
-        class_split: list[list[int]],
+        class_split: dict[int, list[int]],
         validation_percentage: float,
-        batch_size: int | list[int] = 1,
-        num_workers: int | list[int] = 0,
+        batch_size: int | dict[int, int] = 1,
+        num_workers: int | dict[int, int] = 0,
         custom_transforms: (
             Callable
             | transforms.Compose
             | None
-            | list[Callable | transforms.Compose | None]
+            | dict[int, Callable | transforms.Compose | None]
         ) = None,
-        repeat_channels: int | None | list[int | None] = None,
-        to_tensor: bool | list[bool] = True,
-        resize: tuple[int, int] | None | list[tuple[int, int] | None] = (224, 224),
+        repeat_channels: int | None | dict[int, int | None] = None,
+        to_tensor: bool | dict[int, bool] = True,
+        resize: tuple[int, int] | None | dict[int, tuple[int, int] | None] = None,
     ) -> None:
-        r"""Initialise the Split CUB-200-2011 dataset object providing the root where data files live.
+        r"""Initialize the dataset object providing the root where data files live.
 
         **Args:**
         - **root** (`str`): the root directory where the original CUB-200-2011 data 'CUB_200_2011/' live.
-        - **class_split** (`list[list[int]]`): the class split for each task. Each element in the list is a list of class labels (integers starting from 0) to split for a task.
-        - **validation_percentage** (`float`): the percentage to randomly split some of the training data into validation data.
-        - **batch_size** (`int` | `list[int]`): The batch size in train, val, test dataloader. If `list[str]`, it should be a list of integers, each integer is the batch size for each task.
-        - **num_workers** (`int` | `list[int]`): the number of workers for dataloaders. If `list[str]`, it should be a list of integers, each integer is the num of workers for each task.
-        - **custom_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included. If it is a list, each item is the custom transforms for each task.
-        - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
-        - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
-        - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
+        - **class_split** (`dict[int, list[int]]`): the dict of classes for each task. The keys are task IDs ane the values are lists of class labels (integers starting from 0) to split for each task.
+        - **validation_percentage** (`float`): The percentage to randomly split some training data into validation data.
+        - **batch_size** (`int` | `dict[int, int]`): the batch size for train, val, and test dataloaders.
+        If it is a dict, the keys are task IDs and the values are the batch sizes for each task. If it is an `int`, it is the same batch size for all tasks.
+        - **num_workers** (`int` | `dict[int, int]`): the number of workers for dataloaders.
+        If it is a dict, the keys are task IDs and the values are the number of workers for each task. If it is an `int`, it is the same number of workers for all tasks.
+        - **custom_transforms** (`transform` or `transforms.Compose` or `None` or dict of them): the custom transforms to apply ONLY to the TRAIN dataset. Can be a single transform, composed transforms, or no transform. `ToTensor()`, normalization, permute, and so on are not included.
+        If it is a dict, the keys are task IDs and the values are the custom transforms for each task. If it is a single transform or composed transforms, it is applied to all tasks. If it is `None`, no custom transforms are applied.
+        - **repeat_channels** (`int` | `None` | dict of them): the number of channels to repeat for each task. Default is `None`, which means no repeat.
+        If it is a dict, the keys are task IDs and the values are the number of channels to repeat for each task. If it is an `int`, it is the same number of channels to repeat for all tasks. If it is `None`, no repeat is applied.
+        - **to_tensor** (`bool` | `dict[int, bool]`): whether to include the `ToTensor()` transform. Default is `True`.
+        If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.
+        - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.
+        If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.
         """
-        CLSplitDataset.__init__(
-            self,
+
+        super().__init__(
             root=root,
             class_split=class_split,
             batch_size=batch_size,
@@ -67,7 +74,7 @@ class SplitCUB2002011(CLSplitDataset):
         )
 
         self.validation_percentage: float = validation_percentage
-        """Store the percentage to randomly split some of the training data into validation data."""
+        """The percentage to randomly split some training data into validation data."""
 
     def prepare_data(self) -> None:
         r"""Download the original CUB-200-2011 dataset if haven't."""
@@ -100,8 +107,8 @@ class SplitCUB2002011(CLSplitDataset):
         # subset the dataset by the indices, in-place operation
         dataset.data = dataset.data.iloc[idx]  # data is a Pandas DataFrame
 
-        dataset.target_transform = CLClassMapping(
-            self.cl_class_map_t
+        dataset.target_transform = ClassMapping(
+            self.get_cl_class_map(self.task_id)
         )  # cl class mapping should be applied after the split
 
         return dataset

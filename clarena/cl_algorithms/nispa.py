@@ -16,14 +16,17 @@ from torch.utils.data import DataLoader
 
 from clarena.backbones import NISPAMaskBackbone
 from clarena.cl_algorithms import CLAlgorithm
-from clarena.cl_heads import HeadsTIL
+from clarena.heads import HeadsTIL
 
 # built-in logger
 pylogger = logging.getLogger(__name__)
 
 
 class NISPA(CLAlgorithm):
-    r"""NISPA (Neuro-Inspired Stability-Plasticity Adaptation) algorithm."""
+    r"""[NISPA (Neuro-Inspired Stability-Plasticity Adaptation)](https://proceedings.mlr.press/v162/gurbuz22a.html) algorithm.
+
+    An architecture-based approach that selects neurons and weights through manual rules.
+    """
 
     def __init__(
         self,
@@ -50,13 +53,13 @@ class NISPA(CLAlgorithm):
         self.phase_idx: int
 
     def on_train_start(self) -> None:
-        """Initialise all masks at the very beginning of Task 1."""
+        """Initialize all masks at the very beginning of Task 1."""
         self.best_phase_acc = 0.0
         self.phase_idx = 0
 
         if self.task_id == 1:
             # zero‐out the backbone’s parameter masks
-            self.backbone.initialise_parameter_mask()
+            self.backbone.initialize_parameter_mask()
 
             for layer in self.backbone.weighted_layer_names:
                 # number of units = output dim of that layer

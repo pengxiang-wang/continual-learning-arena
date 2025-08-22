@@ -11,8 +11,8 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 
 from clarena.backbones import CLBackbone
-from clarena.cl_algorithms import Finetuning
-from clarena.cl_heads import HeadsCIL, HeadsTIL
+from clarena.cl_algorithms import Finetuning, UnlearnableCLAlgorithm
+from clarena.heads import HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ pylogger = logging.getLogger(__name__)
 class Independent(Finetuning):
     r"""Independent learning algorithm.
 
-    It is another naive way for task-incremental learning aside from Finetuning. It assigns a new independent model for each task. This is a simple way to avoid catastrophic forgetting at the extreme cost of memory. It achieves the theoretical upper bound of performance in continual learning.
+    Another naive way for task-incremental learning aside from Finetuning. It assigns a new independent model for each task. This is a simple way to avoid catastrophic forgetting at the extreme cost of memory. It achieves the theoretical upper bound of performance in continual learning.
 
     We implement Independent as a subclass of Finetuning algorithm, as Independent has the same `forward()`, `training_step()`, `validation_step()` and `test_step()` method as `Finetuning` class.
     """
@@ -31,27 +31,27 @@ class Independent(Finetuning):
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL,
     ) -> None:
-        r"""Initialise the Independent algorithm with the network. It has no additional hyperparameters.
+        r"""Initialize the Independent algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
         """
-        Finetuning.__init__(self, backbone=backbone, heads=heads)
+        super().__init__(backbone=backbone, heads=heads)
 
-        self.original_backbone_state_dict: CLBackbone = deepcopy(backbone.state_dict())
-        r"""Store the original backbone network state dict as the source of creating new independent backbone. """
+        self.original_backbone_state_dict: dict = deepcopy(backbone.state_dict())
+        r"""The original backbone network state dict is stored as the source of creating new independent backbone. """
 
-        self.backbones: dict[str, CLBackbone] = {}
-        r"""Store the list of independent backbones for each task. Keys are task IDs (string type) and values are the corresponding backbone. """
+        self.backbones: dict[int, CLBackbone] = {}
+        r"""The list of independent backbones for each task. Keys are task IDs and values are the corresponding backbone. """
 
     def on_fit_start(self) -> None:
-        r"""Initialise an independent backbone for `self.task_id`, duplicated from the original backbone."""
+        r"""Initialize an independent backbone for `self.task_id`, duplicated from the original backbone."""
         self.backbone.load_state_dict(self.original_backbone_state_dict)
 
     def on_train_end(self) -> None:
         r"""Store the trained independent backbone for `self.task_id`."""
-        self.backbones[f"{self.task_id}"] = deepcopy(self.backbone)
+        self.backbones[self.task_id] = deepcopy(self.backbone)
 
     def test_step(
         self, batch: DataLoader, batch_idx: int, dataloader_idx: int = 0
@@ -63,15 +63,15 @@ class Independent(Finetuning):
         - **dataloader_idx** (`int`): the task ID of seen tasks to be tested. A default value of 0 is given otherwise the LightningModule will raise a `RuntimeError`.
 
         **Returns:**
-        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this test step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics.
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this test step. Keys (`str`) are the metrics names, and values (`Tensor`) are the metrics.
         """
         test_task_id = self.get_test_task_id_from_dataloader_idx(dataloader_idx)
 
         x, y = batch
         backbone = self.backbones[
-            f"{test_task_id}"
+            test_task_id
         ]  # use the corresponding independenet backbone for the test task
-        feature, activations = backbone(x, stage="test", task_id=test_task_id)
+        feature, _ = backbone(x, stage="test", task_id=test_task_id)
         logits = self.heads(feature, test_task_id)
         # use the corresponding head to test (instead of the current task `self.task_id`)
         loss_cls = self.criterion(logits, y)
@@ -82,3 +82,23 @@ class Independent(Finetuning):
             "loss_cls": loss_cls,
             "acc": acc,
         }
+
+
+class UnlearnableIndependent(UnlearnableCLAlgorithm, Independent):
+    r"""Unlearnable Independent learning algorithm.
+
+    This is a variant of Independent that supports unlearning. It has the same functionality as Independent, but it also supports unlearning requests and permanent tasks.
+    """
+
+    def __init__(
+        self,
+        backbone: CLBackbone,
+        heads: HeadsTIL | HeadsCIL,
+    ) -> None:
+        r"""Initialize the Independent algorithm with the network. It has no additional hyperparameters.
+
+        **Args:**
+        - **backbone** (`CLBackbone`): backbone network.
+        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        """
+        super().__init__(backbone=backbone, heads=heads)

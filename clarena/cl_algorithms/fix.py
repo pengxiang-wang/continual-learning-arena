@@ -11,7 +11,7 @@ from torch import Tensor
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning
-from clarena.cl_heads import HeadsCIL, HeadsTIL
+from clarena.heads import HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -20,9 +20,9 @@ pylogger = logging.getLogger(__name__)
 class Fix(Finetuning):
     r"""Fix algorithm.
 
-    It is another naive way for task-incremental learning aside from Finetuning. It serves as kind of toy algorithm when discussing stability-plasticity dilemma in continual learning. It simply fixes the backbone forever after training first task.
+    Another naive way for task-incremental learning aside from Finetuning. It simply fixes the backbone forever after training first task. It serves as kind of toy algorithm when discussing stability-plasticity dilemma in continual learning.
 
-    We implement Fix as a subclass of Finetuning algorithm, as Fix has the same `forward()`, `validation_step()` and `test_step()` method as `Finetuning` class.
+    We implement `Fix` as a subclass of `Finetuning`, as it shares `forward()`, `validation_step()`, and `test_step()` with `Finetuning`.
     """
 
     def __init__(
@@ -30,13 +30,16 @@ class Fix(Finetuning):
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL,
     ) -> None:
-        r"""Initialise the Fix algorithm with the network. It has no additional hyperparameters.
+        r"""Initialize the Fix algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
         """
-        Finetuning.__init__(self, backbone=backbone, heads=heads)
+        super().__init__(backbone=backbone, heads=heads)
+
+        # freeze only once after task 1
+        self._backbone_frozen: bool = False
 
     def training_step(self, batch: Any) -> dict[str, Tensor]:
         """Training step for current task `self.task_id`.
@@ -45,14 +48,21 @@ class Fix(Finetuning):
         - **batch** (`Any`): a batch of training data.
 
         **Returns:**
-        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this training step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs.
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this training step. Keys (`str`) are the metrics names, and values (`Tensor`) are the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs.
         """
         x, y = batch
 
         if self.task_id != 1:
-            # Fix the backbone after training the first task
-            for param in self.backbone.parameters():
-                param.requires_grad = False
+            # freeze the backbone once after the first task; also stop BN/Dropout updates
+            if not self._backbone_frozen:
+                for p in self.backbone.parameters():
+                    p.requires_grad = False
+                self.backbone.eval()
+                self._backbone_frozen = True
+                pylogger.info("Fix: backbone frozen after task 1 (set to eval mode).")
+        else:
+            # ensure backbone is trainable during the first task
+            self.backbone.train()
 
         # classification loss
         logits, activations = self.forward(x, stage="train", task_id=self.task_id)
@@ -65,7 +75,7 @@ class Fix(Finetuning):
         acc = (logits.argmax(dim=1) == y).float().mean()
 
         return {
-            "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
+            "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,
             "activations": activations,

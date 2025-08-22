@@ -1,8 +1,8 @@
 r"""
-The submodule in `cl_datasets` for constants about backbones.
+The submodule in `backbones` for constants about backbone networks.
 """
 
-__all__ = ["RESNET18_STATE_DICT_MAPPING"]
+__all__ = ["RESNET18_STATE_DICT_MAPPING", "HATMASKRESNET18_STATE_DICT_MAPPING"]
 
 
 RESNET18_STATE_DICT_MAPPING: dict[str, str] = {

@@ -1,5 +1,5 @@
 r"""
-The submoduule in `unlearning_algorithms` for unlearning algorithm of independent learning.
+The submoduule in `unlearning_algorithms` for the vanilla unlearning algorithm of independent learning.
 """
 
 __all__ = ["IndependentUnlearn"]
@@ -7,22 +7,22 @@ __all__ = ["IndependentUnlearn"]
 import logging
 
 from clarena.cl_algorithms import Independent
-from clarena.unlearning_algorithms import UnlearningAlgorithm
+from clarena.unlearning_algorithms import CULAlgorithm
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
-class IndependentUnlearn(UnlearningAlgorithm):
+class IndependentUnlearn(CULAlgorithm):
     r"""The base class of the unlearning algorithm of independent learning."""
 
     def __init__(self, model: Independent) -> None:
-        r"""Initialise the unlearning algorithm with the continual learning model.
+        r"""Initialize the unlearning algorithm with the continual learning model.
 
         **Args:**
         - **model** (`Independent`): the continual learning model (`CLAlgorithm` object which already contains the backbone and heads). It must be `Independent` algorithm.
         """
-        UnlearningAlgorithm.__init__(self, model=model)
+        super().__init__(model=model)
 
     def unlearn(self) -> None:
         r"""Unlearn the requested unlearning tasks in current task `self.task_id`."""

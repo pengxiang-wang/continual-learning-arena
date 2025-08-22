@@ -8,19 +8,20 @@ import logging
 from typing import Any
 
 from torch import Tensor
+import torch
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning
-from clarena.cl_heads import HeadsCIL, HeadsTIL
+from clarena.heads import HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 class Random(Finetuning):
-    r"""Random stratified model. It pass the training step and simply use the randomly initialized model to predict the test data.
+    r"""Random stratified model.
 
-    This serves as a reference model to compute forgetting rate. See chapter 4 in [HAT (Hard Attention to the Task, 2018)](http://proceedings.mlr.press/v80/serra18a).
+    Pass the training step and simply use the randomly initialized model to predict the test data. This serves as a reference model to compute forgetting rate. See chapter 4 in [HAT (Hard Attention to the Task) paper](http://proceedings.mlr.press/v80/serra18a).
 
 
     We implement Random as a subclass of Finetuning algorithm, as Random has the same `forward()`, `validation_step()` and `test_step()` method as `Finetuning` class.
@@ -31,16 +32,19 @@ class Random(Finetuning):
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL,
     ) -> None:
-        r"""Initialise the Random algorithm with the network. It has no additional hyperparameters.
+        r"""Initialize the Random algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
         """
-        Finetuning.__init__(self, backbone=backbone, heads=heads)
+        super().__init__(backbone=backbone, heads=heads)
 
-        # set manual optimisation
+        # set manual optimization
         self.automatic_optimization = False
+
+        # ensure we only freeze/switch to eval once
+        self._frozen_applied: bool = False
 
     def training_step(self, batch: Any) -> dict[str, Tensor]:
         """Pass the training step for current task `self.task_id`.
@@ -49,25 +53,31 @@ class Random(Finetuning):
         - **batch** (`Any`): a batch of training data.
 
         **Returns:**
-        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this training step. Key (`str`) is the metrics name, value (`Tensor`) is the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs.
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this training step. Keys (`str`) are the metrics names, and values (`Tensor`) are the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs.
         """
         x, y = batch
 
-        # classification loss
-        logits, activations = self.forward(x, stage="train", task_id=self.task_id)
-        loss_cls = self.criterion(logits, y)
+        # freeze all parameters and stop BN/Dropout updates once
+        if not self._frozen_applied:
+            for p in self.parameters():
+                p.requires_grad = False
+            self.eval()
+            self._frozen_applied = True
+            pylogger.info("Random: parameters frozen and module set to eval; no training will occur.")
 
-        # total loss
-        loss = loss_cls
+        # run forward and metrics without autograd
+        with torch.inference_mode():
+            logits, activations = self.forward(x, stage="train", task_id=self.task_id)
+            loss_cls = self.criterion(logits, y)
+            loss = loss_cls
+            acc = (logits.argmax(dim=1) == y).float().mean()
 
-        # accuracy of the batch
-        acc = (logits.argmax(dim=1) == y).float().mean()
-
-        # note that we have set automatic_optimization = False, here we do not include the optimization step like `self.optimizers().step()` to make sure the model is not updated during training step. This is the key point of Random algorithm.
-
+        # note: no optimizer step, by design of Random algorithm.
+        
         return {
-            "loss": loss,  # Return loss is essential for training step, or backpropagation will fail
+            "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,
             "activations": activations,
         }
+

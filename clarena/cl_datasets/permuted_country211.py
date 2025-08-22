@@ -11,14 +11,15 @@ from torch.utils.data import Dataset
 from torchvision.datasets import Country211
 from torchvision.transforms import transforms
 
-from clarena.cl_datasets import CLClassMapping, CLPermutedDataset
+from clarena.cl_datasets import CLPermutedDataset
+from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 class PermutedCountry211(CLPermutedDataset):
-    r"""Permuted Country211 dataset. The [original Country211 dataset](https://github.com/openai/CLIP/blob/main/data/country211.md) is a collection of geolocation pictures of 211 counrties. It is a balanced dataset by sampling 150 train images, 50 validation images, and 100 test images images for each country."""
+    r"""Permuted Country211 dataset. The [Country211 dataset](https://github.com/openai/CLIP/blob/main/data/country211.md) is a collection of geolocation pictures of different countries. It consists of 31,650 training, 10,550 validation, and 21,100 test images of 211 countries (classes), each 256x256 color image."""
 
     original_dataset_python_class: type[Dataset] = Country211
 
@@ -28,39 +29,45 @@ class PermutedCountry211(CLPermutedDataset):
         self,
         root: str,
         num_tasks: int,
-        batch_size: int | list[int] = 1,
-        num_workers: int | list[int] = 0,
+        batch_size: int | dict[int, int] = 1,
+        num_workers: int | dict[int, int] = 0,
         custom_transforms: (
             Callable
             | transforms.Compose
             | None
-            | list[Callable | transforms.Compose | None]
+            | dict[int, Callable | transforms.Compose | None]
         ) = None,
-        repeat_channels: int | None | list[int | None] = None,
-        to_tensor: bool | list[bool] = True,
-        resize: tuple[int, int] | None | list[tuple[int, int] | None] = None,
+        repeat_channels: int | None | dict[int, int | None] = None,
+        to_tensor: bool | dict[int, bool] = True,
+        resize: tuple[int, int] | None | dict[int, tuple[int, int] | None] = None,
         permutation_mode: str = "first_channel_only",
-        permutation_seeds: list[int] | None = None,
+        permutation_seeds: dict[int, int] | None = None,
     ) -> None:
-        r"""Initialise the Permuted Country211 dataset object providing the root where data files live.
+        r"""Initialize the dataset object providing the root where data files live.
 
         **Args:**
         - **root** (`str`): the root directory where the original Country211 data 'Country211/' live.
-        - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset.
-        - **batch_size** (`int` | `list[int]`): The batch size in train, val, test dataloader. If `list[str]`, it should be a list of integers, each integer is the batch size for each task.
-        - **num_workers** (`int` | `list[int]`): the number of workers for dataloaders. If `list[str]`, it should be a list of integers, each integer is the num of workers for each task.
-        - **custom_transforms** (`transform` or `transforms.Compose` or `None` or list of them): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalise, permute and so on are not included. If it is a list, each item is the custom transforms for each task.
-        - **repeat_channels** (`int` | `None` | list of them): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer. If it is a list, each item is the number of channels to repeat for each task.
-        - **to_tensor** (`bool` | `list[bool]`): whether to include `ToTensor()` transform. Default is True.
-        - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers. If it is a list, each item is the size to resize for each task.
+        - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset. This decides the valid task IDs from 1 to `num_tasks`.
+        - **batch_size** (`int` | `dict[int, int]`): the batch size for train, val, and test dataloaders.
+        If it is a dict, the keys are task IDs and the values are the batch sizes for each task. If it is an `int`, it is the same batch size for all tasks.
+        - **num_workers** (`int` | `dict[int, int]`): the number of workers for dataloaders.
+        If it is a dict, the keys are task IDs and the values are the number of workers for each task. If it is an `int`, it is the same number of workers for all tasks.
+        - **custom_transforms** (`transform` or `transforms.Compose` or `None` or dict of them): the custom transforms to apply ONLY to the TRAIN dataset. Can be a single transform, composed transforms, or no transform. `ToTensor()`, normalization, permute, and so on are not included.
+        If it is a dict, the keys are task IDs and the values are the custom transforms for each task. If it is a single transform or composed transforms, it is applied to all tasks. If it is `None`, no custom transforms are applied.
+        - **repeat_channels** (`int` | `None` | dict of them): the number of channels to repeat for each task. Default is `None`, which means no repeat.
+        If it is a dict, the keys are task IDs and the values are the number of channels to repeat for each task. If it is an `int`, it is the same number of channels to repeat for all tasks. If it is `None`, no repeat is applied.
+        - **to_tensor** (`bool` | `dict[int, bool]`): whether to include the `ToTensor()` transform. Default is `True`.
+        If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.
+        - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.
+        If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.
         - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
             3. 'first_channel_only': permute only the first channel.
-        - **permutation_seeds** (`list[int]` or `None`): the seeds for permutation operations used to construct tasks. Make sure it has the same number of seeds as `num_tasks`. Default is None, which creates a list of seeds from 0 to `num_tasks`-1.
+        - **permutation_seeds** (`dict[int, int]` | `None`): the dict of seeds for permutation operations used to construct each task. Keys are task IDs and the values are permutation seeds for each task. Default is `None`, which creates a dict of seeds from 0 to `num_tasks`-1.
         """
-        CLPermutedDataset.__init__(
-            self,
+
+        super().__init__(
             root=root,
             num_tasks=num_tasks,
             batch_size=batch_size,
@@ -98,7 +105,7 @@ class PermutedCountry211(CLPermutedDataset):
             root=self.root_t,
             split="train",
             transform=self.train_and_val_transforms(),
-            target_transform=CLClassMapping(self.cl_class_map_t),
+            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             download=False,
         )
 
@@ -121,7 +128,7 @@ class PermutedCountry211(CLPermutedDataset):
             root=self.root_t,
             split="test",
             transform=self.test_transforms(),
-            target_transform=CLClassMapping(self.cl_class_map_t),
+            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
             download=False,
         )
 

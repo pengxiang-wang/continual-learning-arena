@@ -2,28 +2,29 @@ r"""
 
 # Callbacks
 
-This submodule provides **callbacks** that can be used in CLArena.
+This submodule provides **callbacks** (other than metric callbacks) that can be used in CLArena.
 
-Please note that this is an API documantation. Please refer to the main documentation pages for more information about the callbacks and how to configure and implement them:
+The callbacks inherit from `lightning.Callback`.
 
-- [**Configure Callbacks**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiment/callbacks)
+Please note that this is an API documantation. Please refer to the main documentation pages for more information about how to configure and implement callbacks:
+
+- [**Configure Callbacks (CL)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/continual-learning/configure-main-experiment/callbacks)
+- [**Configure Callbacks (CUL)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/continual-unlearning/configure-main-experiment/callbacks)
+- [**Configure Callbacks (MTL)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/multi-task-learning/configure-main-experiment/callbacks)
+- [**Configure Callbacks (STL)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/single-task-learning/configure-main-experiment/callbacks)
 - [**Implement Your Callbacks**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/callback)
 
-The callbacks are implemented as subclasses of `lightning.Callback`.
 
 """
 
-from .cl_metrics import CLMetricsCallback
-from .jl_metrics import JLMetricsCallback
 from .cl_rich_progress_bar import CLRichProgressBar
-from .hat_metrics import HATMetricsCallback
-from .pylogger import CLPyloggerCallback, JLPyloggerCallback
-from .save_first_batch_images import SaveFirstBatchImagesCallback
+from .pylogger import CLPylogger, CULPylogger, MTLPylogger, STLPylogger
+from .save_first_batch_images import SaveFirstBatchImages
+from .save_models import SaveModels
 
 __all__ = [
     "cl_rich_progress_bar",
     "save_first_batch_images",
-    "cl_metrics",
+    "save_models",
     "pylogger",
-    "hat_metrics",
 ]

@@ -2,12 +2,10 @@ r"""
 The submoduule in `unlearning_algorithms` for unlearning alogrithm bases.
 """
 
-__all__ = ["UnlearningAlgorithm"]
+__all__ = ["CULAlgorithm"]
 
 import logging
 from abc import abstractmethod
-
-from omegaconf import DictConfig
 
 from clarena.cl_algorithms import CLAlgorithm
 
@@ -15,11 +13,11 @@ from clarena.cl_algorithms import CLAlgorithm
 pylogger = logging.getLogger(__name__)
 
 
-class UnlearningAlgorithm:
+class CULAlgorithm:
     r"""The base class of unlearning algorithms."""
 
     def __init__(self, model: CLAlgorithm) -> None:
-        r"""Initialise the unlearning algorithm with the continual learning model.
+        r"""Initialize the unlearning algorithm with the continual learning model.
 
         **Args:**
         - **model** (`CLAlgorithm`): the continual learning model (`CLAlgorithm` object which already contains the backbone and heads).
@@ -27,13 +25,14 @@ class UnlearningAlgorithm:
         self.model: CLAlgorithm = model
         r"""Store the continual learning model."""
 
+        # task control
         self.task_id: int
         r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
         self.unlearning_task_ids: list[int]
         r"""The list of task IDs to be unlearned after `self.task_id`. If none of the tasks need to be unlearned, it will be an empty list."""
         self.unlearned_task_ids: set[int] = set()
         r"""Store the list of task IDs that have been unlearned in the experiment. """
-        self.if_permanent_task_id: bool
+        self.if_permanent_t: bool
         r"""Whether the task is permanent or not. If `True`, the task will not be unlearned i.e. not shown in future unlearning requests."""
 
     def setup_task_id(
@@ -57,7 +56,7 @@ class UnlearningAlgorithm:
         self.unlearning_task_ids = unlearning_task_ids
         self.model.unlearning_task_ids = unlearning_task_ids
 
-        self.if_permanent_task_id = if_permanent
+        self.if_permanent_t = if_permanent
 
     def setup_test_task_id(self) -> None:
         r"""Set up before testing `self.task_id`. This must be done after `unlearn()` method is called."""
