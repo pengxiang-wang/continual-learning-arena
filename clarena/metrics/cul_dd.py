@@ -48,11 +48,10 @@ class CULDistributionDistance(MetricCallback):
         distribution_distance_csv_name: str = "dd.csv",
         distribution_distance_plot_name: str | None = None,
     ) -> None:
-        r"""Initialize the `CULDistributionDistance`.
-
+        r"""
         **Args:**
         - **save_dir** (`str`): The directory where data and figures of metrics will be saved. Better inside the output folder.
-        - **distribution_distance_type** (`str`): the type of distribution distance to use. Should be one of the following:
+        - **distribution_distance_type** (`str`): the type of distribution distance to use; one of:
             - 'euclidean': Eulidean distance.
             - 'cosine': Cosine distance.
             - 'manhattan': Manhattan distance.
@@ -63,25 +62,26 @@ class CULDistributionDistance(MetricCallback):
         super().__init__(save_dir=save_dir)
 
         self.distribution_distance_type: str = distribution_distance_type
-        r"""Store the type of distribution distance to use. """
+        r"""The type of distribution distance to use. """
 
         # paths
         self.distribution_distance_csv_path: str = os.path.join(
             self.save_dir, distribution_distance_csv_name
         )
-        r"""Store the path to save the test distribution distance metrics CSV file."""
+        r"""The path to save the test distribution distance metrics CSV file."""
         if distribution_distance_plot_name:
-            self.unlearning_test_distance_plot_path: str = os.path.join(
+            self.distribution_distance_plot_path: str = os.path.join(
                 self.save_dir, distribution_distance_plot_name
             )
-            r"""Store the path to save the test distribution distance metrics plot file."""
+            r"""The path to save the test distribution distance metrics plot file."""
 
         # test accumulated metrics
-        self.distribution_distance: dict[str, MeanMetricBatch]
+        self.distribution_distance: dict[int, MeanMetricBatch]
         r"""Distribution distance unlearning metrics for each seen task. Accumulated and calculated from the test batches. Keys are task IDs and values are the corresponding metrics."""
 
+        # task ID control
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`."""
 
     @rank_zero_only
     def on_test_start(
@@ -96,7 +96,7 @@ class CULDistributionDistance(MetricCallback):
 
         # initialize test metrics for evaluation tasks
         self.distribution_distance = {
-            f"{task_id}": MeanMetricBatch().to(device)
+            task_id: MeanMetricBatch().to(device)
             for task_id in pl_module.dd_eval_task_ids
         }
 
@@ -160,7 +160,7 @@ class CULDistributionDistance(MetricCallback):
             distance = None
 
         # update the accumulated metrics in order to calculate the metrics of the epoch
-        self.distribution_distance[f"{test_task_id}"].update(distance, batch_size)
+        self.distribution_distance[test_task_id].update(distance, batch_size)
 
     @rank_zero_only
     def on_test_epoch_end(
@@ -170,24 +170,26 @@ class CULDistributionDistance(MetricCallback):
     ) -> None:
         r"""Save and plot test metrics at the end of test."""
 
-        self.update_unlearning_test_distance_to_csv(
+        self.update_distribution_distance_to_csv(
             distance_metric=self.distribution_distance,
             csv_path=self.distribution_distance_csv_path,
         )
-        self.plot_unlearning_test_distance_from_csv(
-            csv_path=self.distribution_distance_csv_path,
-            plot_path=self.unlearning_test_distance_plot_path,
-        )
 
-    def update_unlearning_test_distance_to_csv(
+        if hasattr(self, "distribution_distance_plot_path"):
+            self.plot_distribution_distance_from_csv(
+                csv_path=self.distribution_distance_csv_path,
+                plot_path=self.distribution_distance_plot_path,
+            )
+
+    def update_distribution_distance_to_csv(
         self,
-        distance_metric: dict[str, MeanMetricBatch],
+        distance_metric: dict[int, MeanMetricBatch],
         csv_path: str,
     ) -> None:
         r"""Update the unlearning test distance metrics of unlearning tasks to CSV file.
 
         **Args:**
-        - **distance_metric** (`dict[str, MeanMetricBatch]`): the distance metric of unlearned tasks. Accumulated and calculated from the unlearning test batches.
+        - **distance_metric** (`dict[int, MeanMetricBatch]`): the distance metric of unlearned tasks. Accumulated and calculated from the unlearning test batches.
         - **csv_path** (`str`): save the test metric to path. E.g. './outputs/expr_name/1970-01-01_00-00-00/results/unlearning_test_after_task_X/distance.csv'.
         """
 
@@ -203,7 +205,7 @@ class CULDistributionDistance(MetricCallback):
             next(iter(distance_metric.values())).device
         )
         for task_id in eval_task_ids:
-            loss_cls = distance_metric[f"{task_id}"].compute().item()
+            loss_cls = distance_metric[task_id].compute().item()
             new_line[f"unlearning_test_on_task_{task_id}"] = loss_cls
             average_distribution_distance_over_unlearned_tasks(loss_cls)
         new_line["average_distribution_distance"] = (
@@ -227,13 +229,13 @@ class CULDistributionDistance(MetricCallback):
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writerow(new_line)
 
-    def plot_unlearning_test_distance_from_csv(
+    def plot_distribution_distance_from_csv(
         self, csv_path: str, plot_path: str
     ) -> None:
         """Plot the unlearning test distance matrix over different unlearned tasks from saved CSV file and save the plot to the designated directory.
 
         **Args:**
-        - **csv_path** (`str`): the path to the CSV file where the `utils.save_unlearning_test_distance_to_csv()` saved the unlearning test distance metric.
+        - **csv_path** (`str`): the path to the CSV file where the `utils.save_distribution_distance_to_csv()` saved the unlearning test distance metric.
         - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/results/unlearning_test_after_task_X/distance.png'.
         """
         data = pd.read_csv(csv_path)

@@ -20,7 +20,6 @@ from clarena.stl_datasets.raw import (
     EMNISTDigits,
     EMNISTLetters,
 )
-from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -52,8 +51,7 @@ class PermutedEMNIST(CLPermutedDataset):
         permutation_mode: str = "first_channel_only",
         permutation_seeds: dict[int, int] | None = None,
     ) -> None:
-        r"""Initialize the dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **root** (`str`): the root directory where the original EMNIST data 'EMNIST/' live.
         - **split** (`str`): the original EMNIST dataset has 6 different splits: `byclass`, `bymerge`, `balanced`, `letters`, `digits` and `mnist`. This argument specifies which one to use.
@@ -71,7 +69,7 @@ class PermutedEMNIST(CLPermutedDataset):
         If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.
         - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.
         If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.
-        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
+        - **permutation_mode** (`str`): the mode of permutation; one of:
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
             3. 'first_channel_only': permute only the first channel.
@@ -104,7 +102,7 @@ class PermutedEMNIST(CLPermutedDataset):
         )
 
         self.split: str = split
-        r"""Store the split of the original EMNIST dataset. It can be `byclass`, `bymerge`, `balanced`, `letters`, `digits` or `mnist`."""
+        r"""The split of the original EMNIST dataset. It can be `byclass`, `bymerge`, `balanced`, `letters`, `digits` or `mnist`."""
 
         self.validation_percentage: float = validation_percentage
         r"""The percentage to randomly split some training data into validation data."""
@@ -133,7 +131,7 @@ class PermutedEMNIST(CLPermutedDataset):
             split=self.split,
             train=True,
             transform=self.train_and_val_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 
@@ -151,13 +149,12 @@ class PermutedEMNIST(CLPermutedDataset):
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset of task `self.task_id`.
         """
-
         dataset_test = EMNIST(
             root=self.root_t,
             split=self.split,
             train=False,
             transform=self.test_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 

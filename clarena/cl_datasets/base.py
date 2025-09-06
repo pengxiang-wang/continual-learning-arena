@@ -16,7 +16,6 @@ from typing import Any, Callable
 
 import torch
 from lightning import LightningDataModule
-from torch.nn import Linear
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
@@ -25,14 +24,14 @@ from clarena.stl_datasets.raw.constants import (
     DatasetConstants,
 )
 from clarena.utils.misc import str_to_class
-from clarena.utils.transforms import Permute
+from clarena.utils.transforms import ClassMapping, Permute
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 class CLDataset(LightningDataModule):
-    r"""The base class of continual learning datasets, inherited from `LightningDataModule`."""
+    r"""The base class of continual learning datasets."""
 
     def __init__(
         self,
@@ -50,8 +49,7 @@ class CLDataset(LightningDataModule):
         to_tensor: bool | dict[int, bool] = True,
         resize: tuple[int, int] | None | dict[int, tuple[int, int] | None] = None,
     ) -> None:
-        r"""Initialize the CL dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **root** (`str` | `dict[int, str]`): the root directory where the original data files for constructing the CL dataset physically live.
         If it is a dict, the keys are task IDs and the values are the root directories for each task. If it is a string, it is the same root directory for all tasks.
@@ -149,16 +147,18 @@ class CLDataset(LightningDataModule):
         self.dataset_test: dict[int, Any] = {}
         r"""The dictionary to store test dataset object of each task. Keys are task IDs and values are the dataset objects. Can be PyTorch Dataset objects or any other dataset objects."""
 
-        # task ID controls
+        # task ID control
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`."""
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to the number of tasks in the CL dataset."""
         self.processed_task_ids: list[int] = []
-        r"""Task IDs that have been processed in the experiment."""
+        r"""Task IDs that have been processed."""
 
         CLDataset.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments."""
+        r"""Sanity check."""
+
+        # check if each task has been provided with necessary arguments
         for attr in [
             "root",
             "batch_size",
@@ -183,7 +183,7 @@ class CLDataset(LightningDataModule):
         - **task_id** (`int`): the task ID to query the CL class map.
 
         **Returns:**
-        - **cl_class_map** (`dict[str | int, int]`): the CL class map of the task. Key is the original class label, value is the integer class label for continual learning.
+        - **cl_class_map** (`dict[str | int, int]`): the CL class map of the task. Keys are the original class labels and values are the integer class label for continual learning.
             - If `self.cl_paradigm` is 'TIL', the mapped class labels of each task should be continuous integers from 0 to the number of classes.
             - If `self.cl_paradigm` is 'CIL', the mapped class labels of each task should be continuous integers from the number of classes of previous tasks to the number of classes of the current task.
         """
@@ -196,8 +196,8 @@ class CLDataset(LightningDataModule):
         r"""Set up the dataset for different stages. This method is called at the beginning of each task.
 
         **Args:**
-        - **stage** (`str`): the stage of the experiment. Should be one of the following:
-            - 'fit': training and validation datasets of the current task `self.task_id` should be assigned to `self.dataset_train_t` and `self.dataset_val_t`.
+        - **stage** (`str`): the stage of the experiment; one of:
+            - 'fit': training and validation datasets of the current task `self.task_id` are assigned to `self.dataset_train_t` and `self.dataset_val_t`.
             - 'test': a dict of test datasets of all seen tasks should be assigned to `self.dataset_test`.
         """
         if stage == "fit":
@@ -208,7 +208,7 @@ class CLDataset(LightningDataModule):
 
             self.dataset_train_t, self.dataset_val_t = self.train_and_val_dataset()
 
-            pylogger.debug(
+            pylogger.info(
                 "Train and validation dataset for task %d are ready.", self.task_id
             )
             pylogger.info(
@@ -228,7 +228,7 @@ class CLDataset(LightningDataModule):
 
             self.dataset_test[self.task_id] = self.test_dataset()
 
-            pylogger.debug("Test dataset for task %d are ready.", self.task_id)
+            pylogger.info("Test dataset for task %d are ready.", self.task_id)
             pylogger.info(
                 "Test dataset for task %d size: %d",
                 self.task_id,
@@ -243,7 +243,6 @@ class CLDataset(LightningDataModule):
         """
 
         self.task_id = task_id
-        self.processed_task_ids.append(task_id)
 
         self.root_t = self.root[task_id]
         self.batch_size_t = self.batch_size[task_id]
@@ -253,8 +252,20 @@ class CLDataset(LightningDataModule):
         self.to_tensor_t = self.to_tensor[task_id]
         self.resize_t = self.resize[task_id]
 
+        self.processed_task_ids.append(task_id)
+
+    def setup_tasks_eval(self, eval_tasks: list[int]) -> None:
+        r"""Set up tasks for continual learning main evaluation.
+
+        **Args:**
+        - **eval_tasks** (`list[int]`): the list of task IDs to evaluate.
+        """
+        for task_id in eval_tasks:
+            self.setup_task_id(task_id=task_id)
+            self.setup(stage="test")
+
     def set_cl_paradigm(self, cl_paradigm: str) -> None:
-        r"""Set the continual learning paradigm to `self.cl_paradigm`. It is used to define the CL class map.
+        r"""Set `cl_paradigm` to `self.cl_paradigm`. It is used to define the CL class map.
 
         **Args:**
         - **cl_paradigm** (`str`): the continual learning paradigm, either 'TIL' (Task-Incremental Learning) or 'CIL' (Class-Incremental Learning).
@@ -262,7 +273,7 @@ class CLDataset(LightningDataModule):
         self.cl_paradigm = cl_paradigm
 
     def train_and_val_transforms(self) -> transforms.Compose:
-        r"""Transforms generator for train and validation datasets, incorporating the custom transforms with basic transforms like normalization and `ToTensor()`. It is a handy tool to use in subclasses when constructing the dataset.
+        r"""Transforms for training and validation datasets, incorporating the custom transforms with basic transforms like normalization and `ToTensor()`. It can be used in subclasses when constructing the dataset.
 
         **Returns:**
         - **train_and_val_transforms** (`transforms.Compose`): the composed train/val transforms.
@@ -294,12 +305,11 @@ class CLDataset(LightningDataModule):
         )  # the order of transforms matters
 
     def test_transforms(self) -> transforms.Compose:
-        r"""Transforms generator for the test dataset. Only basic transforms like normalization and `ToTensor()` are included. It is a handy tool to use in subclasses when constructing the dataset.
+        r"""Transforms for the test dataset. Only basic transforms like normalization and `ToTensor()` are included. It is used in subclasses when constructing the dataset.
 
         **Returns:**
         - **test_transforms** (`transforms.Compose`): the composed test transforms.
         """
-
         repeat_channels_transform = (
             transforms.Grayscale(num_output_channels=self.repeat_channels_t)
             if self.repeat_channels_t is not None
@@ -323,26 +333,39 @@ class CLDataset(LightningDataModule):
                     ],
                 )
             )
-        )  # the order of transforms matters
+        )  # the order of transforms matters. No custom transforms for test
 
-    @abstractmethod
-    def train_and_val_dataset(self) -> Any:
-        r"""Get the training and validation datasets of task `self.task_id`. It must be implemented by subclasses.
+    def target_transform(self) -> ClassMapping:
+        r"""Target transform to map the original class labels to CL class labels according to `self.cl_paradigm`. It can be used in subclasses when constructing the dataset.
 
         **Returns:**
-        - **train_and_val_dataset** (`Any`): the train and validation datasets of task `self.task_id`.
+        - **target_transform** (`Callable`): the target transform function.
+        """
+
+        cl_class_map = self.get_cl_class_map(task_id=self.task_id)
+
+        target_transform = ClassMapping(class_map=cl_class_map)
+
+        return target_transform
+
+    @abstractmethod
+    def train_and_val_dataset(self) -> tuple[Any, Any]:
+        r"""Get the training and validation datasets of the current task `self.task_id`. It must be implemented by subclasses.
+
+        **Returns:**
+        - **train_and_val_dataset** (`tuple[Any, Any]`): the train and validation datasets of the current task `self.task_id`.
         """
 
     @abstractmethod
     def test_dataset(self) -> Any:
-        r"""Get the test dataset of task `self.task_id`. It must be implemented by subclasses.
+        r"""Get the test dataset of the current task `self.task_id`. It must be implemented by subclasses.
 
         **Returns:**
-        - **test_dataset** (`Any`): the test dataset of task `self.task_id`.
+        - **test_dataset** (`Any`): the test dataset of the current task `self.task_id`.
         """
 
     def train_dataloader(self) -> DataLoader:
-        r"""DataLoader generator for the train stage of task `self.task_id`. It is automatically called before training the task.
+        r"""DataLoader generator for the train stage of the current task `self.task_id`. It is automatically called before training the task.
 
         **Returns:**
         - **train_dataloader** (`DataLoader`): the train DataLoader of task `self.task_id`.
@@ -355,10 +378,11 @@ class CLDataset(LightningDataModule):
             batch_size=self.batch_size_t,
             shuffle=True,  # shuffle train batch to prevent overfitting
             num_workers=self.num_workers_t,
+            drop_last=True, # to avoid batchnorm error (when batch_size is 1)
         )
 
     def val_dataloader(self) -> DataLoader:
-        r"""DataLoader generator for the validation stage. It is automatically called before the task's validation.
+        r"""DataLoader generator for the validation stage of the current task `self.task_id`. It is automatically called before the task's validation.
 
         **Returns:**
         - **val_dataloader** (`DataLoader`): the validation DataLoader of task `self.task_id`.
@@ -374,7 +398,7 @@ class CLDataset(LightningDataModule):
         )
 
     def test_dataloader(self) -> dict[int, DataLoader]:
-        r"""DataLoader generator for the test stage. It is automatically called before testing the task.
+        r"""DataLoader generator for the test stage of the current task `self.task_id`. It is automatically called before testing the task.
 
         **Returns:**
         - **test_dataloader** (`dict[int, DataLoader]`): the test DataLoader dict of `self.task_id` and all tasks before (as the test is conducted on all seen tasks). Keys are task IDs and values are the DataLoaders.
@@ -402,10 +426,10 @@ class CLDataset(LightningDataModule):
 
 
 class CLPermutedDataset(CLDataset):
-    r"""The base class of continual learning datasets constructed as permutations of an original dataset, inherited from `CLDataset`."""
+    r"""The base class of continual learning datasets constructed as permutations of an original dataset."""
 
     original_dataset_python_class: type[Dataset]
-    r"""The original dataset class. It must be provided in subclasses."""
+    r"""The original dataset class. **It must be provided in subclasses.** """
 
     def __init__(
         self,
@@ -425,8 +449,7 @@ class CLPermutedDataset(CLDataset):
         permutation_mode: str = "first_channel_only",
         permutation_seeds: dict[int, int] | None = None,
     ) -> None:
-        r"""Initialize the CL Permuted dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **root** (`str`): the root directory where the original dataset live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset. This decides the valid task IDs from 1 to `num_tasks`.
@@ -442,7 +465,7 @@ class CLPermutedDataset(CLDataset):
         If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.
         - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.
         If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.
-        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
+        - **permutation_mode** (`str`): the mode of permutation; one of:
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
             3. 'first_channel_only': permute only the first channel.
@@ -481,7 +504,7 @@ class CLPermutedDataset(CLDataset):
         CLPermutedDataset.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments."""
+        r"""Sanity check."""
 
         # check the permutation mode
         if self.permutation_mode not in ["all", "by_channel", "first_channel_only"]:
@@ -503,7 +526,7 @@ class CLPermutedDataset(CLDataset):
         - **task_id** (`int`): the task ID to query the CL class map.
 
         **Returns:**
-        - **cl_class_map** (`dict[str | int, int]`): the CL class map of the task. Key is the original class label, value is the integer class label for continual learning.
+        - **cl_class_map** (`dict[str | int, int]`): the CL class map of the task. Keys are the original class labels and values are the integer class label for continual learning.
             - If `self.cl_paradigm` is 'TIL', the mapped class labels of a task should be continuous integers from 0 to the number of classes.
             - If `self.cl_paradigm` is 'CIL', the mapped class labels of a task should be continuous integers from the number of classes of previous tasks to the number of classes of the current task.
         """
@@ -569,7 +592,7 @@ class CLPermutedDataset(CLDataset):
         )
 
     def train_and_val_transforms(self) -> transforms.Compose:
-        r"""Transforms generator for train and validation datasets, incorporating the custom transforms with basic transforms like normalization and `ToTensor()`. In permuted CL datasets, a permute transform also applies.
+        r"""Transforms for training and validation datasets, incorporating the custom transforms with basic transforms like normalization and `ToTensor()`. In permuted CL datasets, a permute transform also applies.
 
         **Returns:**
         - **train_and_val_transforms** (`transforms.Compose`): the composed train/val transforms.
@@ -594,7 +617,7 @@ class CLPermutedDataset(CLDataset):
                         repeat_channels_transform,
                         to_tensor_transform,
                         resize_transform,
-                        self.permute_transform_t,
+                        self.permute_transform_t,  # permutation is included here
                         self.custom_transforms_t,
                         normalization_transform,
                     ],
@@ -603,7 +626,7 @@ class CLPermutedDataset(CLDataset):
         )  # the order of transforms matters
 
     def test_transforms(self) -> transforms.Compose:
-        r"""Transforms generator for the test dataset. Only basic transforms like normalization and `ToTensor()` are included. In permuted CL datasets, a permute transform also applies.
+        r"""Transforms for the test dataset. Only basic transforms like normalization and `ToTensor()` are included. In permuted CL datasets, a permute transform also applies.
 
         **Returns:**
         - **test_transforms** (`transforms.Compose`): the composed test transforms.
@@ -628,19 +651,19 @@ class CLPermutedDataset(CLDataset):
                         repeat_channels_transform,
                         to_tensor_transform,
                         resize_transform,
-                        self.permute_transform_t,
+                        self.permute_transform_t,  # permutation is included here
                         normalization_transform,
                     ],
                 )
             )
-        )  # the order of transforms matters
+        )  # the order of transforms matters. No custom transforms for test
 
 
 class CLSplitDataset(CLDataset):
-    r"""The base class of continual learning datasets constructed as splits of an original dataset, inherited from `CLDataset`."""
+    r"""The base class of continual learning datasets constructed as splits of an original dataset."""
 
     original_dataset_python_class: type[Dataset]
-    r"""The original dataset class. It must be provided in subclasses."""
+    r"""The original dataset class. **It must be provided in subclasses.** """
 
     def __init__(
         self,
@@ -658,8 +681,7 @@ class CLSplitDataset(CLDataset):
         to_tensor: bool | dict[int, bool] = True,
         resize: tuple[int, int] | None | dict[int, tuple[int, int] | None] = None,
     ) -> None:
-        r"""Initialize the CL Split dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **root** (`str`): the root directory where the original dataset live.
         - **class_split** (`dict[int, list[int]]`): the dict of classes for each task. The keys are task IDs ane the values are lists of class labels (integers starting from 0) to split for each task.
@@ -695,12 +717,12 @@ class CLSplitDataset(CLDataset):
         r"""The original dataset constants class. """
 
         self.class_split: dict[int, list[int]] = class_split
-        r"""Store the dict of class splits for each task."""
+        r"""The dict of class splits for each task."""
 
         CLSplitDataset.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments."""
+        r"""Sanity check."""
 
         # check the class split
         expected_keys = set(range(1, self.num_tasks + 1))
@@ -718,7 +740,7 @@ class CLSplitDataset(CLDataset):
         - **task_id** (`int`): the task ID to query the CL class map.
 
         **Returns:**
-        - **cl_class_map** (`dict[str | int, int]`): the CL class map of the task. Key is the original class label, value is the integer class label for continual learning.
+        - **cl_class_map** (`dict[str | int, int]`): the CL class map of the task. Keys are the original class labels and values are the integer class label for continual learning.
             - If `self.cl_paradigm` is 'TIL', the mapped class labels of a task should be continuous integers from 0 to the number of classes.
             - If `self.cl_paradigm` is 'CIL', the mapped class labels of a task should be continuous integers from the number of classes of previous tasks to the number of classes of the current task.
         """
@@ -760,7 +782,7 @@ class CLSplitDataset(CLDataset):
 
     @abstractmethod
     def get_subset_of_classes(self, dataset: Dataset) -> Dataset:
-        r"""Get a subset of classes from the dataset for the current task `self.task_id`. It is used when constructing the split. It must be implemented by subclasses.
+        r"""Get a subset of classes from the dataset for the current task `self.task_id`. It is used when constructing the split. **It must be implemented by subclasses.**
 
         **Args:**
         - **dataset** (`Dataset`): the dataset to retrieve the subset from.
@@ -771,7 +793,7 @@ class CLSplitDataset(CLDataset):
 
 
 class CLCombinedDataset(CLDataset):
-    r"""The base class of continual learning datasets constructed as combinations of several original datasets (one dataset per task), inherited from `CLDataset`."""
+    r"""The base class of continual learning datasets constructed as combinations of several single-task datasets (one dataset per task)."""
 
     def __init__(
         self,
@@ -789,8 +811,7 @@ class CLCombinedDataset(CLDataset):
         to_tensor: bool | dict[int, bool] = True,
         resize: tuple[int, int] | None | dict[int, tuple[int, int] | None] = None,
     ) -> None:
-        r"""Initialize the CL Combined dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **datasets** (`dict[int, str]`): the dict of dataset class paths for each task. The keys are task IDs and the values are the dataset class paths (as strings) to use for each task.
         - **root** (`str` | `dict[int, str]`): the root directory where the original data files for constructing the CL dataset physically live.
@@ -838,7 +859,7 @@ class CLCombinedDataset(CLDataset):
         - **task_id** (`int`): the task ID to query the CL class map.
 
         **Returns:**
-        - **cl_class_map** (`dict[str | int, int]`): the CL class map of the task. Key is the original class label, value is the integer class label for continual learning.
+        - **cl_class_map** (`dict[str | int, int]`): the CL class map of the task. Keys are the original class labels and values are the integer class label for continual learning.
             - If `self.cl_paradigm` is 'TIL', the mapped class labels of a task should be continuous integers from 0 to the number of classes.
             - If `self.cl_paradigm` is 'CIL', the mapped class labels of a task should be continuous integers from the number of classes of previous tasks to the number of classes of the current task.
         """

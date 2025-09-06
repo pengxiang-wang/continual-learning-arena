@@ -1,19 +1,22 @@
 r"""
 
-# Multi-Task Learning Algorithms
+# Single-Task Learning Algorithms
 
-This submodule provides the **multi-task learning algorithms** in CLArena.
+This submodule provides the **single-task learning algorithms** in CLArena.
 
-The algorithms are implemented as subclasses of `MTLAlgorithm`.
+Here are the base classes for STL algorithms, which inherit from PyTorch Lightning `LightningModule`:
 
-Please note that this is an API documantation. Please refer to the main documentation pages for more information about the backbone networks and how to configure and implement them:
+- `STLAlgorithm`: the base class for all single-task learning algorithms.
 
-- [**Configure MTL Algorithm**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiment/cl-algorithm)
-- [**Implement Your CL Algorithm Class**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/cl-algorithm)
-- [**A Beginners' Guide to Continual Learning (Methodology Overview)**](https://pengxiang-wang.com/posts/continual-learning-beginners-guide#sec-methodology)
+Please note that this is an API documantation. Please refer to the main documentation pages for more information about how to configure and implement STL algorithms:
+
+- [**Configure STL Algorithm**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/components/stl-algorithm)
+- [**Implement Custom STL Algorithm**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/custom-implementation/stl-algorithm)
+
 """
 
 from .base import STLAlgorithm
 
-#
 from .single_learning import SingleLearning
+
+__all__ = ["STLAlgorithm", "single_learning"]

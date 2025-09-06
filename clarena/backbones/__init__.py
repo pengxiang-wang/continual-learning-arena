@@ -2,20 +2,18 @@ r"""
 
 # Backbone Networks
 
-This submodule provides the **backbone neural network architectures** for various machine learning paradigms in CLArena.
+This submodule provides the **backbone neural network architectures** for all paradigms in CLArena.
 
 Here are the base classes for backbone networks, which inherit from PyTorch `nn.Module`:
 
-- `Backbone`: The base class for backbones.
-- `CLBackbone`: The base class for continual learning backbones.
-- `HATMaskBackbone`: The base class for backbones used in [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a) CL algorithm.
-- `WSNMaskBackbone`: The base class for backbones used in [WSN (Winning Subnetworks)](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf) CL algorithm.
+- `Backbone`: the base class for all backbone networks. Multi-task and single-task learning can use this class directly.
+-   `CLBackbone`: the base class for continual learning backbone networks, which incorporates mechanisms for managing continual learning tasks.
+    - `HATMaskBackbone`: the base class for backbones used in [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a) CL algorithm.
+    - `WSNMaskBackbone`: The base class for backbones used in [WSN (Winning Subnetworks)](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf) CL algorithm.
 
 Please note that this is an API documentation. Please refer to the main documentation pages for more information about how to configure and implement backbone networks:
 
-- [**Configure Backbone Network (CL Main)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/continual-learning/configure-main-experiment/backbone-network)
-- [**Configure Backbone Network (MTL)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/multi-task-learning-arena/configure-experiment/backbone-network)
-- [**Configure Backbone Network (STL)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/single-task-learning-arena/configure-experiment/backbone-network)
+- [**Configure Backbone Network**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/components/backbone-network)
 - [**Implement Custom Backbone Network**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/custom-implementation/backbone-network)
 
 
@@ -26,7 +24,6 @@ from .base import (
     CLBackbone,
     HATMaskBackbone,
     WSNMaskBackbone,
-    NISPAMaskBackbone,
 )
 from .mlp import MLP, CLMLP, HATMaskMLP, WSNMaskMLP
 from .resnet import (
@@ -53,7 +50,6 @@ __all__ = [
     "CLBackbone",
     "HATMaskBackbone",
     "WSNMaskBackbone",
-    "NISPAMaskBackbone",
     "mlp",
     "resnet",
 ]

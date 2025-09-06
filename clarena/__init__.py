@@ -1,35 +1,40 @@
 r"""
 
-# Welcome to CLArena
+# Continual Learning Arena (CLArena)
 
-**CLArena (Continual Learning Arena)** is a open-source Python package for Continual Learning (CL) research. In this package, we provide a integrated environment and various APIs to conduct CL experiments for research purposes, as well as implemented CL algorithms and datasets that you can give it a spin immediately. We also developed an environment for Continual Unlearning (CUL), where you can conduct CUL experiments and use various unlearning algorithms.
+**CLArena (Continual Learning Arena)** is an open-source Python package designed for **Continual Learning (CL)** research. This package provides an integrated environment with extensive APIs for conducting CL experiments, along with pre-implemented algorithms and datasets that you can start using immediately. This package also supports **Continual Unlearning (CUL)**, **Multi-Task Learning (MTL)** and **Single-Task Learning (STL)**.
 
-Please note that this is an API documantation providing detailed information about the available classes, functions, and modules in CLArena. Please refer to the main documentation and my beginners' guide to continual learning for more intuitive tutorials, examples, and guides on how to use CLArena:
+Please note this is the API reference providing detailed information about the available classes, functions, and modules in CLArena. Please refer to the main documentation for tutorials, examples, and guides on how to use CLArena:
 
 - [**Main Documentation**](https://pengxiang-wang.com/projects/continual-learning-arena)
 - [**A Beginners' Guide to Continual Learning**](https://pengxiang-wang.com/posts/continual-learning-beginners-guide)
 
-We provide various components of continual learning and unlearning system in the submodules:
+We provide various components in the submodules:
 
-- `clarena.experiments`: Continual learning and unlearning experiment objects, as well as other reference experiments.
+- `clarena.pipelines`: Pre-defined experiment and evaluation pipelines for different paradigms.
 - `clarena.cl_datasets`: Continual learning datasets.
-- `clarena.backbones`: Neural network architectures used as backbones for CL algorithms.
-- `clarena.heads`: Multi-head classifiers for outputs. Task-Incremental Learning (TIL) head, Class-Incremental Learning (CIL) head, and Multi-Task Learning (MTL) head are included.
-- `clarena.cl_algorithms`: Implementation of various continual learning algorithms.
-- `clarena.cul_algorithms`: Implementation of various unlearning algorithms on top of continual learning.
-- `clarena.callbacks`: Extra actions added to the continual learning process.
-- `clarena.utils`: Utility functions for continual learning experiments.
+- `clarena.mtl_datasets`: Multi-task learning datasets.
+- `clarena.stl_datasets`: Single-task learning datasets.
+- `clarena.backbones`: Neural network architectures used as backbones networks.
+- `clarena.heads`: Output heads.
+- `clarena.cl_algorithms`: Continual learning algorithms.
+- `clarena.cul_algorithms`: Continual unlearning algorithms.
+- `clarena.mtl_algorithms`: Multi-task learning algorithms.
+- `clarena.stl_algorithms`: Single-task learning algorithms.
+- `clarena.metrics`: Metrics for evaluation.
+- `clarena.callbacks`: Extra actions added to the pipelines.
+- `clarena.utils`: Utilities for the package.
 """
 
 __all__ = [
-    "experiments",
+    "pipelines",
     "cl_datasets",
     "mtl_datasets",
     "stl_datasets",
     "backbones",
     "heads",
-    "unlearning_algorithms",
     "cl_algorithms",
+    "cul_algorithms",
     "mtl_algorithms",
     "stl_algorithms",
     "metrics",

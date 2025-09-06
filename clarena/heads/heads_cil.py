@@ -2,8 +2,13 @@ r"""The submodule in `heads` for CIL heads."""
 
 __all__ = ["HeadsCIL"]
 
+import logging
+
 import torch
 from torch import Tensor, nn
+
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
 class HeadsCIL(nn.Module):
@@ -26,7 +31,7 @@ class HeadsCIL(nn.Module):
         self.task_id: int
         """Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
         self.processed_task_ids: list[int] = []
-        r"""Task IDs that have been processed in the experiment."""
+        r"""Task IDs that have been processed."""
 
     def setup_task_id(self, task_id: int, num_classes_t: int) -> None:
         """Create the output head when task `task_id` arrives if there's no. This must be done before `forward()` is called.

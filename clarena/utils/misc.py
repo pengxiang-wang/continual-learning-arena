@@ -1,4 +1,4 @@
-r"""The submodule in `utils` of miscellaneous utils."""
+r"""The submodule in `utils` of miscellaneous utilities."""
 
 __all__ = ["str_to_class"]
 

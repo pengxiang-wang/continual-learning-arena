@@ -2,27 +2,26 @@ r"""
 The submodule in `stl_datasets` for MNIST dataset.
 """
 
-__all__ = ["STLMNIST"]
+__all__ = ["MNIST"]
 
 import logging
 from typing import Callable
 
 import torch
 from torch.utils.data import Dataset, random_split
-from torchvision.datasets import MNIST
+from torchvision.datasets import MNIST as MNISTRaw
 from torchvision.transforms import transforms
 
 from clarena.stl_datasets.base import STLDatasetFromRaw
-from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
-class STLMNIST(STLDatasetFromRaw):
+class MNIST(STLDatasetFromRaw):
     r"""MNIST dataset. The [MNIST dataset](http://yann.lecun.com/exdb/mnist/) is a collection of handwritten digits. It consists of 60,000 training and 10,000 test images of handwritten digit images (10 classes), each 28x28 grayscale image."""
 
-    original_dataset_python_class: type[Dataset] = MNIST
+    original_dataset_python_class: type[Dataset] = MNISTRaw
     r"""The original dataset class."""
 
     def __init__(
@@ -36,15 +35,14 @@ class STLMNIST(STLDatasetFromRaw):
         to_tensor: bool = True,
         resize: tuple[int, int] | None = None,
     ) -> None:
-        r"""Initialize the dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **root** (`str`): the root directory where the original MNIST data 'MNIST/' live.
         - **validation_percentage** (`float`): the percentage to randomly split some training data into validation data.
         - **batch_size** (`int`): The batch size in train, val, test dataloader.
         - **num_workers** (`int`): the number of workers for dataloaders.
-        - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalize, permute and so on are not included.
-        - **repeat_channels** (`int` | `None`): the number of channels to repeat for each task. Default is None, which means no repeat. If not None, it should be an integer.
+        - **custom_transforms** (`transform` or `transforms.Compose` or `None`): the custom transforms to apply to ONLY TRAIN dataset. Can be a single transform, composed transforms or no transform. `ToTensor()`, normalize and so on are not included.
+        - **repeat_channels** (`int` | `None`): the number of channels to repeat. Default is None, which means no repeat. If not None, it should be an integer.
         - **to_tensor** (`bool`): whether to include `ToTensor()` transform. Default is True.
         - **resize** (`tuple[int, int]` | `None` or list of them): the size to resize the images to. Default is None, which means no resize. If not None, it should be a tuple of two integers.
         """
@@ -59,13 +57,13 @@ class STLMNIST(STLDatasetFromRaw):
         )
 
         self.validation_percentage: float = validation_percentage
-        """The percentage to randomly split some training data into validation data."""
+        r"""The percentage to randomly split some training data into validation data."""
 
     def prepare_data(self) -> None:
         r"""Download the original MNIST dataset if haven't."""
 
-        MNIST(root=self.root, train=True, download=True)
-        MNIST(root=self.root, train=False, download=True)
+        MNISTRaw(root=self.root, train=True, download=True)
+        MNISTRaw(root=self.root, train=False, download=True)
 
         pylogger.debug(
             "The original MNIST dataset has been downloaded to %s.", self.root
@@ -77,11 +75,11 @@ class STLMNIST(STLDatasetFromRaw):
         **Returns:**
         - **train_and_val_dataset** (`tuple[Dataset, Dataset]`): the train and validation dataset.
         """
-        dataset_train_and_val = MNIST(
+        dataset_train_and_val = MNISTRaw(
             root=self.root,
             train=True,
             transform=self.train_and_val_transforms(),
-            target_transform=ClassMapping(self.get_class_map()),
+            target_transform=self.target_transform(),
             download=False,
         )
 
@@ -99,11 +97,11 @@ class STLMNIST(STLDatasetFromRaw):
         **Returns:**
         - **test_dataset** (`Dataset`): the test dataset.
         """
-        dataset_test = MNIST(
+        dataset_test = MNISTRaw(
             root=self.root,
             train=False,
             transform=self.test_transforms(),
-            target_transform=ClassMapping(self.get_class_map()),
+            target_transform=self.target_transform(),
             download=False,
         )
 

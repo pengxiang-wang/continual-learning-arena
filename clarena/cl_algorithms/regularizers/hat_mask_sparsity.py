@@ -2,7 +2,12 @@ r"""The submodule in `regularizers` for [HAT (Hard Attention to the Task)](http:
 
 __all__ = ["HATMaskSparsityReg"]
 
+import logging
+
 from torch import Tensor, nn
+
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
 class HATMaskSparsityReg(nn.Module):
@@ -14,7 +19,7 @@ class HATMaskSparsityReg(nn.Module):
 
     It promotes the low capacity usage that is reflected by occupation of masks in the parameter space.
 
-    See chapter 2.6 "Promoting Low Capacity Usage" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
+    See chapter 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
     """
 
     def __init__(
@@ -22,20 +27,19 @@ class HATMaskSparsityReg(nn.Module):
         factor: float,
         mode: str = "original",
     ) -> None:
-        r"""Initialize the regularizer.
-
+        r"""
         **Args:**
         - **factor** (`float`): the regularization factor.
-        - **mode** (`str`): the mode of mask sparsity regularization, should be one of the following:
+        - **mode** (`str`): the mode of mask sparsity regularization; one of:
             1. 'original' (default): the original mask sparsity regularization in HAT paper.
             2. 'cross': the cross version mask sparsity regularization.
         """
         super().__init__()
 
         self.factor = factor
-        """Store the regularization factor for mask sparsity."""
+        """The regularization factor for mask sparsity."""
         self.mode = mode
-        """Store the mode of mask sparsity regularization."""
+        """The mode of mask sparsity regularization."""
 
     def forward(
         self, mask: dict[str, Tensor], previous_cumulative_mask: dict[str, Tensor]
@@ -61,7 +65,7 @@ class HATMaskSparsityReg(nn.Module):
     ) -> tuple[Tensor, dict[str, Tensor]]:
         r"""Calculate the original mask sparsity regularization loss in HAT paper.
 
-        See chapter 2.6 "Promoting Low Capacity Usage" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
+        See chapter 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
 
         **Args:**
         - **mask** (`dict[str, Tensor]`): the mask for the current task. The $\mathrm{A}^t$ in the paper.

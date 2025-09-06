@@ -238,7 +238,7 @@
 </span><span id="L-95"><a href="#L-95"><span class="linenos"> 95</span></a>        <span class="n">HAT</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a>
 </span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a>
 </span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a>        <span class="c1"># check the backbone and heads</span>
 </span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">,</span> <span class="n">HATMaskBackbone</span><span class="p">):</span>
@@ -328,7 +328,7 @@
 </span><span id="L-185"><a href="#L-185"><span class="linenos">185</span></a>            <span class="n">adjustment_rate_bias_layer</span> <span class="o">=</span> <span class="mi">1</span>
 </span><span id="L-186"><a href="#L-186"><span class="linenos">186</span></a>
 </span><span id="L-187"><a href="#L-187"><span class="linenos">187</span></a>            <span class="n">weight_mask</span><span class="p">,</span> <span class="n">bias_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">get_layer_measure_parameter_wise</span><span class="p">(</span>
-</span><span id="L-188"><a href="#L-188"><span class="linenos">188</span></a>                <span class="n">unit_wise_measure</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cumulative_mask_for_previous_tasks</span><span class="p">,</span>
+</span><span id="L-188"><a href="#L-188"><span class="linenos">188</span></a>                <span class="n">neuron_wise_measure</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cumulative_mask_for_previous_tasks</span><span class="p">,</span>
 </span><span id="L-189"><a href="#L-189"><span class="linenos">189</span></a>                <span class="n">layer_name</span><span class="o">=</span><span class="n">layer_name</span><span class="p">,</span>
 </span><span id="L-190"><a href="#L-190"><span class="linenos">190</span></a>                <span class="n">aggregation_mode</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span>
 </span><span id="L-191"><a href="#L-191"><span class="linenos">191</span></a>            <span class="p">)</span>
@@ -424,7 +424,7 @@
 </span><span id="L-281"><a href="#L-281"><span class="linenos">281</span></a>
 </span><span id="L-282"><a href="#L-282"><span class="linenos">282</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-283"><a href="#L-283"><span class="linenos">283</span></a><span class="sd">        - **input** (`Tensor`): The input tensor from data.</span>
-</span><span id="L-284"><a href="#L-284"><span class="linenos">284</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="L-284"><a href="#L-284"><span class="linenos">284</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="L-285"><a href="#L-285"><span class="linenos">285</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="L-286"><a href="#L-286"><span class="linenos">286</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="L-287"><a href="#L-287"><span class="linenos">287</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
@@ -458,7 +458,7 @@
 </span><span id="L-315"><a href="#L-315"><span class="linenos">315</span></a>
 </span><span id="L-316"><a href="#L-316"><span class="linenos">316</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-317"><a href="#L-317"><span class="linenos">317</span></a><span class="sd">        - **batch** (`Any`): a batch of training data.</span>
-</span><span id="L-318"><a href="#L-318"><span class="linenos">318</span></a><span class="sd">        - **batch_idx** (`int`): the index of the batch. Used for calculating annealed scalar in HAT. See Sec. 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="L-318"><a href="#L-318"><span class="linenos">318</span></a><span class="sd">        - **batch_idx** (`int`): the index of the batch. Used for calculating annealed scalar in HAT. See Sec. 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="L-319"><a href="#L-319"><span class="linenos">319</span></a>
 </span><span id="L-320"><a href="#L-320"><span class="linenos">320</span></a><span class="sd">        **Returns:**</span>
 </span><span id="L-321"><a href="#L-321"><span class="linenos">321</span></a><span class="sd">        - **outputs** (`dict[str, Tensor]`): a dictionary containing loss and other metrics from this training step. Keys (`str`) are metric names, and values (`Tensor`) are the metrics. Must include the key &#39;loss&#39; (total loss) in the case of automatic optimization, according to PyTorch Lightning. For HAT, it includes &#39;mask&#39; and &#39;capacity&#39; for logging.</span>
@@ -676,7 +676,7 @@
 </span><span id="HAT-96"><a href="#HAT-96"><span class="linenos"> 96</span></a>        <span class="n">HAT</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="HAT-97"><a href="#HAT-97"><span class="linenos"> 97</span></a>
 </span><span id="HAT-98"><a href="#HAT-98"><span class="linenos"> 98</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="HAT-99"><a href="#HAT-99"><span class="linenos"> 99</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="HAT-99"><a href="#HAT-99"><span class="linenos"> 99</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="HAT-100"><a href="#HAT-100"><span class="linenos">100</span></a>
 </span><span id="HAT-101"><a href="#HAT-101"><span class="linenos">101</span></a>        <span class="c1"># check the backbone and heads</span>
 </span><span id="HAT-102"><a href="#HAT-102"><span class="linenos">102</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">,</span> <span class="n">HATMaskBackbone</span><span class="p">):</span>
@@ -766,7 +766,7 @@
 </span><span id="HAT-186"><a href="#HAT-186"><span class="linenos">186</span></a>            <span class="n">adjustment_rate_bias_layer</span> <span class="o">=</span> <span class="mi">1</span>
 </span><span id="HAT-187"><a href="#HAT-187"><span class="linenos">187</span></a>
 </span><span id="HAT-188"><a href="#HAT-188"><span class="linenos">188</span></a>            <span class="n">weight_mask</span><span class="p">,</span> <span class="n">bias_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">get_layer_measure_parameter_wise</span><span class="p">(</span>
-</span><span id="HAT-189"><a href="#HAT-189"><span class="linenos">189</span></a>                <span class="n">unit_wise_measure</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cumulative_mask_for_previous_tasks</span><span class="p">,</span>
+</span><span id="HAT-189"><a href="#HAT-189"><span class="linenos">189</span></a>                <span class="n">neuron_wise_measure</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cumulative_mask_for_previous_tasks</span><span class="p">,</span>
 </span><span id="HAT-190"><a href="#HAT-190"><span class="linenos">190</span></a>                <span class="n">layer_name</span><span class="o">=</span><span class="n">layer_name</span><span class="p">,</span>
 </span><span id="HAT-191"><a href="#HAT-191"><span class="linenos">191</span></a>                <span class="n">aggregation_mode</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span>
 </span><span id="HAT-192"><a href="#HAT-192"><span class="linenos">192</span></a>            <span class="p">)</span>
@@ -862,7 +862,7 @@
 </span><span id="HAT-282"><a href="#HAT-282"><span class="linenos">282</span></a>
 </span><span id="HAT-283"><a href="#HAT-283"><span class="linenos">283</span></a><span class="sd">        **Args:**</span>
 </span><span id="HAT-284"><a href="#HAT-284"><span class="linenos">284</span></a><span class="sd">        - **input** (`Tensor`): The input tensor from data.</span>
-</span><span id="HAT-285"><a href="#HAT-285"><span class="linenos">285</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="HAT-285"><a href="#HAT-285"><span class="linenos">285</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="HAT-286"><a href="#HAT-286"><span class="linenos">286</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="HAT-287"><a href="#HAT-287"><span class="linenos">287</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="HAT-288"><a href="#HAT-288"><span class="linenos">288</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
@@ -896,7 +896,7 @@
 </span><span id="HAT-316"><a href="#HAT-316"><span class="linenos">316</span></a>
 </span><span id="HAT-317"><a href="#HAT-317"><span class="linenos">317</span></a><span class="sd">        **Args:**</span>
 </span><span id="HAT-318"><a href="#HAT-318"><span class="linenos">318</span></a><span class="sd">        - **batch** (`Any`): a batch of training data.</span>
-</span><span id="HAT-319"><a href="#HAT-319"><span class="linenos">319</span></a><span class="sd">        - **batch_idx** (`int`): the index of the batch. Used for calculating annealed scalar in HAT. See Sec. 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="HAT-319"><a href="#HAT-319"><span class="linenos">319</span></a><span class="sd">        - **batch_idx** (`int`): the index of the batch. Used for calculating annealed scalar in HAT. See Sec. 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="HAT-320"><a href="#HAT-320"><span class="linenos">320</span></a>
 </span><span id="HAT-321"><a href="#HAT-321"><span class="linenos">321</span></a><span class="sd">        **Returns:**</span>
 </span><span id="HAT-322"><a href="#HAT-322"><span class="linenos">322</span></a><span class="sd">        - **outputs** (`dict[str, Tensor]`): a dictionary containing loss and other metrics from this training step. Keys (`str`) are metric names, and values (`Tensor`) are the metrics. Must include the key &#39;loss&#39; (total loss) in the case of automatic optimization, according to PyTorch Lightning. For HAT, it includes &#39;mask&#39; and &#39;capacity&#39; for logging.</span>
@@ -1299,7 +1299,7 @@
     </div>
     <a class="headerlink" href="#HAT.sanity_check"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="HAT.sanity_check-98"><a href="#HAT.sanity_check-98"><span class="linenos"> 98</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="HAT.sanity_check-99"><a href="#HAT.sanity_check-99"><span class="linenos"> 99</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="HAT.sanity_check-99"><a href="#HAT.sanity_check-99"><span class="linenos"> 99</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="HAT.sanity_check-100"><a href="#HAT.sanity_check-100"><span class="linenos">100</span></a>
 </span><span id="HAT.sanity_check-101"><a href="#HAT.sanity_check-101"><span class="linenos">101</span></a>        <span class="c1"># check the backbone and heads</span>
 </span><span id="HAT.sanity_check-102"><a href="#HAT.sanity_check-102"><span class="linenos">102</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">,</span> <span class="n">HATMaskBackbone</span><span class="p">):</span>
@@ -1333,7 +1333,7 @@
 </span></pre></div>
 
 
-            <div class="docstring"><p>Check the sanity of the arguments.</p>
+            <div class="docstring"><p>Sanity check.</p>
 </div>
 
 
@@ -1425,7 +1425,7 @@
 </span><span id="HAT.clip_grad_by_adjustment-186"><a href="#HAT.clip_grad_by_adjustment-186"><span class="linenos">186</span></a>            <span class="n">adjustment_rate_bias_layer</span> <span class="o">=</span> <span class="mi">1</span>
 </span><span id="HAT.clip_grad_by_adjustment-187"><a href="#HAT.clip_grad_by_adjustment-187"><span class="linenos">187</span></a>
 </span><span id="HAT.clip_grad_by_adjustment-188"><a href="#HAT.clip_grad_by_adjustment-188"><span class="linenos">188</span></a>            <span class="n">weight_mask</span><span class="p">,</span> <span class="n">bias_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="o">.</span><span class="n">get_layer_measure_parameter_wise</span><span class="p">(</span>
-</span><span id="HAT.clip_grad_by_adjustment-189"><a href="#HAT.clip_grad_by_adjustment-189"><span class="linenos">189</span></a>                <span class="n">unit_wise_measure</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cumulative_mask_for_previous_tasks</span><span class="p">,</span>
+</span><span id="HAT.clip_grad_by_adjustment-189"><a href="#HAT.clip_grad_by_adjustment-189"><span class="linenos">189</span></a>                <span class="n">neuron_wise_measure</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cumulative_mask_for_previous_tasks</span><span class="p">,</span>
 </span><span id="HAT.clip_grad_by_adjustment-190"><a href="#HAT.clip_grad_by_adjustment-190"><span class="linenos">190</span></a>                <span class="n">layer_name</span><span class="o">=</span><span class="n">layer_name</span><span class="p">,</span>
 </span><span id="HAT.clip_grad_by_adjustment-191"><a href="#HAT.clip_grad_by_adjustment-191"><span class="linenos">191</span></a>                <span class="n">aggregation_mode</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span>
 </span><span id="HAT.clip_grad_by_adjustment-192"><a href="#HAT.clip_grad_by_adjustment-192"><span class="linenos">192</span></a>            <span class="p">)</span>
@@ -1578,7 +1578,7 @@ See Sec. 4.1 in the <a href="https://link.springer.com/chapter/10.1007/978-3-031
 </span><span id="HAT.forward-282"><a href="#HAT.forward-282"><span class="linenos">282</span></a>
 </span><span id="HAT.forward-283"><a href="#HAT.forward-283"><span class="linenos">283</span></a><span class="sd">        **Args:**</span>
 </span><span id="HAT.forward-284"><a href="#HAT.forward-284"><span class="linenos">284</span></a><span class="sd">        - **input** (`Tensor`): The input tensor from data.</span>
-</span><span id="HAT.forward-285"><a href="#HAT.forward-285"><span class="linenos">285</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="HAT.forward-285"><a href="#HAT.forward-285"><span class="linenos">285</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="HAT.forward-286"><a href="#HAT.forward-286"><span class="linenos">286</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="HAT.forward-287"><a href="#HAT.forward-287"><span class="linenos">287</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="HAT.forward-288"><a href="#HAT.forward-288"><span class="linenos">288</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
@@ -1615,7 +1615,7 @@ See Sec. 4.1 in the <a href="https://link.springer.com/chapter/10.1007/978-3-031
 
 <ul>
 <li><strong>input</strong> (<code>Tensor</code>): The input tensor from data.</li>
-<li><strong>stage</strong> (<code>str</code>): the stage of the forward pass, should be one of the following:
+<li><strong>stage</strong> (<code>str</code>): the stage of the forward pass; one of:
 <ol>
 <li>'train': training stage.</li>
 <li>'validation': validation stage.</li>
@@ -1653,7 +1653,7 @@ See Sec. 4.1 in the <a href="https://link.springer.com/chapter/10.1007/978-3-031
 </span><span id="HAT.training_step-316"><a href="#HAT.training_step-316"><span class="linenos">316</span></a>
 </span><span id="HAT.training_step-317"><a href="#HAT.training_step-317"><span class="linenos">317</span></a><span class="sd">        **Args:**</span>
 </span><span id="HAT.training_step-318"><a href="#HAT.training_step-318"><span class="linenos">318</span></a><span class="sd">        - **batch** (`Any`): a batch of training data.</span>
-</span><span id="HAT.training_step-319"><a href="#HAT.training_step-319"><span class="linenos">319</span></a><span class="sd">        - **batch_idx** (`int`): the index of the batch. Used for calculating annealed scalar in HAT. See Sec. 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="HAT.training_step-319"><a href="#HAT.training_step-319"><span class="linenos">319</span></a><span class="sd">        - **batch_idx** (`int`): the index of the batch. Used for calculating annealed scalar in HAT. See Sec. 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="HAT.training_step-320"><a href="#HAT.training_step-320"><span class="linenos">320</span></a>
 </span><span id="HAT.training_step-321"><a href="#HAT.training_step-321"><span class="linenos">321</span></a><span class="sd">        **Returns:**</span>
 </span><span id="HAT.training_step-322"><a href="#HAT.training_step-322"><span class="linenos">322</span></a><span class="sd">        - **outputs** (`dict[str, Tensor]`): a dictionary containing loss and other metrics from this training step. Keys (`str`) are metric names, and values (`Tensor`) are the metrics. Must include the key &#39;loss&#39; (total loss) in the case of automatic optimization, according to PyTorch Lightning. For HAT, it includes &#39;mask&#39; and &#39;capacity&#39; for logging.</span>

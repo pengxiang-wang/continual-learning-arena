@@ -8,11 +8,8 @@ The callbacks inherit from `lightning.Callback`.
 
 Please note that this is an API documantation. Please refer to the main documentation pages for more information about how to configure and implement callbacks:
 
-- [**Configure Callbacks (CL)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/continual-learning/configure-main-experiment/callbacks)
-- [**Configure Callbacks (CUL)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/continual-unlearning/configure-main-experiment/callbacks)
-- [**Configure Callbacks (MTL)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/multi-task-learning/configure-main-experiment/callbacks)
-- [**Configure Callbacks (STL)**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/single-task-learning/configure-main-experiment/callbacks)
-- [**Implement Your Callbacks**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/callback)
+- [**Configure Callbacks**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/components/callbacks)
+- [**Implement Custom Callback**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/custom-implementation/callback)
 
 
 """

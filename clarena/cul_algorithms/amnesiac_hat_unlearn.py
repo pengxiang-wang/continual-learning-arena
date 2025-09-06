@@ -1,5 +1,5 @@
 r"""
-The submoduule in `unlearning_algorithms` for AmnesiacHAT unlearning algorithm.
+The submoduule in `cul_algorithms` for AmnesiacHAT unlearning algorithm.
 """
 
 __all__ = ["AmnesiacHATUnlearn"]
@@ -9,7 +9,7 @@ import logging
 import torch
 
 from clarena.cl_algorithms import HAT
-from clarena.unlearning_algorithms import CULAlgorithm
+from clarena.cul_algorithms import CULAlgorithm
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)

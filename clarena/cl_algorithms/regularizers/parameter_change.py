@@ -2,8 +2,13 @@ r"""The submodule in `regularizers` for parameter change regularization."""
 
 __all__ = ["ParameterChangeReg"]
 
+import logging
+
 import torch
 from torch import Tensor, nn
+
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
 class ParameterChangeReg(nn.Module):
@@ -22,15 +27,14 @@ class ParameterChangeReg(nn.Module):
         self,
         factor: float,
     ) -> None:
-        r"""Initialize the regularizer.
-
+        r"""
         **Args:**
         - **factor** (`float`): the regularization factor. Note that it is $\frac{\lambda}{2}$ rather than $\lambda$ in the [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114).
         """
         super().__init__()
 
         self.factor = factor
-        """Store the regularization factor for parameter change."""
+        """The regularization factor for parameter change."""
 
     def forward(
         self,

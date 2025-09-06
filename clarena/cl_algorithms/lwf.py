@@ -34,6 +34,7 @@ class LwF(Finetuning):
         heads: HeadsTIL | HeadsCIL,
         distillation_reg_factor: float,
         distillation_reg_temperature: float,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the LwF algorithm with the network.
 
@@ -42,19 +43,25 @@ class LwF(Finetuning):
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
         - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor. It controls the strength of preventing forgetting.
         - **distillation_reg_temperature** (`float`): hyperparameter, the temperature in the distillation regularization. It controls the softness of the labels that the student model (here is the current model) learns from the teacher models (here are the previous models), thereby controlling the strength of the distillation. It controls the strength of preventing forgetting.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+
         """
-        super().__init__(backbone=backbone, heads=heads)
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
 
         self.previous_task_backbones: dict[int, CLBackbone] = {}
-        r"""Store the backbone models of the previous tasks. Keys are task IDs (int) and values are the corresponding models. Each model is a `CLBackbone` after the corresponding previous task was trained.
+        r"""The backbone models of the previous tasks. Keys are task IDs (int) and values are the corresponding models. Each model is a `CLBackbone` after the corresponding previous task was trained.
         
         Some would argue that since we could store the model of the previous tasks, why don't we test the task directly with the stored model, instead of doing the less easier LwF thing? The thing is, LwF only uses the model of the previous tasks to train current and future tasks, which aggregate them into a single model. Once the training of the task is done, the storage for those parameters can be released. However, this make the future tasks not able to use LwF anymore, which is a disadvantage for LwF.
         """
 
         self.distillation_reg_factor: float = distillation_reg_factor
-        r"""Store distillation regularization factor."""
+        r"""The distillation regularization factor."""
         self.distillation_reg_temperature: float = distillation_reg_temperature
-        r"""Store distillation regularization temperature."""
+        r"""The distillation regularization temperature."""
         self.distillation_reg = DistillationReg(
             factor=distillation_reg_factor,
             temperature=distillation_reg_temperature,
@@ -62,10 +69,16 @@ class LwF(Finetuning):
         )
         r"""Initialize and store the distillation regulariser."""
 
+        # save additional algorithmic hyperparameters
+        self.save_hyperparameters(
+            "distillation_reg_factor",
+            "distillation_reg_temperature",
+        )
+
         LwF.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments."""
+        r"""Sanity check."""
 
         if self.distillation_reg_factor <= 0:
             raise ValueError(
@@ -134,7 +147,7 @@ class LwF(Finetuning):
         }
 
     def on_train_end(self) -> None:
-        r"""Store the backbone model after the training of a task.
+        r"""The backbone model after the training of a task.
 
         The model is stored in `self.previous_task_backbones` for constructing the regularization loss in the future tasks.
         """

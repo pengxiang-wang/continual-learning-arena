@@ -16,7 +16,7 @@ description = "An open-source machine learning package for continual learning re
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
-keywords = ["continual learning", "machine learning", "artificial intelligence"]
+keywords = ["continual learning", "machine learning", "deep learning", "artificial intelligence"]
 authors = [{ name = "Pengxiang Wang", email = "wangpengxiang@stu.pku.edu.cn" }]
 maintainers = [
     { name = "Pengxiang Wang", email = "wangpengxiang@stu.pku.edu.cn" },
@@ -53,6 +53,10 @@ dependencies = [
     # For PyTorch Lightning TensorBoard Logger
     # https://lightning.ai/docs/pytorch/stable/visualize/experiment_managers.html#tensorboard
     "tensorboard",
+
+    # For PyTorch Lightning Wandb Logger
+    # https://lightning.ai/docs/pytorch/stable/visualize/experiment_managers.html#wandb
+    "wandb",
 
     # For managing csv files easier
     # https://pandas.pydata.org/
@@ -92,10 +96,10 @@ dependencies = [
 "Source" = "https://github.com/pengxiang-wang/continual-learning-arena/"
 
 # The following would provide a command line executable called `clarena`
-# which executes the function `clarena.cli:main` from this package when invoked.
+# which executes the function `clarena.cli:clarena` from this package when invoked.
 [project.scripts]
-clarena = "clarena.cli:main"
+clarena = "clarena.cli:clarena"
 
 
 [tool.setuptools]
-packages = ["clarena", "clarena.experiments", "clarena.cl_datasets", "clarena.mtl_datasets", "clarena.stl_datasets", "clarena.stl_datasets.raw", "clarena.backbones", "clarena.heads", "clarena.cl_algorithms", "clarena.cl_algorithms.regularizers", "clarena.unlearning_algorithms", "clarena.mtl_algorithms", "clarena.stl_algorithms", "clarena.metrics", "clarena.callbacks", "clarena.utils"]
+packages = ["clarena", "clarena.pipelines", "clarena.cl_datasets", "clarena.mtl_datasets", "clarena.stl_datasets", "clarena.stl_datasets.raw", "clarena.backbones", "clarena.heads", "clarena.cl_algorithms", "clarena.cl_algorithms.regularizers", "clarena.cul_algorithms", "clarena.mtl_algorithms", "clarena.stl_algorithms", "clarena.metrics", "clarena.callbacks", "clarena.utils"]

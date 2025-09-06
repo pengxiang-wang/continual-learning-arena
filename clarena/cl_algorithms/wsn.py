@@ -31,6 +31,7 @@ class WSN(CLAlgorithm):
         heads: HeadsTIL,
         mask_percentage: float,
         parameter_score_init_mode: str = "default",
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the WSN algorithm with the network.
 
@@ -42,13 +43,25 @@ class WSN(CLAlgorithm):
             1. 'default': the default initialization in the original WSN code.
             2. 'N01': standard normal distribution $N(0, 1)$.
             3. 'U01': uniform distribution $U(0, 1)$.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+
         """
-        super().__init__(backbone=backbone, heads=heads)
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
 
         self.mask_percentage: float = mask_percentage
         r"""The percentage of parameters to be used for each task."""
         self.parameter_score_init_mode: str = parameter_score_init_mode
         r"""The parameter score initialization mode."""
+
+        # save additional algorithmic hyperparameters
+        self.save_hyperparameters(
+            "mask_percentage",
+            "parameter_score_init_mode",
+        )
 
         self.weight_masks: dict[int, dict[str, Tensor]] = {}
         r"""The binary weight mask of each previous task percentile-gated from the weight score. Keys are task IDs and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has the same size (output features, input features) as weight."""
@@ -66,7 +79,7 @@ class WSN(CLAlgorithm):
         WSN.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments."""
+        r"""Sanity check."""
 
         # check the backbone and heads
         if not isinstance(self.backbone, WSNMaskBackbone):

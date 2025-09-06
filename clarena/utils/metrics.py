@@ -70,7 +70,7 @@ class MeanMetricBatch(BaseAggregator):
 class HATNetworkCapacityMetric(BaseAggregator):
     r"""A torchmetrics metric to calculate the network capacity of HAT (Hard Attention to the Task) algorithm.
 
-    Network capacity is defined as the average adjustment rate over all parameters. See chapter 4.1 in [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
+    Network capacity is defined as the average adjustment rate over all parameters. See chapter 4.1 in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
     """
 
     def __init__(self, nan_strategy: str | float = "error", **kwargs: Any) -> None:

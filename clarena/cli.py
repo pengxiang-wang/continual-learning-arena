@@ -1,365 +1,239 @@
-r"""Entrance to run all CLArena commands."""
+r"""Entrance for run all `clarena` commands."""
 
+import logging
 import os
-import subprocess
 from datetime import datetime
 
-import typer
-from hydra import compose, initialize
+import hydra
 from omegaconf import DictConfig
 
-from clarena.experiments import (
-    CLFullMetricsCalculation,
-    CLMainEval,
-    CLMainTrain,
-    CULFullEval,
-    CULMainTrain,
-    MTLEval,
-    MTLTrain,
-    STLEval,
-    STLTrain,
+from clarena.pipelines import (
+    CLFullEvaluation,
+    CLMainEvaluation,
+    CLMainExperiment,
+    CULFullEvaluation,
+    CULMainExperiment,
+    MTLEvaluation,
+    MTLExperiment,
+    STLEvaluation,
+    STLExperiment,
 )
 from clarena.utils.cfg import preprocess_config
 
-# outer app for all commands, which is binded to command `clarena` in pyproject.toml
-app = typer.Typer()
-
-# sub-app for command `clarena train`
-train_app = typer.Typer()
-app.add_typer(train_app, name="train")
-
-# sub-app for command `clarena eval`
-eval_app = typer.Typer()
-app.add_typer(eval_app, name="eval")
-
-# sub-app for command `clarena full`
-full_app = typer.Typer()
-app.add_typer(full_app, name="full")
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
-def load_cfg(overrides: list[str] | None = None) -> DictConfig:
-    """Helper function to load Hydra config dynamically with overrides."""
-
-    # Get the relative path from cli.py location to the configs directory
-    # in the current working directory
-    current_dir = os.getcwd()
-    cli_dir = os.path.dirname(os.path.abspath(__file__))
-    relative_config_path = os.path.relpath(
-        os.path.join(current_dir, "example_configs"), cli_dir
-    )
-
-    with initialize(config_path=relative_config_path, version_base="1.3"):
-        cfg = compose(config_name="entrance.yaml", overrides=overrides or [])
-    return cfg
-
-
-# sub-app for command `clarena train clmain`
-@train_app.command("clmain")
-def clmain_train(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for continual learning main experiment.
+@hydra.main(
+    config_path=os.path.join(
+        os.getcwd(), "example_configs"
+    ),  # construct absolute path so that it can be run from anywhere
+    config_name="entrance.yaml",
+    version_base="1.3",
+)
+def clarena(cfg: DictConfig) -> None:
+    r"""The main entrance for running the continual learning arena.
 
     **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
+    - **cfg**: (DictConfig) The entire Hydra config.
     """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="clmain_train")
-    expr = CLMainTrain(cfg)
-    expr.run()
+    if not cfg.get("pipeline"):
+        raise ValueError("No pipeline specified in the config.")
 
+    if cfg.pipeline == "CL_MAIN_EXPR":
+        pylogger.info("Running: continual learning main experiment...")
+        cfg = preprocess_config(cfg, type="CL_MAIN_EXPR")
+        pipeline = CLMainExperiment(cfg)
+        pipeline.run()
 
-# sub-app for command `clarena eval clmain`
-@eval_app.command("clmain")
-def clmain_eval(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for evaluating trained continual learning main experiment.
+    elif cfg.pipeline == "CL_MAIN_EVAL":
+        pylogger.info("Running: continual learning main evaluation...")
+        cfg = preprocess_config(cfg, type="CL_MAIN_EVAL")
+        pipeline = CLMainEvaluation(cfg)
+        pipeline.run()
 
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="clmain_eval")
-    expr = CLMainEval(cfg)
-    expr.run()
-
-
-# sub-app for command `clarena train clrefjl`
-@train_app.command("clrefjl")
-def clrefjl_train(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for joint learning as a reference experiment of continual learning.
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="clrefjl_train")
-    expr = MTLTrain(cfg)
-    expr.run()
-
-
-# sub-app for command `clarena train clrefil`
-@train_app.command("clrefil")
-def clrefil_train(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for joint learning as a reference experiment of continual learning.
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="clrefil_train")
-    expr = CLMainTrain(cfg)
-    expr.run()
-
-
-# sub-app for command `clarena train clrefrandom`
-@train_app.command("clrefrandom")
-def clrefrandom_train(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for random stratified as a reference experiment of continual learning.
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="clrefrandom_train")
-    expr = CLMainTrain(cfg)
-    expr.run()
-
-
-# sub-app for command `clarena eval cl`
-@eval_app.command("cl")
-def cl_eval(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for full evaluating trained trained continual learning experiment.
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="cl_eval")
-    expr = CLFullMetricsCalculation(cfg)
-    expr.run()
-
-
-# sub-app for command `clarena eval clattached`
-@eval_app.command("clattached")
-def cl_eval_attached(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for full evaluating trained trained continual learning experiment (attached to full experiment).
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-
-    cfg = load_cfg(overrides)
-    cfg = preprocess_config(cfg, expr_type="cl_eval_attached")
-    expr = CLFullMetricsCalculation(cfg)
-    expr.run()
-
-
-# sub-app for command `clarena full cl`
-@full_app.command("cl")
-def cl_full(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for full continual learning experiment.
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    args = overrides or []
-    print(args)
-
-    unified_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    args.append(f"misc.timestamp={unified_timestamp}")  # override timestamp
-
-    print("[CL] Running: clarena train clmain")
-    subprocess.run(["clarena", "train", "clmain"] + args, check=True)
-
-    # Check if any argument contains 'refjl_acc_csv_path='
-    if any(arg.startswith("+refjl_acc_csv_path=") for arg in args):
-        print("[CL] refjl_acc_csv_path argument present. Skipping clrefjl training.")
-    else:
-        print("[CL] Running: clarena train clrefjl")
-        subprocess.run(["clarena", "train", "clrefjl"] + args, check=True)
-
-    # Check if any argument contains 'refjl_acc_csv_path='
-    if any(arg.startswith("+refil_acc_csv_path=") for arg in args):
-        print("[CL] refil_acc_csv_path argument present. Skipping clrefjl training.")
-    else:
-        print("[CL] Running: clarena train clrefil")
-        subprocess.run(["clarena", "train", "clrefil"] + args, check=True)
-
-    if any(arg.startswith("+refrandom_acc_csv_path=") for arg in args):
-        print(
-            "[CL] refrandom_model_path argument present. Skipping clrefrandom training."
+    elif cfg.pipeline == "CL_REF_JOINT_EXPR":
+        pylogger.info(
+            "Running: reference joint learning experiment (continual learning)..."
         )
-    else:
-        print("[CL] Running: clarena train clrefrandom")
-        subprocess.run(["clarena", "train", "clrefrandom"] + args, check=True)
+        refjoint_cfg = preprocess_config(cfg, type="CL_REF_JOINT_EXPR")
+        pipeline = MTLExperiment(refjoint_cfg)
+        pipeline.run()
 
-    print("[CL] Running: clarena eval clattached")
-    subprocess.run(["clarena", "eval", "clattached"] + args, check=True)
-
-
-# sub-app for command `clarena train culmain`
-@train_app.command("culmain")
-def culmain_train(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for continual unlearning main experiment.
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="culmain_train")
-    expr = CULMainTrain(cfg)
-    expr.run()
-
-
-# sub-app for command `clarena train culref`
-@train_app.command("culrefretrain")
-def culref_train(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for the retraining reference experiment of continual unlearning.
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="culrefretrain_train")
-    expr = CLMainTrain(cfg)
-    expr.run()
-
-
-# sub-app for command `clarena train culreffull`
-@train_app.command("culreforiginal")
-def culreffull_train(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for the reference original experiment of continual unlearning.
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="culreforiginal_train")
-    expr = CLMainTrain(cfg)
-    expr.run()
-
-
-# sub-app for command `clarena eval cul`
-@eval_app.command("cul")
-def cul_eval_attached(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for full evaluating trained continual unlearning experiment.
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="cul_eval")
-    expr = CULFullEval(cfg)
-    expr.run()
-
-
-# sub-app for command `clarena eval culattached`
-@eval_app.command("culattached")
-def cul_eval(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for full evaluating trained continual unlearning experiment.
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="cul_eval_attached")
-    expr = CULFullEval(cfg)
-    expr.run()
-
-
-# sub-app for command `clarena full cul`
-@full_app.command("cul")
-def cul_full(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for full continual unlearning experiment.
-
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    args = overrides or []
-
-    unified_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    args.append(f"misc.timestamp={unified_timestamp}")  # override timestamp
-
-    print("[CUL] Running: clarena train culmain")
-    subprocess.run(["clarena", "train", "culmain"] + args, check=True)
-
-    # Check if any argument contains '+refretrain_model_path='
-    if any(arg.startswith("+refretrain_model_path=") for arg in args):
-        print(
-            "[CUL] refretrain_model_path argument present. Skipping culrefretrain training."
+    elif cfg.pipeline == "CL_REF_INDEPENDENT_EXPR":
+        pylogger.info(
+            "Running: reference independent learning experiment (continual learning)..."
         )
-    else:
-        print("[CUL] Running: clarena train culrefretrain")
-        subprocess.run(["clarena", "train", "culrefretrain"] + args, check=True)
+        refindependent_cfg = preprocess_config(cfg, type="CL_REF_INDEPENDENT_EXPR")
+        pipeline = CLMainExperiment(refindependent_cfg)
+        pipeline.run()
 
-    # Check if any argument contains 'reforiginal_model_path='
-    if any(arg.startswith("+reforiginal_model_path=") for arg in args):
-        print(
-            "[CUL] reforiginal_model_path argument present. Skipping culreforiginal training."
+    elif cfg.pipeline == "CL_REF_RANDOM_EXPR":
+        pylogger.info(
+            "Running: reference random learning experiment (continual learning)..."
         )
-    else:
-        print("[CUL] Running: clarena train culreforiginal")
-        subprocess.run(["clarena", "train", "culreforiginal"] + args, check=True)
+        refrandom_cfg = preprocess_config(cfg, type="CL_REF_RANDOM_EXPR")
+        pipeline = CLMainExperiment(refrandom_cfg)
+        pipeline.run()
 
-    print("[CL] Running: clarena eval culattached")
-    subprocess.run(["clarena", "eval", "culattached"] + args, check=True)
+    elif cfg.pipeline == "CL_FULL_EVAL":
+        pylogger.info("Running: continual learning full evaluation...")
+        cfg = preprocess_config(cfg, type="CL_FULL_EVAL")
+        pipeline = CLFullEvaluation(cfg)
+        pipeline.run()
 
+    elif cfg.pipeline == "CL_FULL_EXPR":
+        pylogger.info("Running: continual learning full experiment...")
 
-# sub-app for command `clarena train mtl`
-@train_app.command("mtl")
-def mtl_train(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for multi-task learning experiment.
+        unified_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        cfg.misc.timestamp = unified_timestamp  # override unified timestamp
 
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="mtl_train")
-    expr = MTLTrain(cfg)
-    expr.run()
+        pylogger.info(
+            "[Full Exeperiment] Running: continual learning main experiment..."
+        )
+        main_cfg = preprocess_config(cfg, type="CL_MAIN_EXPR")
+        pipeline = CLMainExperiment(main_cfg)
+        pipeline.run()
 
+        pylogger.info(
+            "[Full Exeperiment] Running: reference joint learning experiment (continual learning)..."
+        )
+        if not cfg.get("refjoint_acc_csv_path"):
+            refjoint_cfg = preprocess_config(cfg, type="CL_REF_JOINT_EXPR")
+            pipeline = MTLExperiment(refjoint_cfg)
+            pipeline.run()
+        else:
+            pylogger.info(
+                "`refjoint_acc_csv_path` argument present. Skip reference joint learning experiment (continual learning)."
+            )
 
-# sub-app for command `clarena eval mtl`
-@eval_app.command("mtl")
-def mtl_eval(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for evaluating trained multi-task learning experiment.
+        pylogger.info(
+            "[Full Exeperiment] Running: reference independent learning experiment (continual learning)..."
+        )
+        if not cfg.get("refindependent_acc_csv_path"):
+            refindependent_cfg = preprocess_config(cfg, type="CL_REF_INDEPENDENT_EXPR")
+            pipeline = CLMainExperiment(refindependent_cfg)
+            pipeline.run()
+        else:
+            pylogger.info(
+                "`refindependent_acc_csv_path` argument present. Skip reference independent learning experiment (continual learning)."
+            )
 
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="mtl")
-    expr = MTLEval(cfg)
-    expr.run()
+        pylogger.info(
+            "[Full Exeperiment] Running: reference random learning experiment (continual learning)..."
+        )
+        if not cfg.get("refrandom_acc_csv_path"):
+            refrandom_cfg = preprocess_config(cfg, type="CL_REF_RANDOM_EXPR")
+            pipeline = CLMainExperiment(refrandom_cfg)
+            pipeline.run()
+        else:
+            pylogger.info(
+                "`refrandom_acc_csv_path` argument present. Skip reference random learning experiment (continual learning)."
+            )
 
+        pylogger.info(
+            "[Full Exeperiment] Running: continual learning full evaluation..."
+        )
+        fulleval_cfg = preprocess_config(cfg, type="CL_FULL_EVAL_ATTACHED")
+        pipeline = CLFullEvaluation(fulleval_cfg)
+        pipeline.run()
 
-# sub-app for command `clarena train stl`
-@train_app.command("stl")
-def stl_train(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for single-task learning experiment.
+    elif cfg.pipeline == "CUL_MAIN_EXPR":
+        pylogger.info("Running: continual unlearning main experiment...")
+        cfg = preprocess_config(cfg, type="CUL_MAIN_EXPR")
+        pipeline = CULMainExperiment(cfg)
+        pipeline.run()
 
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="stl_train")
-    expr = STLTrain(cfg)
-    expr.run()
+    elif cfg.pipeline == "CUL_MAIN_EVAL":
+        pylogger.info("Running: continual learning main evaluation...")
+        cfg = preprocess_config(cfg, type="CUL_MAIN_EVAL")
+        pipeline = CLMainEvaluation(cfg)
+        pipeline.run()
 
+    elif cfg.pipeline == "CUL_REF_RETRAIN_EXPR":
+        pylogger.info("Running: reference retrain experiment (continual unlearning)...")
+        refretrain_cfg = preprocess_config(cfg, type="CUL_REF_RETRAIN_EXPR")
+        pipeline = CLMainExperiment(refretrain_cfg)
+        pipeline.run()
 
-# sub-app for command `clarena eval stl`
-@eval_app.command("stl")
-def stl_eval(overrides: list[str] = typer.Argument(None)):
-    r"""The main entrance for evaluating trained single-task learning experiment.
+    elif cfg.pipeline == "CUL_REF_ORIGINAL_EXPR":
+        pylogger.info(
+            "Running: reference original experiment (continual unlearning)..."
+        )
+        reforiginal_cfg = preprocess_config(cfg, type="CUL_REF_ORIGINAL_EXPR")
+        pipeline = CLMainExperiment(reforiginal_cfg)
+        pipeline.run()
 
-    **Args:**
-    - **overrides**: List of Hydra config overrides from CLI.
-    """
-    cfg = load_cfg(overrides)
-    preprocess_config(cfg, expr_type="stl_eval")
-    expr = STLEval(cfg)
-    expr.run()
+    elif cfg.pipeline == "CUL_FULL_EVAL":
+        pylogger.info("Running: continual unlearning full evaluation...")
+        cfg = preprocess_config(cfg, type="CUL_FULL_EVAL")
+        pipeline = CULFullEvaluation(cfg)
+        pipeline.run()
 
+    elif cfg.pipeline == "CUL_FULL_EXPR":
+        pylogger.info("Running: continual unlearning full experiment...")
 
-def main():
-    r"""The main entrance for running the continual learning arena."""
-    app()
+        unified_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        cfg.misc.timestamp = unified_timestamp  # override unified timestamp
+
+        pylogger.info(
+            "[Full Exeperiment] Running: continual unlearning main experiment..."
+        )
+        main_cfg = preprocess_config(cfg, type="CUL_MAIN_EXPR")
+        pipeline = CULMainExperiment(main_cfg)
+        pipeline.run()
+
+        pylogger.info(
+            "[Full Exeperiment] Running: reference retrain experiment (continual unlearning)..."
+        )
+        if not cfg.get("refretrain_model_path"):
+            refretrain_cfg = preprocess_config(cfg, type="CUL_REF_RETRAIN_EXPR")
+            pipeline = CLMainExperiment(refretrain_cfg)
+            pipeline.run()
+        else:
+            pylogger.info(
+                "`refretrain_model_path` argument present. Skip reference retrain experiment (continual unlearning)."
+            )
+
+        pylogger.info(
+            "[Full Exeperiment] Running: reference original experiment (continual unlearning)..."
+        )
+        if not cfg.get("reforiginal_model_path"):
+            reforiginal_cfg = preprocess_config(cfg, type="CUL_REF_ORIGINAL_EXPR")
+            pipeline = CLMainExperiment(reforiginal_cfg)
+            pipeline.run()
+        else:
+            pylogger.info(
+                "`reforiginal_model_path` argument present. Skip reference original experiment (continual unlearning)."
+            )
+
+        pylogger.info(
+            "[Full Exeperiment] Running: continual unlearning full evaluation..."
+        )
+        fulleval_cfg = preprocess_config(cfg, type="CUL_FULL_EVAL_ATTACHED")
+        pipeline = CULFullEvaluation(fulleval_cfg)
+        pipeline.run()
+
+    elif cfg.pipeline == "MTL_EXPR":
+        pylogger.info("Running: multi-task learning experiment...")
+        cfg = preprocess_config(cfg, type="MTL_EXPR")
+        pipeline = MTLExperiment(cfg)
+        pipeline.run()
+
+    elif cfg.pipeline == "MTL_EVAL":
+        pylogger.info("Running: multi-task learning evaluation...")
+        cfg = preprocess_config(cfg, type="MTL_EVAL")
+        pipeline = MTLEvaluation(cfg)
+        pipeline.run()
+
+    elif cfg.pipeline == "STL_EXPR":
+        pylogger.info("Running: single-task learning experiment...")
+        cfg = preprocess_config(cfg, type="STL_EXPR")
+        pipeline = STLExperiment(cfg)
+        pipeline.run()
+
+    elif cfg.pipeline == "STL_EVAL":
+        pylogger.info("Running: single-task learning evaluation...")
+        cfg = preprocess_config(cfg, type="STL_EVAL")
+        pipeline = STLEvaluation(cfg)
+        pipeline.run()

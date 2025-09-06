@@ -2,13 +2,17 @@ r"""
 The submodule in `backbones` for the MLP backbone network. It includes multiple versions of MLP, including the basic MLP, the continual learning MLP, the [HAT](http://proceedings.mlr.press/v80/serra18a) masked MLP, and the [WSN](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf) masked MLP.
 """
 
-__all__ = ["MLP", "CLMLP", "HATMaskMLP"]
+__all__ = ["MLP", "CLMLP", "HATMaskMLP", "WSNMaskMLP"]
 
+import logging
 from copy import deepcopy
 
 from torch import Tensor, nn
 
 from clarena.backbones import Backbone, CLBackbone, HATMaskBackbone, WSNMaskBackbone
+
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
 class MLP(Backbone):
@@ -38,24 +42,25 @@ class MLP(Backbone):
         - **batch_normalization** (`bool`): Whether to use batch normalization after the fully connected layers. Default `False`.
         - **bias** (`bool`): Whether to use bias in the linear layer. Default `True`.
         - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(output_dim=output_dim, **kwargs)
 
         self.input_dim: int = input_dim
-        r"""Store the input dimension of the MLP backbone network. Used when constructing the first fully-connected layer."""
+        r"""The input dimension of the MLP backbone network."""
         self.hidden_dims: list[int] = hidden_dims
-        r"""Store the hidden dimensions of the MLP backbone network. Used when constructing the fully-connected layers."""
+        r"""The hidden dimensions of the MLP backbone network."""
         self.output_dim: int = output_dim
-        r"""Store the output dimension of the MLP backbone network. Used when constructing the last fully-connected layer."""
+        r"""The output dimension of the MLP backbone network."""
 
         self.num_fc_layers: int = len(hidden_dims) + 1
-        r"""Store the number of fully-connected layers in the MLP backbone network, which helps form the loops in constructing layers and forward pass."""
+        r"""The number of fully-connected layers in the MLP backbone network, which helps form the loops in constructing layers and forward pass."""
         self.batch_normalization: bool = batch_normalization
-        r"""Store whether to use batch normalization after the fully-connected layers."""
+        r"""Whether to use batch normalization after the fully-connected layers."""
         self.activation: bool = activation_layer is not None
-        r"""Store whether to use activation function after the fully-connected layers."""
+        r"""Whether to use activation function after the fully-connected layers."""
         self.dropout: bool = dropout is not None
-        r"""Store whether to use dropout after the fully-connected layers."""
+        r"""Whether to use dropout after the fully-connected layers."""
 
         self.fc: nn.ModuleList = nn.ModuleList()
         r"""The list of fully connected (`nn.Linear`) layers."""
@@ -117,7 +122,7 @@ class MLP(Backbone):
 
         **Returns:**
         - **output_feature** (`Tensor`): The output feature tensor to be passed into heads. This is the main target of backpropagation.
-        - **activations** (`dict[str, Tensor]`): The hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name; value (`Tensor`) is the hidden feature tensor. This is used for certain algorithms that need to use hidden features for various purposes.
+        - **activations** (`dict[str, Tensor]`): The hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for certain algorithms that need to use hidden features for various purposes.
         """
         batch_size = input.size(0)
         activations = {}
@@ -167,7 +172,7 @@ class CLMLP(CLBackbone, MLP):
         - **activation_layer** (`nn.Module` | `None`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **batch_normalization** (`bool`): whether to use batch normalization after the fully-connected layers. Default `False`.
         - **bias** (`bool`): whether to use bias in the linear layer. Default `True`.
-        - **dropout** (`float` | `None`): the probability for the dropout layer, if `None` this layer won't be used. Default `None`.
+        - **dropout** (`float` | `None`): the probability for the dropout layer, if `None` this layer won't be used. Default `None`.        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_dim=input_dim,
@@ -202,7 +207,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
 
     MLP is a dense network architecture with several fully connected layers, each followed by an activation function. The last layer connects to the CL output heads.
 
-    The mask is applied to units (neurons) in each fully connected layer. The mask is generated from the unit-wise task embedding and the gate function.
+    The mask is applied to units (neurons) in each fully connected layer. The mask is generated from the neuron-wise task embedding and the gate function.
     """
 
     def __init__(
@@ -230,7 +235,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
             - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
             - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): Whether to use bias in the linear layer. Default `True`.
-        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.
+        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             output_dim=output_dim,
@@ -256,7 +261,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
             )
 
         self.batch_normalization: str | None = batch_normalization
-        r"""Store the way to use batch normalization after the fully-connected layers. This overrides the `batch_normalization` argument in `MLP` class. """
+        r"""The way to use batch normalization after the fully-connected layers. This overrides the `batch_normalization` argument in `MLP` class. """
 
         # construct the batch normalization layers if needed
         if self.batch_normalization == "independent":
@@ -265,7 +270,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
             
             Note that the task IDs must be string type in order to let `LightningModule` identify this part of the model."""
             self.original_fc_bn_state_dict: dict = deepcopy(self.fc_bn.state_dict())
-            r"""Store the original batch normalization state dict as the source for creating new independent batch normalization layers. """
+            r"""The original batch normalization state dict as the source for creating new independent batch normalization layers. """
 
     def setup_task_id(self, task_id: int) -> None:
         r"""Set up task `task_id`. This must be done before the `forward()` method is called.
@@ -290,7 +295,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
         - **test_task_id** (`int` | `None`): The test task ID. Applies only to the testing stage. For other stages, it is `None`.
 
         **Returns:**
-        - **fc_bn** (`nn.Module` | `None`): The batch normalization objects.
+        - **fc_bn** (`nn.Module` | `None`): The batch normalization module.
         """
         if self.batch_normalization == "independent" and stage == "test":
             return self.fc_bns[f"{test_task_id}"]
@@ -298,13 +303,13 @@ class HATMaskMLP(HATMaskBackbone, MLP):
             return self.fc_bn
 
     def initialize_independent_bn(self) -> None:
-        r"""Initialize the independent batch normalization layer for the current task. This is called when a new task is created. Applies only when `self.batch_normalization` is "independent"."""
+        r"""Initialize the independent batch normalization layer for the current task. This is called when a new task is created. Applies only when `batch_normalization` is 'independent'."""
 
         if self.batch_normalization == "independent":
             self.fc_bn.load_state_dict(self.original_fc_bn_state_dict)
 
     def store_bn(self) -> None:
-        r"""Store the batch normalization layer for the current task `self.task_id`. Applies only when `self.batch_normalization` is "independent"."""
+        r"""Store the batch normalization layer for the current task `self.task_id`. Applies only when `batch_normalization` is 'independent'."""
 
         if self.batch_normalization == "independent":
             self.fc_bns[f"{self.task_id}"] = deepcopy(self.fc_bn)
@@ -318,7 +323,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
         num_batches: int | None = None,
         test_task_id: int | None = None,
     ) -> tuple[Tensor, dict[str, Tensor], dict[str, Tensor]]:
-        r"""The forward pass for data from task `task_id`. Task-specific masks for `task_id` are applied to units (neurons) in each fully connected layer.
+        r"""The forward pass for data from task `self.task_id`. Task-specific masks for `self.task_id` are applied to units (neurons) in each fully connected layer.
 
         **Args:**
         - **input** (`Tensor`): The input tensor from data.
@@ -326,15 +331,15 @@ class HATMaskMLP(HATMaskBackbone, MLP):
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
-        - **s_max** (`float` | `None`): The maximum scaling factor in the gate function. Doesn't apply to the testing stage. See §2.4 "Hard Attention Training" in the HAT paper.
+        - **s_max** (`float`): The maximum scaling factor in the gate function. Doesn't apply to the testing stage. See Sec. 2.4 in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **batch_idx** (`int` | `None`): The current batch index. Applies only to the training stage. For other stages, it is `None`.
         - **num_batches** (`int` | `None`): The total number of batches. Applies only to the training stage. For other stages, it is `None`.
         - **test_task_id** (`int` | `None`): The test task ID. Applies only to the testing stage. For other stages, it is `None`.
 
         **Returns:**
         - **output_feature** (`Tensor`): The output feature tensor to be passed into heads. This is the main target of backpropagation.
-        - **mask** (`dict[str, Tensor]`): The mask for the current task. Key (`str`) is the layer name; value (`Tensor`) is the mask tensor. The mask tensor has size (number of units,).
-        - **activations** (`dict[str, Tensor]`): The hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name; value (`Tensor`) is the hidden feature tensor. This is used for continual learning algorithms that need hidden features. Although the HAT algorithm does not need this, it is still provided for API consistency for other HAT-based algorithms that inherit this `forward()` method of the `HAT` class.
+        - **mask** (`dict[str, Tensor]`): The mask for the current task. Keys (`str`) are the layer names and values (`Tensor`) are the mask tensors. The mask tensor has size (number of units, ).
+        - **activations** (`dict[str, Tensor]`): The hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for continual learning algorithms that need hidden features. Although the HAT algorithm does not need this, it is still provided for API consistency for other HAT-based algorithms that inherit this `forward()` method of the `HAT` class.
         """
         batch_size = input.size(0)
         activations = {}
@@ -395,7 +400,7 @@ class WSNMaskMLP(MLP, WSNMaskBackbone):
         - **output_dim** (`int`): The output dimension that connects to CL output heads.
         - **activation_layer** (`nn.Module` | `None`): Activation function of each layer (if not `None`). If `None`, this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): Whether to use bias in the linear layer. Default `True`.
-        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.
+        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.        - **kwargs**: Reserved for multiple inheritance.
         """
         # init from both inherited classes
         super().__init__(
@@ -433,7 +438,7 @@ class WSNMaskMLP(MLP, WSNMaskBackbone):
         mask_percentage: float,
         test_mask: tuple[dict[str, Tensor], dict[str, Tensor]] | None = None,
     ) -> tuple[Tensor, dict[str, Tensor], dict[str, Tensor], dict[str, Tensor]]:
-        r"""The forward pass for data from task `task_id`. Task-specific masks for `task_id` are applied to units (neurons) in each fully connected layer.
+        r"""The forward pass for data from task `self.task_id`. Task-specific masks for `self.task_id` are applied to units (neurons) in each fully connected layer.
 
         **Args:**
         - **input** (`Tensor`): The input tensor from data.
@@ -446,9 +451,9 @@ class WSNMaskMLP(MLP, WSNMaskBackbone):
 
         **Returns:**
         - **output_feature** (`Tensor`): The output feature tensor to be passed into heads. This is the main target of backpropagation.
-        - **weight_mask** (`dict[str, Tensor]`): The weight mask for the current task. Key (`str`) is the layer name; value (`Tensor`) is the mask tensor. The mask tensor has the same size (output features, input features) as the weight.
-        - **bias_mask** (`dict[str, Tensor]`): The bias mask for the current task. Key (`str`) is the layer name; value (`Tensor`) is the mask tensor. The mask tensor has the same size (output features,) as the bias. If the layer doesn't have a bias, it is `None`.
-        - **activations** (`dict[str, Tensor]`): The hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name; value (`Tensor`) is the hidden feature tensor. This is used for continual learning algorithms that need hidden features for various purposes.
+        - **weight_mask** (`dict[str, Tensor]`): The weight mask for the current task. Keys (`str`) are the layer names and values (`Tensor`) are the mask tensors. The mask tensor has the same size (output features, input features) as the weight.
+        - **bias_mask** (`dict[str, Tensor]`): The bias mask for the current task. Keys (`str`) are the layer names and values (`Tensor`) are the mask tensors. The mask tensor has the same size (output features, ) as the bias. If the layer doesn't have a bias, it is `None`.
+        - **activations** (`dict[str, Tensor]`): The hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for continual learning algorithms that need hidden features for various purposes.
         """
         batch_size = input.size(0)
         activations = {}
@@ -564,11 +569,11 @@ class WSNMaskMLP(MLP, WSNMaskBackbone):
 #         mask_percentage: float,
 #         test_mask: tuple[dict[str, Tensor], dict[str, Tensor]] | None = None,
 #     ) -> tuple[Tensor, dict[str, Tensor], dict[str, Tensor], dict[str, Tensor]]:
-#         r"""The forward pass for data from task `task_id`. Task-specific mask for `task_id` are applied to the units which are neurons in each fully-connected layer.
+#         r"""The forward pass for data from task `self.task_id`. Task-specific mask for `self.task_id` are applied to the units which are neurons in each fully-connected layer.
 
 #         **Args:**
 #         - **input** (`Tensor`): The input tensor from data.
-#         - **stage** (`str`): the stage of the forward pass, should be one of the following:
+#         - **stage** (`str`): the stage of the forward pass; one of:
 #             1. 'train': training stage.
 #             2. 'validation': validation stage.
 #             3. 'test': testing stage.

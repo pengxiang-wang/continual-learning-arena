@@ -34,6 +34,7 @@ class EWC(Finetuning):
         heads: HeadsTIL | HeadsCIL,
         parameter_change_reg_factor: float,
         when_calculate_fisher_information: str,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the HAT algorithm with the network.
 
@@ -44,29 +45,41 @@ class EWC(Finetuning):
         - **when_calculate_fisher_information** (`str`): when to calculate the fisher information. It should be one of the following:
             1. 'train_end': calculate the fisher information at the end of training of the task.
             2. 'train': accumulate the fisher information in the training step of the task.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+
         """
-        super().__init__(backbone=backbone, heads=heads)
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
+
+        # save additional algorithmic hyperparameters
+        self.save_hyperparameters(
+            "parameter_change_reg_factor",
+            "when_calculate_fisher_information",
+        )
 
         self.parameter_importance: dict[str, dict[str, Tensor]] = {}
-        r"""Store the parameter importance of each previous task. Keys are task IDs and values are the corresponding importance. Each importance entity is a dict where keys are parameter names (named by `named_parameters()` of the `nn.Module`) and values are the importance tensor for the layer. It has the same shape as the parameters of the layer.
+        r"""The parameter importance of each previous task. Keys are task IDs and values are the corresponding importance. Each importance entity is a dict where keys are parameter names (named by `named_parameters()` of the `nn.Module`) and values are the importance tensor for the layer. It has the same shape as the parameters of the layer.
         """
         self.previous_task_backbones: dict[str, nn.Module] = {}
-        r"""Store the backbone models of the previous tasks. Keys are task IDs and values are the corresponding models. Each model is a `nn.Module` backbone after the corresponding previous task was trained.
+        r"""The backbone models of the previous tasks. Keys are task IDs and values are the corresponding models. Each model is a `nn.Module` backbone after the corresponding previous task was trained.
 
         Some would argue that since we could store the model of the previous tasks, why don't we test the task directly with the stored model, instead of doing the less easier EWC thing? The thing is, EWC only uses the model of the previous tasks to train current and future tasks, which aggregate them into a single model. Once the training of the task is done, the storage for those parameters can be released. However, this make the future tasks not able to use EWC anymore, which is a disadvantage for EWC.
         """
 
         self.parameter_change_reg_factor = parameter_change_reg_factor
-        r"""Store parameter change regularization factor."""
+        r"""The parameter change regularization factor."""
         self.parameter_change_reg = ParameterChangeReg(
             factor=parameter_change_reg_factor,
         )
         r"""Initialize and store the parameter change regulariser."""
 
         self.when_calculate_fisher_information: str = when_calculate_fisher_information
-        r"""Store when to calculate the fisher information."""
+        r"""When to calculate the fisher information."""
         self.num_data: int
-        r"""Store the number of data used to calculate the fisher information. It is used to average the fisher information over the data."""
+        r"""The number of data used to calculate the fisher information. It is used to average the fisher information over the data."""
 
         # set manual optimization because we need to access gradients to calculate the fisher information in the training step
         self.automatic_optimization = False
@@ -74,7 +87,7 @@ class EWC(Finetuning):
         EWC.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments."""
+        r"""Sanity check."""
 
         if self.parameter_change_reg_factor <= 0:
             raise ValueError(

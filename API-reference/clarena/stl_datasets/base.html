@@ -272,7 +272,7 @@
 </span><span id="L-87"><a href="#L-87"><span class="linenos"> 87</span></a>        <span class="n">STLDataset</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="L-88"><a href="#L-88"><span class="linenos"> 88</span></a>
 </span><span id="L-89"><a href="#L-89"><span class="linenos"> 89</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="L-91"><a href="#L-91"><span class="linenos"> 91</span></a>
 </span><span id="L-92"><a href="#L-92"><span class="linenos"> 92</span></a>    <span class="nd">@abstractmethod</span>
 </span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_class_map</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
@@ -290,7 +290,7 @@
 </span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up the dataset for different stages.</span>
 </span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a>
 </span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a><span class="sd">        **Args:**</span>
-</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
+</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment; one of:</span>
 </span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a><span class="sd">            - &#39;fit&#39;: training and validation dataset should be assigned to `self.dataset_train` and `self.dataset_val`.</span>
 </span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a><span class="sd">            - &#39;test&#39;: test dataset should be assigned to `self.dataset_test`.</span>
 </span><span id="L-111"><a href="#L-111"><span class="linenos">111</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -418,7 +418,7 @@
 </span><span id="L-233"><a href="#L-233"><span class="linenos">233</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;DataLoader generator for stage train. It is automatically called before training.</span>
 </span><span id="L-234"><a href="#L-234"><span class="linenos">234</span></a>
 </span><span id="L-235"><a href="#L-235"><span class="linenos">235</span></a><span class="sd">        **Returns:**</span>
-</span><span id="L-236"><a href="#L-236"><span class="linenos">236</span></a><span class="sd">        - **train_dataloader** (`Dataloader`): the train DataLoader.</span>
+</span><span id="L-236"><a href="#L-236"><span class="linenos">236</span></a><span class="sd">        - **train_dataloader** (`DataLoader`): the train DataLoader.</span>
 </span><span id="L-237"><a href="#L-237"><span class="linenos">237</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="L-238"><a href="#L-238"><span class="linenos">238</span></a>
 </span><span id="L-239"><a href="#L-239"><span class="linenos">239</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Construct train dataloader ...&quot;</span><span class="p">)</span>
@@ -450,7 +450,7 @@
 </span><span id="L-265"><a href="#L-265"><span class="linenos">265</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;DataLoader generator for stage test. It is automatically called before testing.</span>
 </span><span id="L-266"><a href="#L-266"><span class="linenos">266</span></a>
 </span><span id="L-267"><a href="#L-267"><span class="linenos">267</span></a><span class="sd">        **Returns:**</span>
-</span><span id="L-268"><a href="#L-268"><span class="linenos">268</span></a><span class="sd">        - **test_dataloader** (`Dataloader`): the test DataLoader.</span>
+</span><span id="L-268"><a href="#L-268"><span class="linenos">268</span></a><span class="sd">        - **test_dataloader** (`DataLoader`): the test DataLoader.</span>
 </span><span id="L-269"><a href="#L-269"><span class="linenos">269</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="L-270"><a href="#L-270"><span class="linenos">270</span></a>
 </span><span id="L-271"><a href="#L-271"><span class="linenos">271</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Construct test dataloader...&quot;</span><span class="p">)</span>
@@ -608,7 +608,7 @@
 </span><span id="STLDataset-88"><a href="#STLDataset-88"><span class="linenos"> 88</span></a>        <span class="n">STLDataset</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="STLDataset-89"><a href="#STLDataset-89"><span class="linenos"> 89</span></a>
 </span><span id="STLDataset-90"><a href="#STLDataset-90"><span class="linenos"> 90</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="STLDataset-91"><a href="#STLDataset-91"><span class="linenos"> 91</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="STLDataset-91"><a href="#STLDataset-91"><span class="linenos"> 91</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="STLDataset-92"><a href="#STLDataset-92"><span class="linenos"> 92</span></a>
 </span><span id="STLDataset-93"><a href="#STLDataset-93"><span class="linenos"> 93</span></a>    <span class="nd">@abstractmethod</span>
 </span><span id="STLDataset-94"><a href="#STLDataset-94"><span class="linenos"> 94</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_class_map</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
@@ -626,7 +626,7 @@
 </span><span id="STLDataset-106"><a href="#STLDataset-106"><span class="linenos">106</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up the dataset for different stages.</span>
 </span><span id="STLDataset-107"><a href="#STLDataset-107"><span class="linenos">107</span></a>
 </span><span id="STLDataset-108"><a href="#STLDataset-108"><span class="linenos">108</span></a><span class="sd">        **Args:**</span>
-</span><span id="STLDataset-109"><a href="#STLDataset-109"><span class="linenos">109</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
+</span><span id="STLDataset-109"><a href="#STLDataset-109"><span class="linenos">109</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment; one of:</span>
 </span><span id="STLDataset-110"><a href="#STLDataset-110"><span class="linenos">110</span></a><span class="sd">            - &#39;fit&#39;: training and validation dataset should be assigned to `self.dataset_train` and `self.dataset_val`.</span>
 </span><span id="STLDataset-111"><a href="#STLDataset-111"><span class="linenos">111</span></a><span class="sd">            - &#39;test&#39;: test dataset should be assigned to `self.dataset_test`.</span>
 </span><span id="STLDataset-112"><a href="#STLDataset-112"><span class="linenos">112</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -754,7 +754,7 @@
 </span><span id="STLDataset-234"><a href="#STLDataset-234"><span class="linenos">234</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;DataLoader generator for stage train. It is automatically called before training.</span>
 </span><span id="STLDataset-235"><a href="#STLDataset-235"><span class="linenos">235</span></a>
 </span><span id="STLDataset-236"><a href="#STLDataset-236"><span class="linenos">236</span></a><span class="sd">        **Returns:**</span>
-</span><span id="STLDataset-237"><a href="#STLDataset-237"><span class="linenos">237</span></a><span class="sd">        - **train_dataloader** (`Dataloader`): the train DataLoader.</span>
+</span><span id="STLDataset-237"><a href="#STLDataset-237"><span class="linenos">237</span></a><span class="sd">        - **train_dataloader** (`DataLoader`): the train DataLoader.</span>
 </span><span id="STLDataset-238"><a href="#STLDataset-238"><span class="linenos">238</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="STLDataset-239"><a href="#STLDataset-239"><span class="linenos">239</span></a>
 </span><span id="STLDataset-240"><a href="#STLDataset-240"><span class="linenos">240</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Construct train dataloader ...&quot;</span><span class="p">)</span>
@@ -786,7 +786,7 @@
 </span><span id="STLDataset-266"><a href="#STLDataset-266"><span class="linenos">266</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;DataLoader generator for stage test. It is automatically called before testing.</span>
 </span><span id="STLDataset-267"><a href="#STLDataset-267"><span class="linenos">267</span></a>
 </span><span id="STLDataset-268"><a href="#STLDataset-268"><span class="linenos">268</span></a><span class="sd">        **Returns:**</span>
-</span><span id="STLDataset-269"><a href="#STLDataset-269"><span class="linenos">269</span></a><span class="sd">        - **test_dataloader** (`Dataloader`): the test DataLoader.</span>
+</span><span id="STLDataset-269"><a href="#STLDataset-269"><span class="linenos">269</span></a><span class="sd">        - **test_dataloader** (`DataLoader`): the test DataLoader.</span>
 </span><span id="STLDataset-270"><a href="#STLDataset-270"><span class="linenos">270</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="STLDataset-271"><a href="#STLDataset-271"><span class="linenos">271</span></a>
 </span><span id="STLDataset-272"><a href="#STLDataset-272"><span class="linenos">272</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Construct test dataloader...&quot;</span><span class="p">)</span>
@@ -1085,11 +1085,11 @@
     </div>
     <a class="headerlink" href="#STLDataset.sanity_check"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="STLDataset.sanity_check-90"><a href="#STLDataset.sanity_check-90"><span class="linenos">90</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="STLDataset.sanity_check-91"><a href="#STLDataset.sanity_check-91"><span class="linenos">91</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="STLDataset.sanity_check-91"><a href="#STLDataset.sanity_check-91"><span class="linenos">91</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span></pre></div>
 
 
-            <div class="docstring"><p>Check the sanity of the arguments.</p>
+            <div class="docstring"><p>Sanity check.</p>
 </div>
 
 
@@ -1165,7 +1165,7 @@
 </span><span id="STLDataset.setup-106"><a href="#STLDataset.setup-106"><span class="linenos">106</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up the dataset for different stages.</span>
 </span><span id="STLDataset.setup-107"><a href="#STLDataset.setup-107"><span class="linenos">107</span></a>
 </span><span id="STLDataset.setup-108"><a href="#STLDataset.setup-108"><span class="linenos">108</span></a><span class="sd">        **Args:**</span>
-</span><span id="STLDataset.setup-109"><a href="#STLDataset.setup-109"><span class="linenos">109</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
+</span><span id="STLDataset.setup-109"><a href="#STLDataset.setup-109"><span class="linenos">109</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment; one of:</span>
 </span><span id="STLDataset.setup-110"><a href="#STLDataset.setup-110"><span class="linenos">110</span></a><span class="sd">            - &#39;fit&#39;: training and validation dataset should be assigned to `self.dataset_train` and `self.dataset_val`.</span>
 </span><span id="STLDataset.setup-111"><a href="#STLDataset.setup-111"><span class="linenos">111</span></a><span class="sd">            - &#39;test&#39;: test dataset should be assigned to `self.dataset_test`.</span>
 </span><span id="STLDataset.setup-112"><a href="#STLDataset.setup-112"><span class="linenos">112</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -1204,7 +1204,7 @@
 <p><strong>Args:</strong></p>
 
 <ul>
-<li><strong>stage</strong> (<code>str</code>): the stage of the experiment. Should be one of the following:
+<li><strong>stage</strong> (<code>str</code>): the stage of the experiment; one of:
 <ul>
 <li>'fit': training and validation dataset should be assigned to <code>self.dataset_train</code> and <code>self.dataset_val</code>.</li>
 <li>'test': test dataset should be assigned to <code>self.dataset_test</code>.</li>
@@ -1450,7 +1450,7 @@
 </span><span id="STLDataset.train_dataloader-234"><a href="#STLDataset.train_dataloader-234"><span class="linenos">234</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;DataLoader generator for stage train. It is automatically called before training.</span>
 </span><span id="STLDataset.train_dataloader-235"><a href="#STLDataset.train_dataloader-235"><span class="linenos">235</span></a>
 </span><span id="STLDataset.train_dataloader-236"><a href="#STLDataset.train_dataloader-236"><span class="linenos">236</span></a><span class="sd">        **Returns:**</span>
-</span><span id="STLDataset.train_dataloader-237"><a href="#STLDataset.train_dataloader-237"><span class="linenos">237</span></a><span class="sd">        - **train_dataloader** (`Dataloader`): the train DataLoader.</span>
+</span><span id="STLDataset.train_dataloader-237"><a href="#STLDataset.train_dataloader-237"><span class="linenos">237</span></a><span class="sd">        - **train_dataloader** (`DataLoader`): the train DataLoader.</span>
 </span><span id="STLDataset.train_dataloader-238"><a href="#STLDataset.train_dataloader-238"><span class="linenos">238</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="STLDataset.train_dataloader-239"><a href="#STLDataset.train_dataloader-239"><span class="linenos">239</span></a>
 </span><span id="STLDataset.train_dataloader-240"><a href="#STLDataset.train_dataloader-240"><span class="linenos">240</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Construct train dataloader ...&quot;</span><span class="p">)</span>
@@ -1469,7 +1469,7 @@
 <p><strong>Returns:</strong></p>
 
 <ul>
-<li><strong>train_dataloader</strong> (<code>Dataloader</code>): the train DataLoader.</li>
+<li><strong>train_dataloader</strong> (<code>DataLoader</code>): the train DataLoader.</li>
 </ul>
 </div>
 
@@ -1530,7 +1530,7 @@
 </span><span id="STLDataset.test_dataloader-266"><a href="#STLDataset.test_dataloader-266"><span class="linenos">266</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;DataLoader generator for stage test. It is automatically called before testing.</span>
 </span><span id="STLDataset.test_dataloader-267"><a href="#STLDataset.test_dataloader-267"><span class="linenos">267</span></a>
 </span><span id="STLDataset.test_dataloader-268"><a href="#STLDataset.test_dataloader-268"><span class="linenos">268</span></a><span class="sd">        **Returns:**</span>
-</span><span id="STLDataset.test_dataloader-269"><a href="#STLDataset.test_dataloader-269"><span class="linenos">269</span></a><span class="sd">        - **test_dataloader** (`Dataloader`): the test DataLoader.</span>
+</span><span id="STLDataset.test_dataloader-269"><a href="#STLDataset.test_dataloader-269"><span class="linenos">269</span></a><span class="sd">        - **test_dataloader** (`DataLoader`): the test DataLoader.</span>
 </span><span id="STLDataset.test_dataloader-270"><a href="#STLDataset.test_dataloader-270"><span class="linenos">270</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="STLDataset.test_dataloader-271"><a href="#STLDataset.test_dataloader-271"><span class="linenos">271</span></a>
 </span><span id="STLDataset.test_dataloader-272"><a href="#STLDataset.test_dataloader-272"><span class="linenos">272</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Construct test dataloader...&quot;</span><span class="p">)</span>
@@ -1549,7 +1549,7 @@
 <p><strong>Returns:</strong></p>
 
 <ul>
-<li><strong>test_dataloader</strong> (<code>Dataloader</code>): the test DataLoader.</li>
+<li><strong>test_dataloader</strong> (<code>DataLoader</code>): the test DataLoader.</li>
 </ul>
 </div>
 

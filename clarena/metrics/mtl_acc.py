@@ -42,8 +42,7 @@ class MTLAccuracy(MetricCallback):
         test_acc_csv_name: str = "acc.csv",
         test_acc_plot_name: str | None = None,
     ) -> None:
-        r"""Initialize the `MTLAccuracy`.
-
+        r"""
         **Args:**
         - **save_dir** (`str`): The directory where data and figures of metrics will be saved. Better inside the output folder.
         - **test_acc_csv_name** (`str`): file name to save test accuracy of all tasks and average accuracy as CSV file.
@@ -120,7 +119,6 @@ class MTLAccuracy(MetricCallback):
         pl_module: MTLAlgorithm,
     ) -> None:
         r"""Log metrics of training epoch to plot learning curves and reset the metrics accumulation at the end of training epoch."""
-
 
         # reset the metrics of training epoch as there are more epochs to go and not only one epoch like in the validation and test
         self.acc_training_epoch.reset()
@@ -206,7 +204,7 @@ class MTLAccuracy(MetricCallback):
         )
 
         # plot the test metrics
-        if self.test_acc_plot_path:
+        if hasattr(self, "test_acc_plot_path"):
             self.plot_test_acc_from_csv(
                 csv_path=self.test_acc_csv_path,
                 plot_path=self.test_acc_plot_path,

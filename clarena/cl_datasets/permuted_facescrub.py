@@ -13,7 +13,6 @@ from torchvision.transforms import transforms
 
 from clarena.cl_datasets import CLPermutedDataset
 from clarena.stl_datasets.raw import FaceScrub10, FaceScrub20, FaceScrub50, FaceScrub100
-from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -45,11 +44,10 @@ class PermutedFaceScrub(CLPermutedDataset):
         permutation_mode: str = "first_channel_only",
         permutation_seeds: dict[int, int] | None = None,
     ) -> None:
-        r"""Initialize the dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **root** (`str`): the root directory where the original FaceScrub data 'FaceScrub/' live.
-        - **size** (`str`): the size of the dataset, should be one of the following:
+        - **size** (`str`): the size of the dataset; one of:
             1. '10': 10 classes (10 people).
             2. '20': 20 classes (20 people).
             3. '50': 50 classes (50 people).
@@ -68,7 +66,7 @@ class PermutedFaceScrub(CLPermutedDataset):
         If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.
         - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.
         If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.
-        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
+        - **permutation_mode** (`str`): the mode of permutation; one of:
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
             3. 'first_channel_only': permute only the first channel.
@@ -99,13 +97,14 @@ class PermutedFaceScrub(CLPermutedDataset):
         )
 
         self.validation_percentage: float = validation_percentage
-        """The percentage to randomly split some training data into validation data."""
+        r"""The percentage to randomly split some training data into validation data."""
 
     def prepare_data(self) -> None:
         r"""Download the original FaceScrub dataset if haven't."""
 
         if self.task_id != 1:
-            return  # download all original datasets only at the beginning of first tas
+            return  # download all original datasets only at the beginning of first task
+
         self.original_dataset_python_class(root=self.root_t, train=True, download=True)
         self.original_dataset_python_class(root=self.root_t, train=False, download=True)
 
@@ -123,7 +122,7 @@ class PermutedFaceScrub(CLPermutedDataset):
             root=self.root_t,
             train=True,
             transform=self.train_and_val_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 
@@ -145,7 +144,7 @@ class PermutedFaceScrub(CLPermutedDataset):
             root=self.root_t,
             train=False,
             transform=self.test_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 

@@ -6,17 +6,16 @@ This submodule provides the **continual learning datasets** that can be used in 
 
 Here are the base classes for continual learning datasets, which inherit from Lightning `LightningDataModule`:
 
-- `CLDataset`: The base class for continual learning datasets.
-- `CLPermutedDataset`: The base class for permuted continual learning datasets. A child class of `CLDataset`.
-- `CLSplitDataset`: The base class for split continual learning datasets. A child class of `CLDataset`.
-- `CLCombinedDataset`: The base class for combined continual learning datasets. A child class of `CLDataset`.
+- `CLDataset`: The base class for all continual learning datasets.
+    - `CLPermutedDataset`: The base class for permuted continual learning datasets. A child class of `CLDataset`.
+    - `CLSplitDataset`: The base class for split continual learning datasets. A child class of `CLDataset`.
+    - `CLCombinedDataset`: The base class for combined continual learning datasets. A child class of `CLDataset`.
 
 Please note that this is an API documantation. Please refer to the main documentation pages for more information about how to configure and implement continual learning datasets:
 
-- [**Configure CL Dataset**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/continual-learning/configure-main-experiment/cl-dataset)
-- [**Implement Custom CL Dataset**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/custom-implementation/cl-dataset)
+- [**Configure CL Dataset**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/components/CL-dataset)
+- [**Implement Custom CL Dataset**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/custom-implementation/cl_dataset)
 - [**A Beginners' Guide to Continual Learning (CL Dataset)**](https://pengxiang-wang.com/posts/continual-learning-beginners-guide#sec-CL-dataset)
-
 
 
 """

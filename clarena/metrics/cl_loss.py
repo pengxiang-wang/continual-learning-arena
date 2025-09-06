@@ -48,8 +48,7 @@ class CLLoss(MetricCallback):
         test_loss_cls_matrix_plot_name: str | None = None,
         test_ave_loss_cls_plot_name: str | None = None,
     ) -> None:
-        r"""Initialize the `CLLoss`.
-
+        r"""
         **Args:**
         - **save_dir** (`str`): The directory where data and figures of metrics will be saved. Better inside the output folder.
         - **test_loss_cls_csv_name**(`str`): file name to save classification loss matrix and average classification loss as CSV file.
@@ -61,17 +60,17 @@ class CLLoss(MetricCallback):
         self.test_loss_cls_csv_path: str = os.path.join(
             save_dir, test_loss_cls_csv_name
         )
-        r"""Store the path to save test classification loss matrix and average classification loss CSV file."""
+        r"""The path to save test classification loss matrix and average classification loss CSV file."""
         if test_loss_cls_matrix_plot_name:
             self.test_loss_cls_matrix_plot_path: str = os.path.join(
                 save_dir, test_loss_cls_matrix_plot_name
             )
-            r"""Store the path to save test classification loss matrix plot."""
+            r"""The path to save test classification loss matrix plot."""
         if test_ave_loss_cls_plot_name:
             self.test_ave_loss_cls_plot_path: str = os.path.join(
                 save_dir, test_ave_loss_cls_plot_name
             )
-            r"""Store the path to save test average classification loss curve plot."""
+            r"""The path to save test average classification loss curve plot."""
 
         # training accumulated metrics
         self.loss_cls_training_epoch: MeanMetricBatch
@@ -87,9 +86,9 @@ class CLLoss(MetricCallback):
         self.loss_cls_test: dict[int, MeanMetricBatch]
         r"""Test classification loss of the current model (`self.task_id`) on current and previous tasks. Accumulated and calculated from the test batches. Keys are task IDs and values are the corresponding metrics. It is the last row of the lower triangular matrix. See [here](https://pengxiang-wang.com/posts/continual-learning-metrics.html#sec-test-performance-of-previous-tasks) for details. """
 
-        # task ID controls
+        # task ID control
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`."""
 
     @rank_zero_only
     def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
@@ -279,12 +278,12 @@ class CLLoss(MetricCallback):
         )
 
         # plot the test metrics
-        if self.test_loss_cls_matrix_plot_path:
+        if hasattr(self, "test_loss_cls_matrix_plot_path"):
             self.plot_test_loss_cls_matrix_from_csv(
                 csv_path=self.test_loss_cls_csv_path,
                 plot_path=self.test_loss_cls_matrix_plot_path,
             )
-        if self.test_ave_loss_cls_plot_path:
+        if hasattr(self, "test_ave_loss_cls_plot_path"):
             self.plot_test_ave_loss_cls_curve_from_csv(
                 csv_path=self.test_loss_cls_csv_path,
                 plot_path=self.test_ave_loss_cls_plot_path,
@@ -294,14 +293,12 @@ class CLLoss(MetricCallback):
         self,
         after_training_task_id: int,
         csv_path: str,
-        skipped_task_ids_for_ave: list[int] | None = None,
     ) -> None:
         """Update the test classification loss metrics of seen tasks at the last line to an existing CSV file. A new file will be created if not existing.
 
         **Args:**
         - **after_training_task_id** (`int`): the task ID after training.
         - **csv_path** (`str`): save the test metric to path. E.g. './outputs/expr_name/1970-01-01_00-00-00/results/loss_cls.csv'.
-        - **skipped_task_ids_for_ave** (`list[int]` | `None`): the task IDs that are skipped to calculate average accuracy. If `None`, no task is skipped. Default: `None`.
         """
         processed_task_ids = list(self.loss_cls_test.keys())
         fieldnames = ["after_training_task", "average_classification_loss"] + [
@@ -319,11 +316,7 @@ class CLLoss(MetricCallback):
         for task_id in processed_task_ids:
             loss_cls = self.loss_cls_test[task_id].compute().item()
             new_line[f"test_on_task_{task_id}"] = loss_cls
-            if (
-                skipped_task_ids_for_ave is None
-                or task_id not in skipped_task_ids_for_ave
-            ):
-                average_classification_loss_over_tasks(loss_cls)
+            average_classification_loss_over_tasks(loss_cls)
         new_line["average_classification_loss"] = (
             average_classification_loss_over_tasks.compute().item()
         )

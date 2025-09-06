@@ -13,7 +13,6 @@ from torchvision.transforms import transforms
 
 from clarena.cl_datasets import CLPermutedDataset
 from clarena.stl_datasets.raw import SignLanguageMNIST
-from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -44,8 +43,7 @@ class PermutedSignLanguageMNIST(CLPermutedDataset):
         permutation_mode: str = "first_channel_only",
         permutation_seeds: dict[int, int] | None = None,
     ) -> None:
-        r"""Initialize the dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **root** (`str`): the root directory where the original Sign Language MNIST data 'SignLanguageMNIST/' live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset. This decides the valid task IDs from 1 to `num_tasks`.
@@ -62,7 +60,7 @@ class PermutedSignLanguageMNIST(CLPermutedDataset):
         If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.
         - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.
         If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.
-        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
+        - **permutation_mode** (`str`): the mode of permutation; one of:
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
             3. 'first_channel_only': permute only the first channel.
@@ -82,7 +80,7 @@ class PermutedSignLanguageMNIST(CLPermutedDataset):
         )
 
         self.validation_percentage: float = validation_percentage
-        """The percentage to randomly split some training data into validation data."""
+        r"""The percentage to randomly split some training data into validation data."""
 
     def prepare_data(self) -> None:
         r"""Download the original Sign Language MNIST dataset if haven't. Because the original dataset is published on Kaggle, we need to download it manually. This function will not download the original dataset automatically."""
@@ -98,7 +96,7 @@ class PermutedSignLanguageMNIST(CLPermutedDataset):
             root=self.root_t,
             train=True,
             transform=self.train_and_val_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 
@@ -121,7 +119,7 @@ class PermutedSignLanguageMNIST(CLPermutedDataset):
             root=self.root_t,
             train=False,
             transform=self.test_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 

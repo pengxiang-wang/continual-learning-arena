@@ -47,8 +47,7 @@ class CLAccuracy(MetricCallback):
         test_acc_matrix_plot_name: str | None = None,
         test_ave_acc_plot_name: str | None = None,
     ) -> None:
-        r"""Initialize the `CLAccuracy`.
-
+        r"""
         **Args:**
         - **save_dir** (`str`): The directory where data and figures of metrics will be saved. Better inside the output folder.
         - **test_acc_csv_name** (`str`): file name to save test accuracy matrix and average accuracy as CSV file.
@@ -82,7 +81,7 @@ class CLAccuracy(MetricCallback):
         self.acc_test: dict[int, MeanMetricBatch]
         r"""Test classification accuracy of the current model (`self.task_id`) on current and previous tasks. Accumulated and calculated from the test batches. Keys are task IDs and values are the corresponding metrics. It is the last row of the lower triangular matrix. See [here](https://pengxiang-wang.com/posts/continual-learning-metrics.html#sec-test-performance-of-previous-tasks) for details. """
 
-        # task ID controls
+        # task ID control
         self.task_id: int
         r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`."""
 
@@ -260,12 +259,12 @@ class CLAccuracy(MetricCallback):
         )
 
         # plot the test metrics
-        if self.test_acc_matrix_plot_path:
+        if hasattr(self, "test_acc_matrix_plot_path"):
             self.plot_test_acc_matrix_from_csv(
                 csv_path=self.test_acc_csv_path,
                 plot_path=self.test_acc_matrix_plot_path,
             )
-        if self.test_ave_acc_plot_path:
+        if hasattr(self, "test_ave_acc_plot_path"):
             self.plot_test_ave_acc_curve_from_csv(
                 csv_path=self.test_acc_csv_path,
                 plot_path=self.test_ave_acc_plot_path,
@@ -275,14 +274,12 @@ class CLAccuracy(MetricCallback):
         self,
         after_training_task_id: int,
         csv_path: str,
-        skipped_task_ids_for_ave: list[int] | None = None,
     ) -> None:
         r"""Update the test accuracy metrics of seen tasks at the last line to an existing CSV file. A new file will be created if not existing.
 
         **Args:**
         - **after_training_task_id** (`int`): the task ID after training.
         - **csv_path** (`str`): save the test metric to path. E.g. './outputs/expr_name/1970-01-01_00-00-00/results/acc.csv'.
-        - **skipped_task_ids_for_ave** (`list[int]` | `None`): the task IDs that are skipped to calculate average accuracy. If `None`, no task is skipped. Default: `None`.
         """
         processed_task_ids = list(self.acc_test.keys())
         fieldnames = ["after_training_task", "average_accuracy"] + [
@@ -300,11 +297,7 @@ class CLAccuracy(MetricCallback):
         for task_id in processed_task_ids:
             acc = self.acc_test[task_id].compute().item()
             new_line[f"test_on_task_{task_id}"] = acc
-            if (
-                skipped_task_ids_for_ave is None
-                or task_id not in skipped_task_ids_for_ave
-            ):
-                average_accuracy_over_tasks(acc)
+            average_accuracy_over_tasks(acc)
         new_line["average_accuracy"] = average_accuracy_over_tasks.compute().item()
 
         # write to the csv file

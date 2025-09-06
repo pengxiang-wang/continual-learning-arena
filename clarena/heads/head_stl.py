@@ -2,7 +2,12 @@ r"""The submodule in `heads` for STL head."""
 
 __all__ = ["HeadSTL"]
 
+import logging
+
 from torch import Tensor, nn
+
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
 class HeadSTL(nn.Module):
@@ -41,4 +46,5 @@ class HeadSTL(nn.Module):
         """
         logits = self.head(feature)
 
+        return logits
         return logits

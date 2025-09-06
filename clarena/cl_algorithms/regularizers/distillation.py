@@ -2,9 +2,14 @@ r"""The submodule in `regularizers` for distillation regularization."""
 
 __all__ = ["DistillationReg"]
 
+import logging
+
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
+
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
 class DistillationReg(nn.Module):
@@ -24,22 +29,21 @@ class DistillationReg(nn.Module):
         temperature: float,
         distance: str,
     ) -> None:
-        r"""Initialize the regulariser.
-
+        r"""
         **Args:**
         - **factor** (`float`): the regularization factor.
         - **temperature** (`float`): the temperature of the distillation, should be a positive float.
-        - **distance** (`str`): the type of distance function used in the distillation, should be one of the following:
+        - **distance** (`str`): the type of distance function used in the distillation; one of:
             1. "lwf_cross_entropy": the modified cross entropy loss from LwF. See equation (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
         """
         super().__init__()
 
         self.factor = factor
-        """Store the regularisation factor for distillation."""
+        """The regularisation factor for distillation."""
         self.temperature = temperature
-        """Store the temperature of the distillation. """
+        """The temperature of the distillation. """
         self.distance = distance
-        """Store the type of distance function used in the distillation."""
+        """The type of distance function used in the distillation."""
 
     def forward(
         self,

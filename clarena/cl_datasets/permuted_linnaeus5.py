@@ -19,7 +19,6 @@ from clarena.stl_datasets.raw import (
     Linnaeus5_128,
     Linnaeus5_256,
 )
-from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -48,8 +47,7 @@ class PermutedLinnaeus5(CLPermutedDataset):
         permutation_mode: str = "first_channel_only",
         permutation_seeds: dict[int, int] | None = None,
     ) -> None:
-        r"""Initialize the dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **root** (`str`): the root directory where the original Linnaeus 5 data 'Linnaeus5/' live.
         - **resolution** (`str`): Image resolution, one of ["256", "128", "64", "32"].
@@ -67,7 +65,7 @@ class PermutedLinnaeus5(CLPermutedDataset):
         If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.
         - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.
         If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.
-        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
+        - **permutation_mode** (`str`): the mode of permutation; one of:
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
             3. 'first_channel_only': permute only the first channel.
@@ -109,19 +107,12 @@ class PermutedLinnaeus5(CLPermutedDataset):
         if self.task_id != 1:
             return  # download all original datasets only at the beginning of first task
 
-        d = Linnaeus5(
+        Linnaeus5(
             root=self.root_t, resolution=self.resolution, train=True, download=True
         )
-
-        for i in range(len(d)):
-            print(d[i][1])
-
-        f = Linnaeus5(
+        Linnaeus5(
             root=self.root_t, resolution=self.resolution, train=False, download=True
         )
-
-        for i in range(len(f)):
-            print(f[i][1])
 
         pylogger.debug(
             "The original Linnaeus 5 dataset has been downloaded to %s.",
@@ -139,7 +130,7 @@ class PermutedLinnaeus5(CLPermutedDataset):
             resolution=self.resolution,
             train=True,
             transform=self.train_and_val_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 
@@ -162,7 +153,7 @@ class PermutedLinnaeus5(CLPermutedDataset):
             resolution=self.resolution,
             train=False,
             transform=self.test_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 

@@ -13,7 +13,6 @@ from torchvision.datasets import MNIST
 from torchvision.transforms import transforms
 
 from clarena.cl_datasets import CLSplitDataset
-from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -42,8 +41,7 @@ class SplitMNIST(CLSplitDataset):
         to_tensor: bool | dict[int, bool] = True,
         resize: tuple[int, int] | None | dict[int, tuple[int, int] | None] = None,
     ) -> None:
-        r"""Initialize the dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **root** (`str`): the root directory where the original MNIST data 'MNIST/' live.
         - **class_split** (`dict[int, list[int]]`): the dict of classes for each task. The keys are task IDs ane the values are lists of class labels (integers starting from 0) to split for each task.
@@ -74,7 +72,7 @@ class SplitMNIST(CLSplitDataset):
         )
 
         self.validation_percentage: float = validation_percentage
-        """The percentage to randomly split some training data into validation data."""
+        r"""The percentage to randomly split some training data into validation data."""
 
     def prepare_data(self) -> None:
         r"""Download the original MNIST dataset if haven't."""
@@ -107,8 +105,8 @@ class SplitMNIST(CLSplitDataset):
         dataset.data = dataset.data[idx]  # data is a Numpy ndarray
         dataset.targets = [dataset.targets[i] for i in idx]  # targets is a list
 
-        dataset.target_transform = ClassMapping(
-            self.get_cl_class_map(self.task_id)
+        dataset.target_transform = (
+            self.target_transform()
         )  # cl class mapping should be applied after the split
 
         return dataset

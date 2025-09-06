@@ -59,7 +59,7 @@
                                 <a class="function" href="#CULMainTrain.__init__">CULMainTrain</a>
                         </li>
                         <li>
-                                <a class="variable" href="#CULMainTrain.unlearning_algorithm">unlearning_algorithm</a>
+                                <a class="variable" href="#CULMainTrain.cul_algorithm">cul_algorithm</a>
                         </li>
                         <li>
                                 <a class="variable" href="#CULMainTrain.unlearning_requests">unlearning_requests</a>
@@ -74,7 +74,7 @@
                                 <a class="function" href="#CULMainTrain.sanity_check">sanity_check</a>
                         </li>
                         <li>
-                                <a class="function" href="#CULMainTrain.instantiate_unlearning_algorithm">instantiate_unlearning_algorithm</a>
+                                <a class="function" href="#CULMainTrain.instantiate_cul_algorithm">instantiate_cul_algorithm</a>
                         </li>
                         <li>
                                 <a class="function" href="#CULMainTrain.instantiate_global">instantiate_global</a>
@@ -112,7 +112,7 @@
                         <label class="view-source-button" for="mod-culmain_train-view-source"><span>View Source</span></label>
 
                         <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos">  1</span></a><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-2"><a href="#L-2"><span class="linenos">  2</span></a><span class="sd">The submodule in `experiments` for continual unlearning main experiment.</span>
+</span><span id="L-2"><a href="#L-2"><span class="linenos">  2</span></a><span class="sd">The submodule in `pipelines` for continual unlearning main experiment.</span>
 </span><span id="L-3"><a href="#L-3"><span class="linenos">  3</span></a><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-4"><a href="#L-4"><span class="linenos">  4</span></a>
 </span><span id="L-5"><a href="#L-5"><span class="linenos">  5</span></a><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CULMainTrain&quot;</span><span class="p">]</span>
@@ -123,7 +123,7 @@
 </span><span id="L-10"><a href="#L-10"><span class="linenos"> 10</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">omegaconf</span><span class="w"> </span><span class="kn">import</span> <span class="n">DictConfig</span>
 </span><span id="L-11"><a href="#L-11"><span class="linenos"> 11</span></a>
 </span><span id="L-12"><a href="#L-12"><span class="linenos"> 12</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">clarena.experiments</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLMainTrain</span>
-</span><span id="L-13"><a href="#L-13"><span class="linenos"> 13</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">clarena.unlearning_algorithms</span><span class="w"> </span><span class="kn">import</span> <span class="n">CULAlgorithm</span>
+</span><span id="L-13"><a href="#L-13"><span class="linenos"> 13</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">clarena.cul_algorithms</span><span class="w"> </span><span class="kn">import</span> <span class="n">CULAlgorithm</span>
 </span><span id="L-14"><a href="#L-14"><span class="linenos"> 14</span></a>
 </span><span id="L-15"><a href="#L-15"><span class="linenos"> 15</span></a><span class="c1"># always get logger for built-in logging in each module</span>
 </span><span id="L-16"><a href="#L-16"><span class="linenos"> 16</span></a><span class="n">pylogger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -142,8 +142,8 @@
 </span><span id="L-29"><a href="#L-29"><span class="linenos"> 29</span></a>
 </span><span id="L-30"><a href="#L-30"><span class="linenos"> 30</span></a>        <span class="n">CULMainTrain</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="L-31"><a href="#L-31"><span class="linenos"> 31</span></a>
-</span><span id="L-32"><a href="#L-32"><span class="linenos"> 32</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span>
-</span><span id="L-33"><a href="#L-33"><span class="linenos"> 33</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Continual unlearning algorithm object. Instantiate in `instantiate_unlearning_algorithm()`.&quot;&quot;&quot;</span>
+</span><span id="L-32"><a href="#L-32"><span class="linenos"> 32</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span>
+</span><span id="L-33"><a href="#L-33"><span class="linenos"> 33</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Continual unlearning algorithm object. Instantiate in `instantiate_cul_algorithm()`.&quot;&quot;&quot;</span>
 </span><span id="L-34"><a href="#L-34"><span class="linenos"> 34</span></a>
 </span><span id="L-35"><a href="#L-35"><span class="linenos"> 35</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_requests</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">unlearning_requests</span>
 </span><span id="L-36"><a href="#L-36"><span class="linenos"> 36</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The unlearning requests for each task in the experiment. Keys are IDs of the tasks that request unlearning after their learning, and values are the list of the previous tasks to be unlearned. Parsed from config and used in the tasks loop.&quot;&quot;&quot;</span>
@@ -169,7 +169,7 @@
 </span><span id="L-56"><a href="#L-56"><span class="linenos"> 56</span></a>            <span class="s2">&quot;global_seed&quot;</span><span class="p">,</span>
 </span><span id="L-57"><a href="#L-57"><span class="linenos"> 57</span></a>            <span class="s2">&quot;cl_dataset&quot;</span><span class="p">,</span>
 </span><span id="L-58"><a href="#L-58"><span class="linenos"> 58</span></a>            <span class="s2">&quot;cl_algorithm&quot;</span><span class="p">,</span>
-</span><span id="L-59"><a href="#L-59"><span class="linenos"> 59</span></a>            <span class="s2">&quot;unlearning_algorithm&quot;</span><span class="p">,</span>
+</span><span id="L-59"><a href="#L-59"><span class="linenos"> 59</span></a>            <span class="s2">&quot;cul_algorithm&quot;</span><span class="p">,</span>
 </span><span id="L-60"><a href="#L-60"><span class="linenos"> 60</span></a>            <span class="s2">&quot;backbone&quot;</span><span class="p">,</span>
 </span><span id="L-61"><a href="#L-61"><span class="linenos"> 61</span></a>            <span class="s2">&quot;optimizer&quot;</span><span class="p">,</span>
 </span><span id="L-62"><a href="#L-62"><span class="linenos"> 62</span></a>            <span class="s2">&quot;lr_scheduler&quot;</span><span class="p">,</span>
@@ -188,7 +188,7 @@
 </span><span id="L-75"><a href="#L-75"><span class="linenos"> 75</span></a>                    <span class="sa">f</span><span class="s2">&quot;Field `</span><span class="si">{</span><span class="n">field</span><span class="si">}</span><span class="s2">` is required in the experiment index config.&quot;</span>
 </span><span id="L-76"><a href="#L-76"><span class="linenos"> 76</span></a>                <span class="p">)</span>
 </span><span id="L-77"><a href="#L-77"><span class="linenos"> 77</span></a>
-</span><span id="L-78"><a href="#L-78"><span class="linenos"> 78</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;unlearning_algorithm&quot;</span><span class="p">):</span>
+</span><span id="L-78"><a href="#L-78"><span class="linenos"> 78</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cul_algorithm&quot;</span><span class="p">):</span>
 </span><span id="L-79"><a href="#L-79"><span class="linenos"> 79</span></a>            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
 </span><span id="L-80"><a href="#L-80"><span class="linenos"> 80</span></a>                <span class="s2">&quot;Field unlearn.num_tasks should be specified in experiment config!&quot;</span>
 </span><span id="L-81"><a href="#L-81"><span class="linenos"> 81</span></a>            <span class="p">)</span>
@@ -209,40 +209,40 @@
 </span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a>                        <span class="sa">f</span><span class="s2">&quot;Unlearning task ID </span><span class="si">{</span><span class="n">unlearning_task_id</span><span class="si">}</span><span class="s2"> in unlearning_requests is not within the train_tasks in the experiment!&quot;</span>
 </span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a>                    <span class="p">)</span>
 </span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a>
-</span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">instantiate_unlearning_algorithm</span><span class="p">(</span>
-</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">unlearning_algorithm_cfg</span><span class="p">:</span> <span class="n">DictConfig</span>
+</span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">instantiate_cul_algorithm</span><span class="p">(</span>
+</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">cul_algorithm_cfg</span><span class="p">:</span> <span class="n">DictConfig</span>
 </span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Instantiate the unlearning_algorithm object from unlearning_algorithm config.</span>
+</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Instantiate the cul_algorithm object from cul_algorithm config.</span>
 </span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a>
 </span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a><span class="sd">        **Args:**</span>
-</span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a><span class="sd">        - **unlearning_algorithm_cfg** (`DictConfig`): the unlearning_algorithm config dict.</span>
+</span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a><span class="sd">        - **cul_algorithm_cfg** (`DictConfig`): the cul_algorithm config dict.</span>
 </span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a>            <span class="s2">&quot;Unlearning algorithm is set as &lt;</span><span class="si">%s</span><span class="s2">&gt;. Instantiating &lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.unlearning_algorithms.UnlearningAlgorithm)...&quot;</span><span class="p">,</span>
-</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
-</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
+</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a>            <span class="s2">&quot;Unlearning algorithm is set as &lt;</span><span class="si">%s</span><span class="s2">&gt;. Instantiating &lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.cul_algorithms.UnlearningAlgorithm)...&quot;</span><span class="p">,</span>
+</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a>            <span class="n">cul_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
+</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a>            <span class="n">cul_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
 </span><span id="L-111"><a href="#L-111"><span class="linenos">111</span></a>        <span class="p">)</span>
-</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span> <span class="o">=</span> <span class="n">hydra</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span>
-</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="p">,</span>
+</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span> <span class="o">=</span> <span class="n">hydra</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span>
+</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a>            <span class="n">cul_algorithm_cfg</span><span class="p">,</span>
 </span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a>            <span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
 </span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a>        <span class="p">)</span>
 </span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a>            <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.unlearning_algorithms.UnlearningAlgorithm) instantiated!&quot;</span><span class="p">,</span>
-</span><span id="L-118"><a href="#L-118"><span class="linenos">118</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
+</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a>            <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.cul_algorithms.UnlearningAlgorithm) instantiated!&quot;</span><span class="p">,</span>
+</span><span id="L-118"><a href="#L-118"><span class="linenos">118</span></a>            <span class="n">cul_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
 </span><span id="L-119"><a href="#L-119"><span class="linenos">119</span></a>        <span class="p">)</span>
 </span><span id="L-120"><a href="#L-120"><span class="linenos">120</span></a>
 </span><span id="L-121"><a href="#L-121"><span class="linenos">121</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">instantiate_global</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="L-122"><a href="#L-122"><span class="linenos">122</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Instantiate global components for the entire CUL experiment from `self.cfg`.&quot;&quot;&quot;</span>
 </span><span id="L-123"><a href="#L-123"><span class="linenos">123</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">instantiate_global</span><span class="p">()</span>
-</span><span id="L-124"><a href="#L-124"><span class="linenos">124</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">instantiate_unlearning_algorithm</span><span class="p">(</span>
-</span><span id="L-125"><a href="#L-125"><span class="linenos">125</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">unlearning_algorithm</span>
-</span><span id="L-126"><a href="#L-126"><span class="linenos">126</span></a>        <span class="p">)</span>  <span class="c1"># unlearning_algorithm should be instantiated after model</span>
+</span><span id="L-124"><a href="#L-124"><span class="linenos">124</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">instantiate_cul_algorithm</span><span class="p">(</span>
+</span><span id="L-125"><a href="#L-125"><span class="linenos">125</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">cul_algorithm</span>
+</span><span id="L-126"><a href="#L-126"><span class="linenos">126</span></a>        <span class="p">)</span>  <span class="c1"># cul_algorithm should be instantiated after model</span>
 </span><span id="L-127"><a href="#L-127"><span class="linenos">127</span></a>
 </span><span id="L-128"><a href="#L-128"><span class="linenos">128</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_task_specific</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 </span><span id="L-129"><a href="#L-129"><span class="linenos">129</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Setup task-specific components to get ready for the current task `self.task_id`.&quot;&quot;&quot;</span>
 </span><span id="L-130"><a href="#L-130"><span class="linenos">130</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">setup_task_specific</span><span class="p">()</span>
 </span><span id="L-131"><a href="#L-131"><span class="linenos">131</span></a>
-</span><span id="L-132"><a href="#L-132"><span class="linenos">132</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="o">.</span><span class="n">setup_task_id</span><span class="p">(</span>
+</span><span id="L-132"><a href="#L-132"><span class="linenos">132</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="o">.</span><span class="n">setup_task_id</span><span class="p">(</span>
 </span><span id="L-133"><a href="#L-133"><span class="linenos">133</span></a>            <span class="n">task_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span>
 </span><span id="L-134"><a href="#L-134"><span class="linenos">134</span></a>            <span class="n">unlearning_requests</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">unlearning_requests</span><span class="p">,</span>
 </span><span id="L-135"><a href="#L-135"><span class="linenos">135</span></a>            <span class="n">if_permanent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">permanent_mark</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">],</span>
@@ -268,8 +268,8 @@
 </span><span id="L-155"><a href="#L-155"><span class="linenos">155</span></a>            <span class="p">)</span>
 </span><span id="L-156"><a href="#L-156"><span class="linenos">156</span></a>
 </span><span id="L-157"><a href="#L-157"><span class="linenos">157</span></a>        <span class="c1"># unlearn</span>
-</span><span id="L-158"><a href="#L-158"><span class="linenos">158</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="o">.</span><span class="n">unlearn</span><span class="p">()</span>
-</span><span id="L-159"><a href="#L-159"><span class="linenos">159</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="o">.</span><span class="n">setup_test_task_id</span><span class="p">()</span>
+</span><span id="L-158"><a href="#L-158"><span class="linenos">158</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="o">.</span><span class="n">unlearn</span><span class="p">()</span>
+</span><span id="L-159"><a href="#L-159"><span class="linenos">159</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="o">.</span><span class="n">setup_test_task_id</span><span class="p">()</span>
 </span><span id="L-160"><a href="#L-160"><span class="linenos">160</span></a>
 </span><span id="L-161"><a href="#L-161"><span class="linenos">161</span></a>        <span class="c1"># evaluation after training and validation</span>
 </span><span id="L-162"><a href="#L-162"><span class="linenos">162</span></a>        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_after_tasks</span><span class="p">:</span>
@@ -311,8 +311,8 @@
 </span><span id="CULMainTrain-30"><a href="#CULMainTrain-30"><span class="linenos"> 30</span></a>
 </span><span id="CULMainTrain-31"><a href="#CULMainTrain-31"><span class="linenos"> 31</span></a>        <span class="n">CULMainTrain</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="CULMainTrain-32"><a href="#CULMainTrain-32"><span class="linenos"> 32</span></a>
-</span><span id="CULMainTrain-33"><a href="#CULMainTrain-33"><span class="linenos"> 33</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span>
-</span><span id="CULMainTrain-34"><a href="#CULMainTrain-34"><span class="linenos"> 34</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Continual unlearning algorithm object. Instantiate in `instantiate_unlearning_algorithm()`.&quot;&quot;&quot;</span>
+</span><span id="CULMainTrain-33"><a href="#CULMainTrain-33"><span class="linenos"> 33</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span>
+</span><span id="CULMainTrain-34"><a href="#CULMainTrain-34"><span class="linenos"> 34</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Continual unlearning algorithm object. Instantiate in `instantiate_cul_algorithm()`.&quot;&quot;&quot;</span>
 </span><span id="CULMainTrain-35"><a href="#CULMainTrain-35"><span class="linenos"> 35</span></a>
 </span><span id="CULMainTrain-36"><a href="#CULMainTrain-36"><span class="linenos"> 36</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_requests</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">unlearning_requests</span>
 </span><span id="CULMainTrain-37"><a href="#CULMainTrain-37"><span class="linenos"> 37</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The unlearning requests for each task in the experiment. Keys are IDs of the tasks that request unlearning after their learning, and values are the list of the previous tasks to be unlearned. Parsed from config and used in the tasks loop.&quot;&quot;&quot;</span>
@@ -338,7 +338,7 @@
 </span><span id="CULMainTrain-57"><a href="#CULMainTrain-57"><span class="linenos"> 57</span></a>            <span class="s2">&quot;global_seed&quot;</span><span class="p">,</span>
 </span><span id="CULMainTrain-58"><a href="#CULMainTrain-58"><span class="linenos"> 58</span></a>            <span class="s2">&quot;cl_dataset&quot;</span><span class="p">,</span>
 </span><span id="CULMainTrain-59"><a href="#CULMainTrain-59"><span class="linenos"> 59</span></a>            <span class="s2">&quot;cl_algorithm&quot;</span><span class="p">,</span>
-</span><span id="CULMainTrain-60"><a href="#CULMainTrain-60"><span class="linenos"> 60</span></a>            <span class="s2">&quot;unlearning_algorithm&quot;</span><span class="p">,</span>
+</span><span id="CULMainTrain-60"><a href="#CULMainTrain-60"><span class="linenos"> 60</span></a>            <span class="s2">&quot;cul_algorithm&quot;</span><span class="p">,</span>
 </span><span id="CULMainTrain-61"><a href="#CULMainTrain-61"><span class="linenos"> 61</span></a>            <span class="s2">&quot;backbone&quot;</span><span class="p">,</span>
 </span><span id="CULMainTrain-62"><a href="#CULMainTrain-62"><span class="linenos"> 62</span></a>            <span class="s2">&quot;optimizer&quot;</span><span class="p">,</span>
 </span><span id="CULMainTrain-63"><a href="#CULMainTrain-63"><span class="linenos"> 63</span></a>            <span class="s2">&quot;lr_scheduler&quot;</span><span class="p">,</span>
@@ -357,7 +357,7 @@
 </span><span id="CULMainTrain-76"><a href="#CULMainTrain-76"><span class="linenos"> 76</span></a>                    <span class="sa">f</span><span class="s2">&quot;Field `</span><span class="si">{</span><span class="n">field</span><span class="si">}</span><span class="s2">` is required in the experiment index config.&quot;</span>
 </span><span id="CULMainTrain-77"><a href="#CULMainTrain-77"><span class="linenos"> 77</span></a>                <span class="p">)</span>
 </span><span id="CULMainTrain-78"><a href="#CULMainTrain-78"><span class="linenos"> 78</span></a>
-</span><span id="CULMainTrain-79"><a href="#CULMainTrain-79"><span class="linenos"> 79</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;unlearning_algorithm&quot;</span><span class="p">):</span>
+</span><span id="CULMainTrain-79"><a href="#CULMainTrain-79"><span class="linenos"> 79</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cul_algorithm&quot;</span><span class="p">):</span>
 </span><span id="CULMainTrain-80"><a href="#CULMainTrain-80"><span class="linenos"> 80</span></a>            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
 </span><span id="CULMainTrain-81"><a href="#CULMainTrain-81"><span class="linenos"> 81</span></a>                <span class="s2">&quot;Field unlearn.num_tasks should be specified in experiment config!&quot;</span>
 </span><span id="CULMainTrain-82"><a href="#CULMainTrain-82"><span class="linenos"> 82</span></a>            <span class="p">)</span>
@@ -378,40 +378,40 @@
 </span><span id="CULMainTrain-97"><a href="#CULMainTrain-97"><span class="linenos"> 97</span></a>                        <span class="sa">f</span><span class="s2">&quot;Unlearning task ID </span><span class="si">{</span><span class="n">unlearning_task_id</span><span class="si">}</span><span class="s2"> in unlearning_requests is not within the train_tasks in the experiment!&quot;</span>
 </span><span id="CULMainTrain-98"><a href="#CULMainTrain-98"><span class="linenos"> 98</span></a>                    <span class="p">)</span>
 </span><span id="CULMainTrain-99"><a href="#CULMainTrain-99"><span class="linenos"> 99</span></a>
-</span><span id="CULMainTrain-100"><a href="#CULMainTrain-100"><span class="linenos">100</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">instantiate_unlearning_algorithm</span><span class="p">(</span>
-</span><span id="CULMainTrain-101"><a href="#CULMainTrain-101"><span class="linenos">101</span></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">unlearning_algorithm_cfg</span><span class="p">:</span> <span class="n">DictConfig</span>
+</span><span id="CULMainTrain-100"><a href="#CULMainTrain-100"><span class="linenos">100</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">instantiate_cul_algorithm</span><span class="p">(</span>
+</span><span id="CULMainTrain-101"><a href="#CULMainTrain-101"><span class="linenos">101</span></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">cul_algorithm_cfg</span><span class="p">:</span> <span class="n">DictConfig</span>
 </span><span id="CULMainTrain-102"><a href="#CULMainTrain-102"><span class="linenos">102</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CULMainTrain-103"><a href="#CULMainTrain-103"><span class="linenos">103</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Instantiate the unlearning_algorithm object from unlearning_algorithm config.</span>
+</span><span id="CULMainTrain-103"><a href="#CULMainTrain-103"><span class="linenos">103</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Instantiate the cul_algorithm object from cul_algorithm config.</span>
 </span><span id="CULMainTrain-104"><a href="#CULMainTrain-104"><span class="linenos">104</span></a>
 </span><span id="CULMainTrain-105"><a href="#CULMainTrain-105"><span class="linenos">105</span></a><span class="sd">        **Args:**</span>
-</span><span id="CULMainTrain-106"><a href="#CULMainTrain-106"><span class="linenos">106</span></a><span class="sd">        - **unlearning_algorithm_cfg** (`DictConfig`): the unlearning_algorithm config dict.</span>
+</span><span id="CULMainTrain-106"><a href="#CULMainTrain-106"><span class="linenos">106</span></a><span class="sd">        - **cul_algorithm_cfg** (`DictConfig`): the cul_algorithm config dict.</span>
 </span><span id="CULMainTrain-107"><a href="#CULMainTrain-107"><span class="linenos">107</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="CULMainTrain-108"><a href="#CULMainTrain-108"><span class="linenos">108</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-</span><span id="CULMainTrain-109"><a href="#CULMainTrain-109"><span class="linenos">109</span></a>            <span class="s2">&quot;Unlearning algorithm is set as &lt;</span><span class="si">%s</span><span class="s2">&gt;. Instantiating &lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.unlearning_algorithms.UnlearningAlgorithm)...&quot;</span><span class="p">,</span>
-</span><span id="CULMainTrain-110"><a href="#CULMainTrain-110"><span class="linenos">110</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
-</span><span id="CULMainTrain-111"><a href="#CULMainTrain-111"><span class="linenos">111</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
+</span><span id="CULMainTrain-109"><a href="#CULMainTrain-109"><span class="linenos">109</span></a>            <span class="s2">&quot;Unlearning algorithm is set as &lt;</span><span class="si">%s</span><span class="s2">&gt;. Instantiating &lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.cul_algorithms.UnlearningAlgorithm)...&quot;</span><span class="p">,</span>
+</span><span id="CULMainTrain-110"><a href="#CULMainTrain-110"><span class="linenos">110</span></a>            <span class="n">cul_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
+</span><span id="CULMainTrain-111"><a href="#CULMainTrain-111"><span class="linenos">111</span></a>            <span class="n">cul_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
 </span><span id="CULMainTrain-112"><a href="#CULMainTrain-112"><span class="linenos">112</span></a>        <span class="p">)</span>
-</span><span id="CULMainTrain-113"><a href="#CULMainTrain-113"><span class="linenos">113</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span> <span class="o">=</span> <span class="n">hydra</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span>
-</span><span id="CULMainTrain-114"><a href="#CULMainTrain-114"><span class="linenos">114</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="p">,</span>
+</span><span id="CULMainTrain-113"><a href="#CULMainTrain-113"><span class="linenos">113</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span> <span class="o">=</span> <span class="n">hydra</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span>
+</span><span id="CULMainTrain-114"><a href="#CULMainTrain-114"><span class="linenos">114</span></a>            <span class="n">cul_algorithm_cfg</span><span class="p">,</span>
 </span><span id="CULMainTrain-115"><a href="#CULMainTrain-115"><span class="linenos">115</span></a>            <span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
 </span><span id="CULMainTrain-116"><a href="#CULMainTrain-116"><span class="linenos">116</span></a>        <span class="p">)</span>
 </span><span id="CULMainTrain-117"><a href="#CULMainTrain-117"><span class="linenos">117</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-</span><span id="CULMainTrain-118"><a href="#CULMainTrain-118"><span class="linenos">118</span></a>            <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.unlearning_algorithms.UnlearningAlgorithm) instantiated!&quot;</span><span class="p">,</span>
-</span><span id="CULMainTrain-119"><a href="#CULMainTrain-119"><span class="linenos">119</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
+</span><span id="CULMainTrain-118"><a href="#CULMainTrain-118"><span class="linenos">118</span></a>            <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.cul_algorithms.UnlearningAlgorithm) instantiated!&quot;</span><span class="p">,</span>
+</span><span id="CULMainTrain-119"><a href="#CULMainTrain-119"><span class="linenos">119</span></a>            <span class="n">cul_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
 </span><span id="CULMainTrain-120"><a href="#CULMainTrain-120"><span class="linenos">120</span></a>        <span class="p">)</span>
 </span><span id="CULMainTrain-121"><a href="#CULMainTrain-121"><span class="linenos">121</span></a>
 </span><span id="CULMainTrain-122"><a href="#CULMainTrain-122"><span class="linenos">122</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">instantiate_global</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="CULMainTrain-123"><a href="#CULMainTrain-123"><span class="linenos">123</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Instantiate global components for the entire CUL experiment from `self.cfg`.&quot;&quot;&quot;</span>
 </span><span id="CULMainTrain-124"><a href="#CULMainTrain-124"><span class="linenos">124</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">instantiate_global</span><span class="p">()</span>
-</span><span id="CULMainTrain-125"><a href="#CULMainTrain-125"><span class="linenos">125</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">instantiate_unlearning_algorithm</span><span class="p">(</span>
-</span><span id="CULMainTrain-126"><a href="#CULMainTrain-126"><span class="linenos">126</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">unlearning_algorithm</span>
-</span><span id="CULMainTrain-127"><a href="#CULMainTrain-127"><span class="linenos">127</span></a>        <span class="p">)</span>  <span class="c1"># unlearning_algorithm should be instantiated after model</span>
+</span><span id="CULMainTrain-125"><a href="#CULMainTrain-125"><span class="linenos">125</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">instantiate_cul_algorithm</span><span class="p">(</span>
+</span><span id="CULMainTrain-126"><a href="#CULMainTrain-126"><span class="linenos">126</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">cul_algorithm</span>
+</span><span id="CULMainTrain-127"><a href="#CULMainTrain-127"><span class="linenos">127</span></a>        <span class="p">)</span>  <span class="c1"># cul_algorithm should be instantiated after model</span>
 </span><span id="CULMainTrain-128"><a href="#CULMainTrain-128"><span class="linenos">128</span></a>
 </span><span id="CULMainTrain-129"><a href="#CULMainTrain-129"><span class="linenos">129</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup_task_specific</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 </span><span id="CULMainTrain-130"><a href="#CULMainTrain-130"><span class="linenos">130</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Setup task-specific components to get ready for the current task `self.task_id`.&quot;&quot;&quot;</span>
 </span><span id="CULMainTrain-131"><a href="#CULMainTrain-131"><span class="linenos">131</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">setup_task_specific</span><span class="p">()</span>
 </span><span id="CULMainTrain-132"><a href="#CULMainTrain-132"><span class="linenos">132</span></a>
-</span><span id="CULMainTrain-133"><a href="#CULMainTrain-133"><span class="linenos">133</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="o">.</span><span class="n">setup_task_id</span><span class="p">(</span>
+</span><span id="CULMainTrain-133"><a href="#CULMainTrain-133"><span class="linenos">133</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="o">.</span><span class="n">setup_task_id</span><span class="p">(</span>
 </span><span id="CULMainTrain-134"><a href="#CULMainTrain-134"><span class="linenos">134</span></a>            <span class="n">task_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span>
 </span><span id="CULMainTrain-135"><a href="#CULMainTrain-135"><span class="linenos">135</span></a>            <span class="n">unlearning_requests</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">unlearning_requests</span><span class="p">,</span>
 </span><span id="CULMainTrain-136"><a href="#CULMainTrain-136"><span class="linenos">136</span></a>            <span class="n">if_permanent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">permanent_mark</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">],</span>
@@ -437,8 +437,8 @@
 </span><span id="CULMainTrain-156"><a href="#CULMainTrain-156"><span class="linenos">156</span></a>            <span class="p">)</span>
 </span><span id="CULMainTrain-157"><a href="#CULMainTrain-157"><span class="linenos">157</span></a>
 </span><span id="CULMainTrain-158"><a href="#CULMainTrain-158"><span class="linenos">158</span></a>        <span class="c1"># unlearn</span>
-</span><span id="CULMainTrain-159"><a href="#CULMainTrain-159"><span class="linenos">159</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="o">.</span><span class="n">unlearn</span><span class="p">()</span>
-</span><span id="CULMainTrain-160"><a href="#CULMainTrain-160"><span class="linenos">160</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="o">.</span><span class="n">setup_test_task_id</span><span class="p">()</span>
+</span><span id="CULMainTrain-159"><a href="#CULMainTrain-159"><span class="linenos">159</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="o">.</span><span class="n">unlearn</span><span class="p">()</span>
+</span><span id="CULMainTrain-160"><a href="#CULMainTrain-160"><span class="linenos">160</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="o">.</span><span class="n">setup_test_task_id</span><span class="p">()</span>
 </span><span id="CULMainTrain-161"><a href="#CULMainTrain-161"><span class="linenos">161</span></a>
 </span><span id="CULMainTrain-162"><a href="#CULMainTrain-162"><span class="linenos">162</span></a>        <span class="c1"># evaluation after training and validation</span>
 </span><span id="CULMainTrain-163"><a href="#CULMainTrain-163"><span class="linenos">163</span></a>        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_after_tasks</span><span class="p">:</span>
@@ -479,8 +479,8 @@
 </span><span id="CULMainTrain.__init__-30"><a href="#CULMainTrain.__init__-30"><span class="linenos">30</span></a>
 </span><span id="CULMainTrain.__init__-31"><a href="#CULMainTrain.__init__-31"><span class="linenos">31</span></a>        <span class="n">CULMainTrain</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="CULMainTrain.__init__-32"><a href="#CULMainTrain.__init__-32"><span class="linenos">32</span></a>
-</span><span id="CULMainTrain.__init__-33"><a href="#CULMainTrain.__init__-33"><span class="linenos">33</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span>
-</span><span id="CULMainTrain.__init__-34"><a href="#CULMainTrain.__init__-34"><span class="linenos">34</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Continual unlearning algorithm object. Instantiate in `instantiate_unlearning_algorithm()`.&quot;&quot;&quot;</span>
+</span><span id="CULMainTrain.__init__-33"><a href="#CULMainTrain.__init__-33"><span class="linenos">33</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span>
+</span><span id="CULMainTrain.__init__-34"><a href="#CULMainTrain.__init__-34"><span class="linenos">34</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Continual unlearning algorithm object. Instantiate in `instantiate_cul_algorithm()`.&quot;&quot;&quot;</span>
 </span><span id="CULMainTrain.__init__-35"><a href="#CULMainTrain.__init__-35"><span class="linenos">35</span></a>
 </span><span id="CULMainTrain.__init__-36"><a href="#CULMainTrain.__init__-36"><span class="linenos">36</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_requests</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">unlearning_requests</span>
 </span><span id="CULMainTrain.__init__-37"><a href="#CULMainTrain.__init__-37"><span class="linenos">37</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;The unlearning requests for each task in the experiment. Keys are IDs of the tasks that request unlearning after their learning, and values are the list of the previous tasks to be unlearned. Parsed from config and used in the tasks loop.&quot;&quot;&quot;</span>
@@ -507,15 +507,15 @@
 
 
                             </div>
-                            <div id="CULMainTrain.unlearning_algorithm" class="classattr">
+                            <div id="CULMainTrain.cul_algorithm" class="classattr">
                                 <div class="attr variable">
-            <span class="name">unlearning_algorithm</span><span class="annotation">: <a href="../unlearning_algorithms.html#CULAlgorithm">clarena.unlearning_algorithms.CULAlgorithm</a></span>
+            <span class="name">cul_algorithm</span><span class="annotation">: <a href="../cul_algorithms.html#CULAlgorithm">clarena.cul_algorithms.CULAlgorithm</a></span>
 
         
     </div>
-    <a class="headerlink" href="#CULMainTrain.unlearning_algorithm"></a>
+    <a class="headerlink" href="#CULMainTrain.cul_algorithm"></a>
     
-            <div class="docstring"><p>Continual unlearning algorithm object. Instantiate in <code><a href="#CULMainTrain.instantiate_unlearning_algorithm">instantiate_unlearning_algorithm()</a></code>.</p>
+            <div class="docstring"><p>Continual unlearning algorithm object. Instantiate in <code><a href="#CULMainTrain.instantiate_cul_algorithm">instantiate_cul_algorithm()</a></code>.</p>
 </div>
 
 
@@ -582,7 +582,7 @@
 </span><span id="CULMainTrain.sanity_check-57"><a href="#CULMainTrain.sanity_check-57"><span class="linenos">57</span></a>            <span class="s2">&quot;global_seed&quot;</span><span class="p">,</span>
 </span><span id="CULMainTrain.sanity_check-58"><a href="#CULMainTrain.sanity_check-58"><span class="linenos">58</span></a>            <span class="s2">&quot;cl_dataset&quot;</span><span class="p">,</span>
 </span><span id="CULMainTrain.sanity_check-59"><a href="#CULMainTrain.sanity_check-59"><span class="linenos">59</span></a>            <span class="s2">&quot;cl_algorithm&quot;</span><span class="p">,</span>
-</span><span id="CULMainTrain.sanity_check-60"><a href="#CULMainTrain.sanity_check-60"><span class="linenos">60</span></a>            <span class="s2">&quot;unlearning_algorithm&quot;</span><span class="p">,</span>
+</span><span id="CULMainTrain.sanity_check-60"><a href="#CULMainTrain.sanity_check-60"><span class="linenos">60</span></a>            <span class="s2">&quot;cul_algorithm&quot;</span><span class="p">,</span>
 </span><span id="CULMainTrain.sanity_check-61"><a href="#CULMainTrain.sanity_check-61"><span class="linenos">61</span></a>            <span class="s2">&quot;backbone&quot;</span><span class="p">,</span>
 </span><span id="CULMainTrain.sanity_check-62"><a href="#CULMainTrain.sanity_check-62"><span class="linenos">62</span></a>            <span class="s2">&quot;optimizer&quot;</span><span class="p">,</span>
 </span><span id="CULMainTrain.sanity_check-63"><a href="#CULMainTrain.sanity_check-63"><span class="linenos">63</span></a>            <span class="s2">&quot;lr_scheduler&quot;</span><span class="p">,</span>
@@ -601,7 +601,7 @@
 </span><span id="CULMainTrain.sanity_check-76"><a href="#CULMainTrain.sanity_check-76"><span class="linenos">76</span></a>                    <span class="sa">f</span><span class="s2">&quot;Field `</span><span class="si">{</span><span class="n">field</span><span class="si">}</span><span class="s2">` is required in the experiment index config.&quot;</span>
 </span><span id="CULMainTrain.sanity_check-77"><a href="#CULMainTrain.sanity_check-77"><span class="linenos">77</span></a>                <span class="p">)</span>
 </span><span id="CULMainTrain.sanity_check-78"><a href="#CULMainTrain.sanity_check-78"><span class="linenos">78</span></a>
-</span><span id="CULMainTrain.sanity_check-79"><a href="#CULMainTrain.sanity_check-79"><span class="linenos">79</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;unlearning_algorithm&quot;</span><span class="p">):</span>
+</span><span id="CULMainTrain.sanity_check-79"><a href="#CULMainTrain.sanity_check-79"><span class="linenos">79</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cul_algorithm&quot;</span><span class="p">):</span>
 </span><span id="CULMainTrain.sanity_check-80"><a href="#CULMainTrain.sanity_check-80"><span class="linenos">80</span></a>            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
 </span><span id="CULMainTrain.sanity_check-81"><a href="#CULMainTrain.sanity_check-81"><span class="linenos">81</span></a>                <span class="s2">&quot;Field unlearn.num_tasks should be specified in experiment config!&quot;</span>
 </span><span id="CULMainTrain.sanity_check-82"><a href="#CULMainTrain.sanity_check-82"><span class="linenos">82</span></a>            <span class="p">)</span>
@@ -629,47 +629,47 @@
 
 
                             </div>
-                            <div id="CULMainTrain.instantiate_unlearning_algorithm" class="classattr">
-                                        <input id="CULMainTrain.instantiate_unlearning_algorithm-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+                            <div id="CULMainTrain.instantiate_cul_algorithm" class="classattr">
+                                        <input id="CULMainTrain.instantiate_cul_algorithm-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
 <div class="attr function">
             
         <span class="def">def</span>
-        <span class="name">instantiate_unlearning_algorithm</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">unlearning_algorithm_cfg</span><span class="p">:</span> <span class="n">omegaconf</span><span class="o">.</span><span class="n">dictconfig</span><span class="o">.</span><span class="n">DictConfig</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+        <span class="name">instantiate_cul_algorithm</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">cul_algorithm_cfg</span><span class="p">:</span> <span class="n">omegaconf</span><span class="o">.</span><span class="n">dictconfig</span><span class="o">.</span><span class="n">DictConfig</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
 
-                <label class="view-source-button" for="CULMainTrain.instantiate_unlearning_algorithm-view-source"><span>View Source</span></label>
+                <label class="view-source-button" for="CULMainTrain.instantiate_cul_algorithm-view-source"><span>View Source</span></label>
 
     </div>
-    <a class="headerlink" href="#CULMainTrain.instantiate_unlearning_algorithm"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="CULMainTrain.instantiate_unlearning_algorithm-100"><a href="#CULMainTrain.instantiate_unlearning_algorithm-100"><span class="linenos">100</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">instantiate_unlearning_algorithm</span><span class="p">(</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-101"><a href="#CULMainTrain.instantiate_unlearning_algorithm-101"><span class="linenos">101</span></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">unlearning_algorithm_cfg</span><span class="p">:</span> <span class="n">DictConfig</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-102"><a href="#CULMainTrain.instantiate_unlearning_algorithm-102"><span class="linenos">102</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-103"><a href="#CULMainTrain.instantiate_unlearning_algorithm-103"><span class="linenos">103</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Instantiate the unlearning_algorithm object from unlearning_algorithm config.</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-104"><a href="#CULMainTrain.instantiate_unlearning_algorithm-104"><span class="linenos">104</span></a>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-105"><a href="#CULMainTrain.instantiate_unlearning_algorithm-105"><span class="linenos">105</span></a><span class="sd">        **Args:**</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-106"><a href="#CULMainTrain.instantiate_unlearning_algorithm-106"><span class="linenos">106</span></a><span class="sd">        - **unlearning_algorithm_cfg** (`DictConfig`): the unlearning_algorithm config dict.</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-107"><a href="#CULMainTrain.instantiate_unlearning_algorithm-107"><span class="linenos">107</span></a><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-108"><a href="#CULMainTrain.instantiate_unlearning_algorithm-108"><span class="linenos">108</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-109"><a href="#CULMainTrain.instantiate_unlearning_algorithm-109"><span class="linenos">109</span></a>            <span class="s2">&quot;Unlearning algorithm is set as &lt;</span><span class="si">%s</span><span class="s2">&gt;. Instantiating &lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.unlearning_algorithms.UnlearningAlgorithm)...&quot;</span><span class="p">,</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-110"><a href="#CULMainTrain.instantiate_unlearning_algorithm-110"><span class="linenos">110</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-111"><a href="#CULMainTrain.instantiate_unlearning_algorithm-111"><span class="linenos">111</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-112"><a href="#CULMainTrain.instantiate_unlearning_algorithm-112"><span class="linenos">112</span></a>        <span class="p">)</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-113"><a href="#CULMainTrain.instantiate_unlearning_algorithm-113"><span class="linenos">113</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span> <span class="o">=</span> <span class="n">hydra</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-114"><a href="#CULMainTrain.instantiate_unlearning_algorithm-114"><span class="linenos">114</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="p">,</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-115"><a href="#CULMainTrain.instantiate_unlearning_algorithm-115"><span class="linenos">115</span></a>            <span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-116"><a href="#CULMainTrain.instantiate_unlearning_algorithm-116"><span class="linenos">116</span></a>        <span class="p">)</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-117"><a href="#CULMainTrain.instantiate_unlearning_algorithm-117"><span class="linenos">117</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-118"><a href="#CULMainTrain.instantiate_unlearning_algorithm-118"><span class="linenos">118</span></a>            <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.unlearning_algorithms.UnlearningAlgorithm) instantiated!&quot;</span><span class="p">,</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-119"><a href="#CULMainTrain.instantiate_unlearning_algorithm-119"><span class="linenos">119</span></a>            <span class="n">unlearning_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
-</span><span id="CULMainTrain.instantiate_unlearning_algorithm-120"><a href="#CULMainTrain.instantiate_unlearning_algorithm-120"><span class="linenos">120</span></a>        <span class="p">)</span>
+    <a class="headerlink" href="#CULMainTrain.instantiate_cul_algorithm"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CULMainTrain.instantiate_cul_algorithm-100"><a href="#CULMainTrain.instantiate_cul_algorithm-100"><span class="linenos">100</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">instantiate_cul_algorithm</span><span class="p">(</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-101"><a href="#CULMainTrain.instantiate_cul_algorithm-101"><span class="linenos">101</span></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">cul_algorithm_cfg</span><span class="p">:</span> <span class="n">DictConfig</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-102"><a href="#CULMainTrain.instantiate_cul_algorithm-102"><span class="linenos">102</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-103"><a href="#CULMainTrain.instantiate_cul_algorithm-103"><span class="linenos">103</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Instantiate the cul_algorithm object from cul_algorithm config.</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-104"><a href="#CULMainTrain.instantiate_cul_algorithm-104"><span class="linenos">104</span></a>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-105"><a href="#CULMainTrain.instantiate_cul_algorithm-105"><span class="linenos">105</span></a><span class="sd">        **Args:**</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-106"><a href="#CULMainTrain.instantiate_cul_algorithm-106"><span class="linenos">106</span></a><span class="sd">        - **cul_algorithm_cfg** (`DictConfig`): the cul_algorithm config dict.</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-107"><a href="#CULMainTrain.instantiate_cul_algorithm-107"><span class="linenos">107</span></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-108"><a href="#CULMainTrain.instantiate_cul_algorithm-108"><span class="linenos">108</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-109"><a href="#CULMainTrain.instantiate_cul_algorithm-109"><span class="linenos">109</span></a>            <span class="s2">&quot;Unlearning algorithm is set as &lt;</span><span class="si">%s</span><span class="s2">&gt;. Instantiating &lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.cul_algorithms.UnlearningAlgorithm)...&quot;</span><span class="p">,</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-110"><a href="#CULMainTrain.instantiate_cul_algorithm-110"><span class="linenos">110</span></a>            <span class="n">cul_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-111"><a href="#CULMainTrain.instantiate_cul_algorithm-111"><span class="linenos">111</span></a>            <span class="n">cul_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-112"><a href="#CULMainTrain.instantiate_cul_algorithm-112"><span class="linenos">112</span></a>        <span class="p">)</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-113"><a href="#CULMainTrain.instantiate_cul_algorithm-113"><span class="linenos">113</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="p">:</span> <span class="n">CULAlgorithm</span> <span class="o">=</span> <span class="n">hydra</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-114"><a href="#CULMainTrain.instantiate_cul_algorithm-114"><span class="linenos">114</span></a>            <span class="n">cul_algorithm_cfg</span><span class="p">,</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-115"><a href="#CULMainTrain.instantiate_cul_algorithm-115"><span class="linenos">115</span></a>            <span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-116"><a href="#CULMainTrain.instantiate_cul_algorithm-116"><span class="linenos">116</span></a>        <span class="p">)</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-117"><a href="#CULMainTrain.instantiate_cul_algorithm-117"><span class="linenos">117</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-118"><a href="#CULMainTrain.instantiate_cul_algorithm-118"><span class="linenos">118</span></a>            <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">&gt; (clarena.cul_algorithms.UnlearningAlgorithm) instantiated!&quot;</span><span class="p">,</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-119"><a href="#CULMainTrain.instantiate_cul_algorithm-119"><span class="linenos">119</span></a>            <span class="n">cul_algorithm_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_target_&quot;</span><span class="p">),</span>
+</span><span id="CULMainTrain.instantiate_cul_algorithm-120"><a href="#CULMainTrain.instantiate_cul_algorithm-120"><span class="linenos">120</span></a>        <span class="p">)</span>
 </span></pre></div>
 
 
-            <div class="docstring"><p>Instantiate the unlearning_algorithm object from unlearning_algorithm config.</p>
+            <div class="docstring"><p>Instantiate the cul_algorithm object from cul_algorithm config.</p>
 
 <p><strong>Args:</strong></p>
 
 <ul>
-<li><strong>unlearning_algorithm_cfg</strong> (<code>DictConfig</code>): the unlearning_algorithm config dict.</li>
+<li><strong>cul_algorithm_cfg</strong> (<code>DictConfig</code>): the cul_algorithm config dict.</li>
 </ul>
 </div>
 
@@ -689,9 +689,9 @@
             <div class="pdoc-code codehilite"><pre><span></span><span id="CULMainTrain.instantiate_global-122"><a href="#CULMainTrain.instantiate_global-122"><span class="linenos">122</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">instantiate_global</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="CULMainTrain.instantiate_global-123"><a href="#CULMainTrain.instantiate_global-123"><span class="linenos">123</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Instantiate global components for the entire CUL experiment from `self.cfg`.&quot;&quot;&quot;</span>
 </span><span id="CULMainTrain.instantiate_global-124"><a href="#CULMainTrain.instantiate_global-124"><span class="linenos">124</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">instantiate_global</span><span class="p">()</span>
-</span><span id="CULMainTrain.instantiate_global-125"><a href="#CULMainTrain.instantiate_global-125"><span class="linenos">125</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">instantiate_unlearning_algorithm</span><span class="p">(</span>
-</span><span id="CULMainTrain.instantiate_global-126"><a href="#CULMainTrain.instantiate_global-126"><span class="linenos">126</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">unlearning_algorithm</span>
-</span><span id="CULMainTrain.instantiate_global-127"><a href="#CULMainTrain.instantiate_global-127"><span class="linenos">127</span></a>        <span class="p">)</span>  <span class="c1"># unlearning_algorithm should be instantiated after model</span>
+</span><span id="CULMainTrain.instantiate_global-125"><a href="#CULMainTrain.instantiate_global-125"><span class="linenos">125</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">instantiate_cul_algorithm</span><span class="p">(</span>
+</span><span id="CULMainTrain.instantiate_global-126"><a href="#CULMainTrain.instantiate_global-126"><span class="linenos">126</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">cul_algorithm</span>
+</span><span id="CULMainTrain.instantiate_global-127"><a href="#CULMainTrain.instantiate_global-127"><span class="linenos">127</span></a>        <span class="p">)</span>  <span class="c1"># cul_algorithm should be instantiated after model</span>
 </span></pre></div>
 
 
@@ -715,7 +715,7 @@
 </span><span id="CULMainTrain.setup_task_specific-130"><a href="#CULMainTrain.setup_task_specific-130"><span class="linenos">130</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Setup task-specific components to get ready for the current task `self.task_id`.&quot;&quot;&quot;</span>
 </span><span id="CULMainTrain.setup_task_specific-131"><a href="#CULMainTrain.setup_task_specific-131"><span class="linenos">131</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">setup_task_specific</span><span class="p">()</span>
 </span><span id="CULMainTrain.setup_task_specific-132"><a href="#CULMainTrain.setup_task_specific-132"><span class="linenos">132</span></a>
-</span><span id="CULMainTrain.setup_task_specific-133"><a href="#CULMainTrain.setup_task_specific-133"><span class="linenos">133</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="o">.</span><span class="n">setup_task_id</span><span class="p">(</span>
+</span><span id="CULMainTrain.setup_task_specific-133"><a href="#CULMainTrain.setup_task_specific-133"><span class="linenos">133</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="o">.</span><span class="n">setup_task_id</span><span class="p">(</span>
 </span><span id="CULMainTrain.setup_task_specific-134"><a href="#CULMainTrain.setup_task_specific-134"><span class="linenos">134</span></a>            <span class="n">task_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span>
 </span><span id="CULMainTrain.setup_task_specific-135"><a href="#CULMainTrain.setup_task_specific-135"><span class="linenos">135</span></a>            <span class="n">unlearning_requests</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">unlearning_requests</span><span class="p">,</span>
 </span><span id="CULMainTrain.setup_task_specific-136"><a href="#CULMainTrain.setup_task_specific-136"><span class="linenos">136</span></a>            <span class="n">if_permanent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">permanent_mark</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">],</span>
@@ -759,8 +759,8 @@
 </span><span id="CULMainTrain.run_task-156"><a href="#CULMainTrain.run_task-156"><span class="linenos">156</span></a>            <span class="p">)</span>
 </span><span id="CULMainTrain.run_task-157"><a href="#CULMainTrain.run_task-157"><span class="linenos">157</span></a>
 </span><span id="CULMainTrain.run_task-158"><a href="#CULMainTrain.run_task-158"><span class="linenos">158</span></a>        <span class="c1"># unlearn</span>
-</span><span id="CULMainTrain.run_task-159"><a href="#CULMainTrain.run_task-159"><span class="linenos">159</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="o">.</span><span class="n">unlearn</span><span class="p">()</span>
-</span><span id="CULMainTrain.run_task-160"><a href="#CULMainTrain.run_task-160"><span class="linenos">160</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">unlearning_algorithm</span><span class="o">.</span><span class="n">setup_test_task_id</span><span class="p">()</span>
+</span><span id="CULMainTrain.run_task-159"><a href="#CULMainTrain.run_task-159"><span class="linenos">159</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="o">.</span><span class="n">unlearn</span><span class="p">()</span>
+</span><span id="CULMainTrain.run_task-160"><a href="#CULMainTrain.run_task-160"><span class="linenos">160</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cul_algorithm</span><span class="o">.</span><span class="n">setup_test_task_id</span><span class="p">()</span>
 </span><span id="CULMainTrain.run_task-161"><a href="#CULMainTrain.run_task-161"><span class="linenos">161</span></a>
 </span><span id="CULMainTrain.run_task-162"><a href="#CULMainTrain.run_task-162"><span class="linenos">162</span></a>        <span class="c1"># evaluation after training and validation</span>
 </span><span id="CULMainTrain.run_task-163"><a href="#CULMainTrain.run_task-163"><span class="linenos">163</span></a>        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_after_tasks</span><span class="p">:</span>

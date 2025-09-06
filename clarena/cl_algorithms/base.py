@@ -1,10 +1,11 @@
 r"""
-The submodule in `cl_algorithms` for CL algorithm bases.
+The submodule in `cl_algorithms` for continual learning algorithm bases.
 """
 
 __all__ = ["CLAlgorithm", "UnlearnableCLAlgorithm"]
 
 import logging
+from typing import Any
 
 from lightning import LightningModule
 from torch import Tensor, nn
@@ -19,20 +20,22 @@ pylogger = logging.getLogger(__name__)
 
 
 class CLAlgorithm(LightningModule):
-    r"""The base class of continual learning algorithms, inherits from `LightningModule`."""
+    r"""The base class of continual learning algorithms."""
 
     def __init__(
         self,
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
-        r"""Initialize the CL algorithm with the network.
-
+        r"""
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
         """
         super().__init__()
+        self.save_hyperparameters(non_algorithmic_hparams)
 
         # components
         self.backbone: CLBackbone = backbone
@@ -40,25 +43,25 @@ class CLAlgorithm(LightningModule):
         self.heads: HeadsTIL | HeadsCIL = heads
         r"""The output heads."""
         self.optimizer_t: Optimizer
-        r"""Optimizer (partially initialized) for backpropagation of task `self.task_id`. Will be equipped with parameters in `configure_optimizers()`."""
+        r"""Optimizer (partially initialized) for the current task `self.task_id`. Will be equipped with parameters in `configure_optimizers()`."""
         self.lr_scheduler_t: LRScheduler | None
-        r"""Learning rate scheduler for the optimizer. If `None`, no scheduler is used."""
+        r"""Learning rate scheduler for the optimizer of the current task `self.task_id`. If `None`, no scheduler is used."""
         self.criterion = nn.CrossEntropyLoss()
         r"""Loss function between the output logits and the target labels. Default is cross-entropy loss."""
 
         self.if_forward_func_return_logits_only: bool = False
         r"""Whether the `forward()` method returns logits only. If `False`, it returns a dictionary containing logits and other information. Default is `False`."""
 
-        # task ID controls
+        # task ID control
         self.task_id: int
         r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`."""
         self.processed_task_ids: list[int] = []
-        r"""Task IDs that have been processed in the experiment."""
+        r"""Task IDs that have been processed."""
 
         CLAlgorithm.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments."""
+        r"""Sanity check."""
 
         # check backbone and heads compatibility
         if self.backbone.output_dim != self.heads.input_dim:
@@ -69,7 +72,7 @@ class CLAlgorithm(LightningModule):
     def setup_task_id(
         self,
         task_id: int,
-        num_classes_t: int,
+        num_classes: int,
         optimizer: Optimizer,
         lr_scheduler: LRScheduler | None,
     ) -> None:
@@ -77,13 +80,14 @@ class CLAlgorithm(LightningModule):
 
         **Args:**
         - **task_id** (`int`): the target task ID.
-        - **num_classes_t** (`int`): the number of classes in the task.
-        - **optimizer** (`Optimizer`): the optimizer object (partially initialized) for the task `self.task_id`.
+        - **num_classes** (`int`): the number of classes in the task.
+        - **optimizer** (`Optimizer`): the optimizer object (partially initialized) for the task.
         - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.
         """
         self.task_id = task_id
         self.processed_task_ids.append(task_id)
-        self.heads.setup_task_id(task_id, num_classes_t)
+        self.backbone.setup_task_id(task_id=task_id)
+        self.heads.setup_task_id(task_id, num_classes)
         self.optimizer_t = optimizer
         self.lr_scheduler_t = lr_scheduler
 
@@ -94,7 +98,7 @@ class CLAlgorithm(LightningModule):
         - **dataloader_idx** (`int`): the dataloader index.
 
         **Returns:**
-        - **test_task_id** (`str`): the test task ID.
+        - **test_task_id** (`int`): the test task ID.
         """
         dataset_test = self.trainer.datamodule.dataset_test
         test_task_id = list(dataset_test.keys())[dataloader_idx]
@@ -103,7 +107,7 @@ class CLAlgorithm(LightningModule):
     def set_forward_func_return_logits_only(
         self, forward_func_return_logits_only: bool
     ) -> None:
-        r"""Set whether the `forward()` method returns logits only.
+        r"""Set whether the `forward()` method returns logits only. This is useful for some CL algorithms that require the forward function to return logits only, such as FG-AdaHAT.
 
         **Args:**
         - **forward_func_return_logits_only** (`bool`): whether the `forward()` method returns logits only. If `False`, it returns a dictionary containing logits and other information.
@@ -111,7 +115,7 @@ class CLAlgorithm(LightningModule):
         self.if_forward_func_return_logits_only = forward_func_return_logits_only
 
     def preceding_layer(self, layer_name: str) -> nn.Module | None:
-        r"""Get the preceding layer of the given layer. If the given layer is the first layer, return `None`.
+        r"""Get the preceding layer of the given layer (including backbone and output heads). If the given layer is the first layer, return `None`.
 
         **Args:**
         - **layer_name** (`str`): the name of the layer.
@@ -133,7 +137,7 @@ class CLAlgorithm(LightningModule):
         return preceding_layer
 
     def next_layer(self, layer_name: str) -> nn.Module | None:
-        r"""Get the next layer of the given layer. If the given layer is the last layer, return `None`.
+        r"""Get the next layer of the given layer (including backbone and output heads). If the given layer is the last layer, return `None`.
 
         **Args:**
         - **layer_name** (`str`): the name of the layer.
@@ -158,7 +162,7 @@ class CLAlgorithm(LightningModule):
 
         **Args:**
         - **input** (`Tensor`): the input tensor from data.
-        - **stage** (`str`): the stage of the forward pass, should be one of the following:
+        - **stage** (`str`): the stage of the forward pass; one of:
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
@@ -175,9 +179,7 @@ class CLAlgorithm(LightningModule):
         )
 
     def configure_optimizers(self) -> Optimizer:
-        r"""
-        Configure optimizer hooks by Lightning. See [Lightning docs](https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#configure-optimizers) for more details.
-        """
+        r"""Configure optimizer hooks by Lightning. See [Lightning docs](https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#configure-optimizers) for more details."""
         # finish partially initialized optimizer by specifying model parameters. The `parameters()` method of this `CLAlgorithm` (inherited from `LightningModule`) returns both backbone and heads parameters
         fully_initialized_optimizer = self.optimizer_t(params=self.parameters())
 
@@ -200,34 +202,36 @@ class CLAlgorithm(LightningModule):
 
 
 class UnlearnableCLAlgorithm(CLAlgorithm):
-    r"""The base class of unlearnable continual learning algorithms, inherits from `CLAlgorithm`."""
+    r"""The base class of unlearnable continual learning algorithms."""
 
     def __init__(
         self,
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
-        r"""Initialize the CL algorithm with the network.
-
+        r"""
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
         """
-        super().__init__(backbone=backbone, heads=heads)
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
 
         self.unlearning_task_ids: list[int]
-        r"""The list of task IDs to be unlearned after `self.task_id`. """
+        r"""The list of task IDs that are requested to be unlearned after training `self.task_id`."""
 
         self.unlearned_task_ids: set[int] = set()
         r"""The list of task IDs that have been unlearned in the experiment."""
 
-        # self.cfg_unlearning_test_reference: DictConfig
-        # r"""The reference experiment configuration for unlearning test."""
-
         UnlearnableCLAlgorithm.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments."""
+        r"""Sanity check."""
 
     def aggregated_backbone_output(self, input: Tensor) -> Tensor:
         r"""Get the aggregated backbone output for the input data. All parts of backbones should be aggregated together.

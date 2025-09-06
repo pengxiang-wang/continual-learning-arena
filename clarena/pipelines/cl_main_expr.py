@@ -1,10 +1,11 @@
 r"""
-The submodule in `experiments` for training continual learning main experiment.
+The submodule in `pipelines` for continual learning main experiment.
 """
 
-__all__ = ["CLMainTrain"]
+__all__ = ["CLMainExperiment"]
 
 import logging
+from typing import Any
 
 import hydra
 import lightning as L
@@ -18,18 +19,14 @@ from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import CLAlgorithm
 from clarena.cl_datasets import CLDataset
 from clarena.heads import HeadsCIL, HeadsTIL
+from clarena.utils.cfg import select_hyperparameters_from_config
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
-class CLMainTrain:
-    r"""The base class for training continual learning main experiment.
-
-    This class controls the entire
-    continual learning experiment lifecycle including dataset setup, model
-    instantiation, training, and evaluation across sequential tasks.
-    """
+class CLMainExperiment:
+    r"""The base class for continual learning main experiment."""
 
     def __init__(self, cfg: DictConfig) -> None:
         r"""
@@ -39,7 +36,7 @@ class CLMainTrain:
         self.cfg: DictConfig = cfg
         r"""The complete config dict."""
 
-        CLMainTrain.sanity_check(self)
+        CLMainExperiment.sanity_check(self)
 
         # required config fields
         self.cl_paradigm: str = cfg.cl_paradigm
@@ -59,7 +56,7 @@ class CLMainTrain:
         self.global_seed: int = cfg.global_seed
         r"""The global seed for the entire experiment."""
         self.output_dir: str = cfg.output_dir
-        r"""The folder name for storing the experiment results."""
+        r"""The folder for storing the experiment results."""
 
         # components
 
@@ -72,30 +69,32 @@ class CLMainTrain:
         r"""CL output heads object."""
         self.model: CLAlgorithm
         r"""CL model object."""
+        self.lightning_loggers: list[Logger]
+        r"""Lightning logger objects."""
+        self.callbacks: list[Callback]
+        r"""Callback objects."""
 
         # task-specific components
         self.optimizer_t: Optimizer
-        r"""Optimizer object for the current task `task_id`."""
-        self.lr_scheduler_t: LRScheduler
-        r"""Learning rate scheduler object for the current task `task_id`."""        self.lightning_loggers_t: list[Logger]
-        r"""Lightning logger objects for the current task `task_id`."""
-        self.callbacks_t: list[Callback]
-        r"""Callback objects for the current task `task_id`."""
+        r"""Optimizer object for the current task `self.task_id`."""
+        self.lr_scheduler_t: LRScheduler | None
+        r"""Learning rate scheduler object for the current task `self.task_id`."""
         self.trainer_t: Trainer
-        r"""Trainer object for the current task `task_id`."""
-
+        r"""Trainer object for the current task `self.task_id`."""
 
         # task ID control
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`."""
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to the number of tasks in the CL dataset."""
         self.processed_task_ids: list[int] = []
-        r"""Task IDs that have been processed in the experiment."""
+        r"""Task IDs that have been processed."""
 
     def sanity_check(self) -> None:
-        r"""Sanity check."""
+        r"""Sanity check for config."""
 
         # check required config fields
         required_config_fields = [
+            "pipeline",
+            "expr_name",
             "cl_paradigm",
             "train_tasks",
             "eval_after_tasks",
@@ -121,7 +120,7 @@ class CLMainTrain:
         # check cl_paradigm
         if self.cfg.cl_paradigm not in ["TIL", "CIL"]:
             raise ValueError(
-                f"Field cl_paradigm should be either 'TIL' or 'CIL' but got {self.cfg.cl_paradigm}!"
+                f"Field `cl_paradigm` should be either 'TIL' or 'CIL' but got {self.cfg.cl_paradigm}!"
             )
 
         # get dataset number of tasks
@@ -133,7 +132,7 @@ class CLMainTrain:
             num_tasks = len(self.cfg.cl_dataset.datasets)
         else:
             raise KeyError(
-                "num_tasks is required in cl_dataset config. Please specify `num_tasks` (for `CLPermutedDataset`) or `class_split` (for `CLSplitDataset`) or `datasets` (for `CLCombinedDataset`) in cl_dataset config."
+                "`num_tasks` is required in cl_dataset config. Please specify `num_tasks` (for `CLPermutedDataset`) or `class_split` (for `CLSplitDataset`) or `datasets` (for `CLCombinedDataset`) in cl_dataset config."
             )
 
         # check train_tasks
@@ -226,8 +225,14 @@ class CLMainTrain:
         )
         pylogger.debug("%s heads instantiated!", cl_paradigm)
 
-    def instantiate_cl_algorithm(self, cl_algorithm_cfg: DictConfig) -> None:
-        r"""Instantiate the cl_algorithm object from `cl_algorithm_cfg`. This should be done after the backbone and heads are instantiated, as they are required arguments for the CLAlgorithm instantiation."""
+    def instantiate_cl_algorithm(
+        self,
+        cl_algorithm_cfg: DictConfig,
+        backbone: CLBackbone,
+        heads: HeadsTIL | HeadsCIL,
+        non_algorithmic_hparams: dict[str, Any],
+    ) -> None:
+        r"""Instantiate the cl_algorithm object from `cl_algorithm_cfg`, `backbone`, `heads` and `non_algorithmic_hparams`."""
         pylogger.debug(
             "CL algorithm is set as <%s>. Instantiating <%s> (clarena.cl_algorithms.CLAlgorithm)...",
             cl_algorithm_cfg.get("_target_"),
@@ -235,8 +240,9 @@ class CLMainTrain:
         )
         self.model = hydra.utils.instantiate(
             cl_algorithm_cfg,
-            backbone=self.backbone,
-            heads=self.heads,
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
         )
         pylogger.debug(
             "<%s> (clarena.cl_algorithms.CLAlgorithm) instantiated!",
@@ -282,7 +288,7 @@ class CLMainTrain:
             pylogger.debug(
                 "Distinct learning rate scheduler config is applied to each task."
             )
-            lr_scheduler_cfg = lr_scheduler_cfg[f"{task_id}"]
+            lr_scheduler_cfg = lr_scheduler_cfg[task_id]
         else:
             pylogger.debug(
                 "Uniform learning rate scheduler config is applied to all tasks."
@@ -301,68 +307,64 @@ class CLMainTrain:
             task_id,
         )
 
-    def instantiate_lightning_loggers(
-        self, lightning_loggers_cfg: DictConfig, task_id: int
-    ) -> None:
-        r"""Instantiate the list of lightning loggers objects for task `task_id` from `lightning_loggers_cfg`."""
+    def instantiate_lightning_loggers(self, lightning_loggers_cfg: DictConfig) -> None:
+        r"""Instantiate the list of lightning loggers objects from `lightning_loggers_cfg`."""
 
-        pylogger.debug(
-            "Instantiating Lightning loggers (lightning.Logger) for task %d...", task_id
-        )
-        self.lightning_loggers_t = [
-            hydra.utils.instantiate(
-                lightning_logger, version=f"task_{task_id}"
-            )  # change the directory name to "task_" prefix in lightning logs
+        pylogger.debug("Instantiating Lightning loggers (lightning.Logger)...")
+        self.lightning_loggers = [
+            hydra.utils.instantiate(lightning_logger)
             for lightning_logger in lightning_loggers_cfg.values()
         ]
-        pylogger.debug(
-            "Lightning loggers (lightning.Logger) for task %d instantiated!", task_id
-        )
+        pylogger.debug("Lightning loggers (lightning.Logger) instantiated!")
 
     def instantiate_callbacks(
-        self, metrics_cfg: ListConfig, callbacks_cfg: ListConfig, task_id: int
+        self, metrics_cfg: ListConfig, callbacks_cfg: ListConfig
     ) -> None:
         r"""Instantiate the list of callbacks objects from `metrics_cfg` and `callbacks_cfg`. Note that `metrics_cfg` is a list of metric callbacks and `callbacks_cfg` is a list of callbacks other the metric callbacks. The instantiated callbacks contain both metric callbacks and other callbacks."""
         pylogger.debug(
-            "Instantiating callbacks (lightning.Callback) for task %d...", task_id
+            "Instantiating callbacks (lightning.Callback)...",
         )
 
         # instantiate metric callbacks
-        metric_callbacks: list[Callback] = [
+        metric_callbacks = [
             hydra.utils.instantiate(callback) for callback in metrics_cfg
         ]
 
         # instantiate other callbacks
-        other_callbacks: list[Callback] = [
+        other_callbacks = [
             hydra.utils.instantiate(callback) for callback in callbacks_cfg
         ]
 
         # add metric callbacks to the list of callbacks
-        self.callbacks_t = metric_callbacks + other_callbacks
-        pylogger.debug(
-            "Callbacks (lightning.Callback) for task %d instantiated!", task_id
-        )
+        self.callbacks = metric_callbacks + other_callbacks
+        pylogger.debug("Callbacks (lightning.Callback) instantiated!")
 
-    def instantiate_trainer(self, trainer_cfg: DictConfig, task_id: int) -> None:
-        r"""Instantiate the trainer object for task `task_id` from `trainer_cfg`. This should be done after the lightning loggers and callbacks are instantiated, as they are required arguments for the Trainer instantiation."""
+    def instantiate_trainer(
+        self,
+        trainer_cfg: DictConfig,
+        lightning_loggers: list[Logger],
+        callbacks: list[Callback],
+        task_id: int,
+    ) -> None:
+        r"""Instantiate the trainer object for task `task_id` from `trainer_cfg`, `lightning_loggers`, and `callbacks`."""
 
         if not trainer_cfg.get("_target_"):
             pylogger.debug("Distinct trainer config is applied to each task.")
-            trainer_cfg = trainer_cfg[f"{task_id}"]
+            trainer_cfg = trainer_cfg[task_id]
         else:
             pylogger.debug("Uniform trainer config is applied to all tasks.")
 
         pylogger.debug(
-            "Instantiating trainer <%s> (lightning.Trainer) for task %d...",
-            trainer_cfg.get("_target_"),
+            "Instantiating trainer (lightning.Trainer) for task %d...",
             task_id,
         )
         self.trainer_t = hydra.utils.instantiate(
-            trainer_cfg, callbacks=self.callbacks_t, logger=self.lightning_loggers_t
+            trainer_cfg,
+            logger=lightning_loggers,
+            callbacks=callbacks,
         )
         pylogger.debug(
-            "Trainer <%s> (lightning.Trainer) for task %d instantiated!",
-            trainer_cfg.get("_target_"),
+            "Trainer (lightning.Trainer) for task %d instantiated!",
             task_id,
         )
 
@@ -372,7 +374,7 @@ class CLMainTrain:
         pylogger.debug("Global seed is set as %d.", global_seed)
 
     def run(self) -> None:
-        r"""The main method to run the continual learning experiment."""
+        r"""The main method to run the continual learning main experiment."""
 
         self.set_global_seed(self.global_seed)
 
@@ -384,8 +386,20 @@ class CLMainTrain:
             cl_paradigm=self.cl_paradigm, input_dim=self.cfg.backbone.output_dim
         )
         self.instantiate_cl_algorithm(
-            cl_algorithm_cfg=self.cfg.cl_algorithm
+            cl_algorithm_cfg=self.cfg.cl_algorithm,
+            backbone=self.backbone,
+            heads=self.heads,
+            non_algorithmic_hparams=select_hyperparameters_from_config(
+                cfg=self.cfg, type=self.cfg.pipeline
+            ),
         )  # cl_algorithm should be instantiated after backbone and heads
+        self.instantiate_lightning_loggers(
+            lightning_loggers_cfg=self.cfg.lightning_loggers
+        )
+        self.instantiate_callbacks(
+            metrics_cfg=self.cfg.metrics,
+            callbacks_cfg=self.cfg.callbacks,
+        )
 
         # task loop
         for task_id in self.train_tasks:
@@ -402,28 +416,20 @@ class CLMainTrain:
                     lr_scheduler_cfg=self.cfg.lr_scheduler,
                     task_id=task_id,
                 )
-            self.instantiate_callbacks(
-                metrics_cfg=self.cfg.metrics,
-                callbacks_cfg=self.cfg.callbacks,
-                task_id=task_id,
-            )
-            self.instantiate_lightning_loggers(
-                lightning_loggers_cfg=self.cfg.lightning_loggers, task_id=task_id
-            )
             self.instantiate_trainer(
-                trainer_cfg=self.cfg.trainer, task_id=task_id
+                trainer_cfg=self.cfg.trainer,
+                lightning_loggers=self.lightning_loggers,
+                callbacks=self.callbacks,
+                task_id=task_id,
             )  # trainer should be instantiated after lightning loggers and callbacks
 
-            # setup task ID for dataset, backbone and model
+            # setup task ID for dataset and model
             self.cl_dataset.setup_task_id(task_id=task_id)
-            self.backbone.setup_task_id(task_id=task_id)
             self.model.setup_task_id(
                 task_id=task_id,
-                num_classes_t=len(self.cl_dataset.get_cl_class_map(self.task_id)),
+                num_classes=len(self.cl_dataset.get_cl_class_map(self.task_id)),
                 optimizer=self.optimizer_t,
-                lr_scheduler=(
-                    self.lr_scheduler_t if self.cfg.get("lr_scheduler") else None
-                ),
+                lr_scheduler=self.lr_scheduler_t,
             )
 
             # train and validate the model

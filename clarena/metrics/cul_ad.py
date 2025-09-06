@@ -15,8 +15,8 @@ from lightning.pytorch.utilities import rank_zero_only
 from matplotlib import pyplot as plt
 from torchmetrics import MeanMetric
 
-from clarena.utils.eval import CULEvaluation
 from clarena.metrics import MetricCallback
+from clarena.utils.eval import CULEvaluation
 from clarena.utils.metrics import MeanMetricBatch
 
 # always get logger for built-in logging in each module
@@ -45,8 +45,7 @@ class CULAccuracyDifference(MetricCallback):
         accuracy_difference_csv_name: str = "ad.csv",
         accuracy_difference_plot_name: str | None = None,
     ) -> None:
-        r"""Initialize the `CULAccuracyDifference`.
-
+        r"""
         **Args:**
         - **save_dir** (`str`): The directory where data and figures of metrics will be saved. Better inside the output folder.
         - **accuracy_difference_csv_name** (`str`): file name to save test accuracy difference metrics as CSV file.
@@ -59,19 +58,20 @@ class CULAccuracyDifference(MetricCallback):
         self.accuracy_difference_csv_path: str = os.path.join(
             self.save_dir, accuracy_difference_csv_name
         )
-        r"""Store the path to save the test accuracy difference metrics CSV file."""
+        r"""The path to save the test accuracy difference metrics CSV file."""
         if accuracy_difference_plot_name:
             self.accuracy_difference_plot_path: str = os.path.join(
                 self.save_dir, accuracy_difference_plot_name
             )
-            r"""Store the path to save the test accuracy difference metrics plot file."""
+            r"""The path to save the test accuracy difference metrics plot file."""
 
         # test accumulated metrics
-        self.accuracy_difference: dict[str, MeanMetricBatch] = {}
+        self.accuracy_difference: dict[int, MeanMetricBatch] = {}
         r"""Accuracy difference (between main and full model) metrics for each seen task. Accumulated and calculated from the test batches. Keys are task IDs and values are the corresponding metrics."""
 
+        # task ID control
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`."""
 
     @rank_zero_only
     def on_test_start(
@@ -86,7 +86,7 @@ class CULAccuracyDifference(MetricCallback):
 
         # initialize test metrics for evaluation tasks
         self.accuracy_difference = {
-            f"{task_id}": MeanMetricBatch().to(device)
+            task_id: MeanMetricBatch().to(device)
             for task_id in pl_module.ad_eval_task_ids
         }
 
@@ -117,7 +117,7 @@ class CULAccuracyDifference(MetricCallback):
         acc_diff = outputs["acc_diff"]  # accuracy difference
 
         # update the accumulated metrics in order to calculate the metrics of the epoch
-        self.accuracy_difference[f"{test_task_id}"].update(acc_diff, batch_size)
+        self.accuracy_difference[test_task_id].update(acc_diff, batch_size)
 
     @rank_zero_only
     def on_test_epoch_end(
@@ -131,20 +131,22 @@ class CULAccuracyDifference(MetricCallback):
             accuracy_difference_metric=self.accuracy_difference,
             csv_path=self.accuracy_difference_csv_path,
         )
-        self.plot_unlearning_accuracy_difference_from_csv(
-            csv_path=self.accuracy_difference_csv_path,
-            plot_path=self.accuracy_difference_plot_path,
-        )
+
+        if hasattr(self, "accuracy_difference_plot_path"):
+            self.plot_unlearning_accuracy_difference_from_csv(
+                csv_path=self.accuracy_difference_csv_path,
+                plot_path=self.accuracy_difference_plot_path,
+            )
 
     def update_unlearning_accuracy_difference_to_csv(
         self,
-        accuracy_difference_metric: dict[str, MeanMetricBatch],
+        accuracy_difference_metric: dict[int, MeanMetricBatch],
         csv_path: str,
     ) -> None:
         r"""Update the unlearning accuracy difference metrics of unlearning tasks to CSV file.
 
         **Args:**
-        - **accuracy_difference_metric** (`dict[str, MeanMetricBatch]`): the accuracy difference metric. Accumulated and calculated from the unlearning test batches.
+        - **accuracy_difference_metric** (`dict[int, MeanMetricBatch]`): the accuracy difference metric. Accumulated and calculated from the unlearning test batches.
         - **csv_path** (`str`): save the test metric to path. E.g. './outputs/expr_name/1970-01-01_00-00-00/results/unlearning_test_after_task_X/distance.csv'.
         """
 
@@ -160,7 +162,7 @@ class CULAccuracyDifference(MetricCallback):
             next(iter(accuracy_difference_metric.values())).device
         )
         for task_id in eval_task_ids:
-            loss_cls = accuracy_difference_metric[f"{task_id}"].compute().item()
+            loss_cls = accuracy_difference_metric[task_id].compute().item()
             new_line[f"unlearning_test_on_task_{task_id}"] = loss_cls
             average_accuracy_difference_over_unlearned_tasks(loss_cls)
         new_line["average_accuracy_difference"] = (
@@ -190,7 +192,7 @@ class CULAccuracyDifference(MetricCallback):
         """Plot the unlearning accuracy difference matrix over different unlearned tasks from saved CSV file and save the plot to the designated directory.
 
         **Args:**
-        - **csv_path** (`str`): the path to the CSV file where the `utils.save_unlearning_test_distance_to_csv()` saved the unlearning test distance metric.
+        - **csv_path** (`str`): the path to the CSV file where the `utils.save_accuracy_difference_to_csv()` saved the accuracy difference metric.
         - **plot_path** (`str`): the path to save plot. Better same as the output directory of the experiment. E.g. './outputs/expr_name/1970-01-01_00-00-00/results/unlearning_test_after_task_X/distance.png'.
         """
         data = pd.read_csv(csv_path)

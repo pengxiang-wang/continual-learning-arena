@@ -5,6 +5,7 @@ The submodule in `cl_algorithms` for [AdaHAT (Adaptive Hard Attention to the Tas
 __all__ = ["AdaHAT"]
 
 import logging
+from typing import Any
 
 import torch
 from torch import Tensor
@@ -38,6 +39,7 @@ class AdaHAT(HAT):
         mask_sparsity_reg_mode: str = "original",
         task_embedding_init_mode: str = "N01",
         epsilon: float = 0.1,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the AdaHAT algorithm with the network.
 
@@ -62,6 +64,7 @@ class AdaHAT(HAT):
             4. 'U-10': uniform distribution $U(-1, 0)$.
             5. 'last': inherit the task embedding from the last task.
         - **epsilon** (`float`): the value added to network sparsity to avoid division by zero (appearing in Eq. (9) of the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9)).
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
         """
         super().__init__(
             backbone=backbone,
@@ -73,12 +76,16 @@ class AdaHAT(HAT):
             mask_sparsity_reg_mode=mask_sparsity_reg_mode,
             task_embedding_init_mode=task_embedding_init_mode,
             alpha=None,
+            non_algorithmic_hparams=non_algorithmic_hparams,
         )
 
         self.adjustment_intensity: float = adjustment_intensity
         r"""The adjustment intensity in Eq. (9) of the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9)."""
         self.epsilon: float | None = epsilon
         r"""The small value to avoid division by zero (appearing in Eq. (9) of the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9))."""
+
+        # save additional algorithmic hyperparameters
+        self.save_hyperparameters("adjustment_intensity", "epsilon")
 
         self.summative_mask_for_previous_tasks: dict[str, Tensor] = {}
         r"""The summative binary attention mask $\mathrm{M}^{<t,\text{sum}}$ of previous tasks $1,\cdots, t-1$, gated from the task embedding. It is a dict where keys are layer names and values are the binary mask tensors for the layers. The mask tensor has size (number of units, )."""
@@ -89,7 +96,7 @@ class AdaHAT(HAT):
         AdaHAT.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments."""
+        r"""Sanity check."""
         if self.adjustment_intensity <= 0:
             raise ValueError(
                 f"The adjustment intensity should be positive, but got {self.adjustment_intensity}."
@@ -150,7 +157,7 @@ class AdaHAT(HAT):
 
             weight_importance, bias_importance = (
                 self.backbone.get_layer_measure_parameter_wise(
-                    unit_wise_measure=self.summative_mask_for_previous_tasks,
+                    neuron_wise_measure=self.summative_mask_for_previous_tasks,
                     layer_name=layer_name,
                     aggregation_mode="min",
                 )

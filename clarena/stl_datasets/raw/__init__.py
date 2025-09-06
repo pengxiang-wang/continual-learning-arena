@@ -1,8 +1,8 @@
 r"""
 
-# Original Datasets
+# Raw Datasets
 
-This submodule provides the **original datasets** that are used for constructing continual learning datasets.
+This submodule provides the **raw datasets** that are used for constructing continual learning, multi-task learning and single-task learning datasets.
 
 The datasets are implemented as subclasses of PyTorch `Dataset` classes.
 """

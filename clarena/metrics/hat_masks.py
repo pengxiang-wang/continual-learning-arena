@@ -13,7 +13,7 @@ from lightning.pytorch.utilities import rank_zero_only
 from matplotlib import pyplot as plt
 from torch import Tensor
 
-from clarena.cl_algorithms import HAT, CLAlgorithm
+from clarena.cl_algorithms import HAT
 from clarena.metrics import MetricCallback
 
 # always get logger for built-in logging in each module
@@ -39,8 +39,7 @@ class HATMasks(MetricCallback):
         training_masks_dir_name: str | None = None,
         plot_training_mask_every_n_steps: int | None = None,
     ) -> None:
-        r"""Initialize the `HATMasks`.
-
+        r"""
         **Args:**
         - **save_dir** (`str`): the directory to save the mask figures. Better inside the output folder.
         - **test_masks_dir_name** (`str` | `None`): the relative path to `save_dir` to save the test mask figures. If `None`, no file will be saved.
@@ -53,26 +52,27 @@ class HATMasks(MetricCallback):
         # paths
         if test_masks_dir_name is not None:
             self.test_masks_dir: str = os.path.join(self.save_dir, test_masks_dir_name)
-            r"""Store the directory to save the test mask figures."""
+            r"""The directory to save the test mask figures."""
         if test_cumulative_masks_dir_name is not None:
             self.test_cumulative_masks_dir: str = os.path.join(
                 self.save_dir, test_cumulative_masks_dir_name
             )
-            r"""Store the directory to save the test cumulative mask figures."""
+            r"""The directory to save the test cumulative mask figures."""
         if training_masks_dir_name is not None:
             self.training_masks_dir: str = os.path.join(
                 self.save_dir, training_masks_dir_name
             )
-            r"""Store the directory to save the training mask figures."""
+            r"""The directory to save the training mask figures."""
 
         # other settings
         self.plot_training_mask_every_n_steps: int = plot_training_mask_every_n_steps
-        r"""Store the frequency of plotting training masks in terms of number of batches."""
+        r"""The frequency of plotting training masks in terms of number of batches."""
 
+        # task ID control
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`."""
 
-    def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
+    def on_fit_start(self, trainer: Trainer, pl_module: HAT) -> None:
         r"""Get the current task ID in the beginning of a task's fitting (training and validation). Sanity check the `pl_module` to be `HAT`.
 
         **Raises:**
@@ -90,7 +90,7 @@ class HATMasks(MetricCallback):
     def on_train_batch_end(
         self,
         trainer: Trainer,
-        pl_module: CLAlgorithm,
+        pl_module: HAT,
         outputs: dict[str, Any],
         batch: Any,
         batch_idx: int,
@@ -98,7 +98,7 @@ class HATMasks(MetricCallback):
         r"""Plot training mask after training batch.
 
         **Args:**
-        - **outputs** (`dict[str, Any]`): the outputs of the training step, which is the returns of the `training_step()` method in the `CLAlgorithm`.
+        - **outputs** (`dict[str, Any]`): the outputs of the training step, which is the returns of the `training_step()` method in the `HAT`.
         - **batch** (`Any`): the training data batch.
         - **batch_idx** (`int`): the index of the current batch. This is for the file name of mask figures.
         """
@@ -107,7 +107,7 @@ class HATMasks(MetricCallback):
         mask = outputs["mask"]
 
         # plot the mask
-        if self.training_masks_dir is not None:
+        if hasattr(self, "training_masks_dir"):
             if batch_idx % self.plot_training_mask_every_n_steps == 0:
                 self.plot_hat_mask(
                     mask=mask,
@@ -117,22 +117,24 @@ class HATMasks(MetricCallback):
                 )
 
     @rank_zero_only
-    def on_test_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
+    def on_test_start(self, trainer: Trainer, pl_module: HAT) -> None:
         r"""Plot test mask and cumulative mask figures."""
 
         # test mask
-        mask = pl_module.masks[f"{self.task_id}"]
-        self.plot_hat_mask(
-            mask=mask, plot_dir=self.test_masks_dir, task_id=self.task_id
-        )
+        if hasattr(self, "test_masks_dir"):
+            mask = pl_module.masks[self.task_id]
+            self.plot_hat_mask(
+                mask=mask, plot_dir=self.test_masks_dir, task_id=self.task_id
+            )
 
         # cumulative mask
-        cumulative_mask = pl_module.cumulative_mask_for_previous_tasks
-        self.plot_hat_mask(
-            mask=cumulative_mask,
-            plot_dir=self.test_cumulative_masks_dir,
-            task_id=self.task_id,
-        )
+        if hasattr(self, "test_cumulative_masks_dir"):
+            cumulative_mask = pl_module.cumulative_mask_for_previous_tasks
+            self.plot_hat_mask(
+                mask=cumulative_mask,
+                plot_dir=self.test_cumulative_masks_dir,
+                task_id=self.task_id,
+            )
 
     def plot_hat_mask(
         self,
@@ -144,7 +146,7 @@ class HATMasks(MetricCallback):
         """Plot mask in [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a)) algorithm. This includes the mask and cumulative mask.
 
         **Args:**
-        - **mask** (`dict[str, Tensor]`): the hard attention (whose values are 0 or 1) mask. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
+        - **mask** (`dict[str, Tensor]`): the hard attention (whose values are 0 or 1) mask. Keys (`str`) are layer name and values (`Tensor`) are the mask tensors. The mask tensor has size (number of units, ).
         - **plot_dir** (`str`): the directory to save plot. Better same as the output directory of the experiment.
         - **task_id** (`int`): the task ID of the mask to be plotted. This is to form the plot name.
         - **step** (`int`): the training step (batch index) of the mask to be plotted. Apply to the training mask only. This is to form the plot name. Keep `None` for not showing the step in the plot name.

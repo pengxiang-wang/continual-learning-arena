@@ -36,8 +36,7 @@ class STLAccuracy(MetricCallback):
         save_dir: str,
         test_acc_csv_name: str = "acc.csv",
     ) -> None:
-        r"""Initialize the `STLAccuracy`.
-
+        r"""
         **Args:**
         - **save_dir** (`str`): The directory where data and figures of metrics will be saved. Better inside the output folder.
         - **test_acc_csv_name** (`str`): file name to save test accuracy of all tasks and average accuracy as CSV file.

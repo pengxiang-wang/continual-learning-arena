@@ -1310,7 +1310,7 @@
 </span><span id="L-987"><a href="#L-987"><span class="linenos"> 987</span></a>
 </span><span id="L-988"><a href="#L-988"><span class="linenos"> 988</span></a><span class="sd">    It consists of 2 weight convolutional layers, each followed by an activation function. See Table 1 or Figure 5 (left) in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html).</span>
 </span><span id="L-989"><a href="#L-989"><span class="linenos"> 989</span></a>
-</span><span id="L-990"><a href="#L-990"><span class="linenos"> 990</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="L-990"><a href="#L-990"><span class="linenos"> 990</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="L-991"><a href="#L-991"><span class="linenos"> 991</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-992"><a href="#L-992"><span class="linenos"> 992</span></a>
 </span><span id="L-993"><a href="#L-993"><span class="linenos"> 993</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -1333,11 +1333,11 @@
 </span><span id="L-1010"><a href="#L-1010"><span class="linenos">1010</span></a><span class="sd">        - **preceding_output_channels** (`int`): the number of channels of preceding output of this particular building block.</span>
 </span><span id="L-1011"><a href="#L-1011"><span class="linenos">1011</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block.</span>
 </span><span id="L-1012"><a href="#L-1012"><span class="linenos">1012</span></a><span class="sd">        - **overall_stride** (`int`): the overall stride of this building block. This stride is performed at 2nd (last) convolutional layer where the 1st convolutional layer remain stride of 1.</span>
-</span><span id="L-1013"><a href="#L-1013"><span class="linenos">1013</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="L-1013"><a href="#L-1013"><span class="linenos">1013</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="L-1014"><a href="#L-1014"><span class="linenos">1014</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="L-1015"><a href="#L-1015"><span class="linenos">1015</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="L-1016"><a href="#L-1016"><span class="linenos">1016</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
-</span><span id="L-1017"><a href="#L-1017"><span class="linenos">1017</span></a><span class="sd">        - **batch_normalization** (`str` | `None`): the way to use batch normalization after the fully-connected layers, should be one of the following:</span>
+</span><span id="L-1017"><a href="#L-1017"><span class="linenos">1017</span></a><span class="sd">        - **batch_normalization** (`str` | `None`): the way to use batch normalization after the fully-connected layers; one of:</span>
 </span><span id="L-1018"><a href="#L-1018"><span class="linenos">1018</span></a><span class="sd">            - `None`: no batch normalization layers.</span>
 </span><span id="L-1019"><a href="#L-1019"><span class="linenos">1019</span></a><span class="sd">            - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.</span>
 </span><span id="L-1020"><a href="#L-1020"><span class="linenos">1020</span></a><span class="sd">            - `independent`: use independent batch normalization layers for each task.</span>
@@ -1423,11 +1423,11 @@
 </span><span id="L-1100"><a href="#L-1100"><span class="linenos">1100</span></a>
 </span><span id="L-1101"><a href="#L-1101"><span class="linenos">1101</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-1102"><a href="#L-1102"><span class="linenos">1102</span></a><span class="sd">        - **input** (`Tensor`): The input tensor from data.</span>
-</span><span id="L-1103"><a href="#L-1103"><span class="linenos">1103</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="L-1103"><a href="#L-1103"><span class="linenos">1103</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="L-1104"><a href="#L-1104"><span class="linenos">1104</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="L-1105"><a href="#L-1105"><span class="linenos">1105</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="L-1106"><a href="#L-1106"><span class="linenos">1106</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
-</span><span id="L-1107"><a href="#L-1107"><span class="linenos">1107</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="L-1107"><a href="#L-1107"><span class="linenos">1107</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="L-1108"><a href="#L-1108"><span class="linenos">1108</span></a><span class="sd">        - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="L-1109"><a href="#L-1109"><span class="linenos">1109</span></a><span class="sd">        - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="L-1110"><a href="#L-1110"><span class="linenos">1110</span></a><span class="sd">        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.</span>
@@ -1482,7 +1482,7 @@
 </span><span id="L-1159"><a href="#L-1159"><span class="linenos">1159</span></a>
 </span><span id="L-1160"><a href="#L-1160"><span class="linenos">1160</span></a><span class="sd">    It consists of 3 weight convolutional layers, each followed by an activation function. See Table 1 or Figure 5 (right) in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html).</span>
 </span><span id="L-1161"><a href="#L-1161"><span class="linenos">1161</span></a>
-</span><span id="L-1162"><a href="#L-1162"><span class="linenos">1162</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="L-1162"><a href="#L-1162"><span class="linenos">1162</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="L-1163"><a href="#L-1163"><span class="linenos">1163</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-1164"><a href="#L-1164"><span class="linenos">1164</span></a>
 </span><span id="L-1165"><a href="#L-1165"><span class="linenos">1165</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -1504,7 +1504,7 @@
 </span><span id="L-1181"><a href="#L-1181"><span class="linenos">1181</span></a><span class="sd">        - **preceding_output_channels** (`int`): the number of channels of preceding output of this particular building block.</span>
 </span><span id="L-1182"><a href="#L-1182"><span class="linenos">1182</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block.</span>
 </span><span id="L-1183"><a href="#L-1183"><span class="linenos">1183</span></a><span class="sd">        - **overall_stride** (`int`): the overall stride of this building block. This stride is performed at 2nd (middle) convolutional layer where 1st and 3rd convolutional layers remain stride of 1.</span>
-</span><span id="L-1184"><a href="#L-1184"><span class="linenos">1184</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="L-1184"><a href="#L-1184"><span class="linenos">1184</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="L-1185"><a href="#L-1185"><span class="linenos">1185</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="L-1186"><a href="#L-1186"><span class="linenos">1186</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="L-1187"><a href="#L-1187"><span class="linenos">1187</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -1560,11 +1560,11 @@
 </span><span id="L-1237"><a href="#L-1237"><span class="linenos">1237</span></a>
 </span><span id="L-1238"><a href="#L-1238"><span class="linenos">1238</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-1239"><a href="#L-1239"><span class="linenos">1239</span></a><span class="sd">        - **input** (`Tensor`): The input tensor from data.</span>
-</span><span id="L-1240"><a href="#L-1240"><span class="linenos">1240</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="L-1240"><a href="#L-1240"><span class="linenos">1240</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="L-1241"><a href="#L-1241"><span class="linenos">1241</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="L-1242"><a href="#L-1242"><span class="linenos">1242</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="L-1243"><a href="#L-1243"><span class="linenos">1243</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
-</span><span id="L-1244"><a href="#L-1244"><span class="linenos">1244</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="L-1244"><a href="#L-1244"><span class="linenos">1244</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="L-1245"><a href="#L-1245"><span class="linenos">1245</span></a><span class="sd">        - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="L-1246"><a href="#L-1246"><span class="linenos">1246</span></a><span class="sd">        - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="L-1247"><a href="#L-1247"><span class="linenos">1247</span></a><span class="sd">        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.</span>
@@ -1629,7 +1629,7 @@
 </span><span id="L-1306"><a href="#L-1306"><span class="linenos">1306</span></a>
 </span><span id="L-1307"><a href="#L-1307"><span class="linenos">1307</span></a><span class="sd">    ResNet is a convolutional network architecture, which has 1st convolutional parameter layer and a maxpooling layer, connecting to 4 convolutional layers which contains multiple convolutional parameter layer. Each layer of the 4 are constructed from basic building blocks which are either small (`ResNetBlockSmall`) or large (`ResNetBlockLarge`). Each building block contains several convolutional parameter layers. The building blocks are connected by a skip connection which is a direct connection from the input of the block to the output of the block, and this is why it&#39;s called residual (find &quot;shortcut connections&quot; in the paper for more details). After the 5th convolutional layer, there are average pooling layer and a fully connected layer which connects to the CL output heads.</span>
 </span><span id="L-1308"><a href="#L-1308"><span class="linenos">1308</span></a>
-</span><span id="L-1309"><a href="#L-1309"><span class="linenos">1309</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="L-1309"><a href="#L-1309"><span class="linenos">1309</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="L-1310"><a href="#L-1310"><span class="linenos">1310</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-1311"><a href="#L-1311"><span class="linenos">1311</span></a>
 </span><span id="L-1312"><a href="#L-1312"><span class="linenos">1312</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -1653,7 +1653,7 @@
 </span><span id="L-1330"><a href="#L-1330"><span class="linenos">1330</span></a><span class="sd">        - **building_block_preceding_output_channels** (`tuple[int, int, int, int]`): the number of channels of preceding output of each building block in the 2-5 convolutional layer correspondingly.</span>
 </span><span id="L-1331"><a href="#L-1331"><span class="linenos">1331</span></a><span class="sd">        - **building_block_input_channels** (`tuple[int, int, int, int]`): the number of channels of input of each building block in the 2-5 convolutional layer correspondingly.</span>
 </span><span id="L-1332"><a href="#L-1332"><span class="linenos">1332</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="L-1333"><a href="#L-1333"><span class="linenos">1333</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="L-1333"><a href="#L-1333"><span class="linenos">1333</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="L-1334"><a href="#L-1334"><span class="linenos">1334</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="L-1335"><a href="#L-1335"><span class="linenos">1335</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="L-1336"><a href="#L-1336"><span class="linenos">1336</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.</span>
@@ -1775,11 +1775,11 @@
 </span><span id="L-1452"><a href="#L-1452"><span class="linenos">1452</span></a>
 </span><span id="L-1453"><a href="#L-1453"><span class="linenos">1453</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-1454"><a href="#L-1454"><span class="linenos">1454</span></a><span class="sd">        - **input** (`Tensor`): the input tensor from data.</span>
-</span><span id="L-1455"><a href="#L-1455"><span class="linenos">1455</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="L-1455"><a href="#L-1455"><span class="linenos">1455</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="L-1456"><a href="#L-1456"><span class="linenos">1456</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="L-1457"><a href="#L-1457"><span class="linenos">1457</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="L-1458"><a href="#L-1458"><span class="linenos">1458</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
-</span><span id="L-1459"><a href="#L-1459"><span class="linenos">1459</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="L-1459"><a href="#L-1459"><span class="linenos">1459</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="L-1460"><a href="#L-1460"><span class="linenos">1460</span></a><span class="sd">        - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="L-1461"><a href="#L-1461"><span class="linenos">1461</span></a><span class="sd">        - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="L-1462"><a href="#L-1462"><span class="linenos">1462</span></a><span class="sd">        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.</span>
@@ -1869,7 +1869,7 @@
 </span><span id="L-1546"><a href="#L-1546"><span class="linenos">1546</span></a>
 </span><span id="L-1547"><a href="#L-1547"><span class="linenos">1547</span></a><span class="sd">    ResNet-18 is a smaller architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 18 weight convolutional layers in total. See Table 1 in the paper for details.</span>
 </span><span id="L-1548"><a href="#L-1548"><span class="linenos">1548</span></a>
-</span><span id="L-1549"><a href="#L-1549"><span class="linenos">1549</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="L-1549"><a href="#L-1549"><span class="linenos">1549</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="L-1550"><a href="#L-1550"><span class="linenos">1550</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-1551"><a href="#L-1551"><span class="linenos">1551</span></a>
 </span><span id="L-1552"><a href="#L-1552"><span class="linenos">1552</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -1886,7 +1886,7 @@
 </span><span id="L-1563"><a href="#L-1563"><span class="linenos">1563</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-1564"><a href="#L-1564"><span class="linenos">1564</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="L-1565"><a href="#L-1565"><span class="linenos">1565</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="L-1566"><a href="#L-1566"><span class="linenos">1566</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="L-1566"><a href="#L-1566"><span class="linenos">1566</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="L-1567"><a href="#L-1567"><span class="linenos">1567</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="L-1568"><a href="#L-1568"><span class="linenos">1568</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="L-1569"><a href="#L-1569"><span class="linenos">1569</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -1928,7 +1928,7 @@
 </span><span id="L-1605"><a href="#L-1605"><span class="linenos">1605</span></a>
 </span><span id="L-1606"><a href="#L-1606"><span class="linenos">1606</span></a><span class="sd">    ResNet-34 is a smaller architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 34 weight convolutional layers in total. See Table 1 in the paper for details.</span>
 </span><span id="L-1607"><a href="#L-1607"><span class="linenos">1607</span></a>
-</span><span id="L-1608"><a href="#L-1608"><span class="linenos">1608</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="L-1608"><a href="#L-1608"><span class="linenos">1608</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="L-1609"><a href="#L-1609"><span class="linenos">1609</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-1610"><a href="#L-1610"><span class="linenos">1610</span></a>
 </span><span id="L-1611"><a href="#L-1611"><span class="linenos">1611</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -1944,7 +1944,7 @@
 </span><span id="L-1621"><a href="#L-1621"><span class="linenos">1621</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-1622"><a href="#L-1622"><span class="linenos">1622</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="L-1623"><a href="#L-1623"><span class="linenos">1623</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="L-1624"><a href="#L-1624"><span class="linenos">1624</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="L-1624"><a href="#L-1624"><span class="linenos">1624</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="L-1625"><a href="#L-1625"><span class="linenos">1625</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="L-1626"><a href="#L-1626"><span class="linenos">1626</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="L-1627"><a href="#L-1627"><span class="linenos">1627</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -1969,7 +1969,7 @@
 </span><span id="L-1646"><a href="#L-1646"><span class="linenos">1646</span></a>
 </span><span id="L-1647"><a href="#L-1647"><span class="linenos">1647</span></a><span class="sd">    ResNet-50 is a larger architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 50 weight convolutional layers in total. See Table 1 in the paper for details.</span>
 </span><span id="L-1648"><a href="#L-1648"><span class="linenos">1648</span></a>
-</span><span id="L-1649"><a href="#L-1649"><span class="linenos">1649</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="L-1649"><a href="#L-1649"><span class="linenos">1649</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="L-1650"><a href="#L-1650"><span class="linenos">1650</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-1651"><a href="#L-1651"><span class="linenos">1651</span></a>
 </span><span id="L-1652"><a href="#L-1652"><span class="linenos">1652</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -1985,7 +1985,7 @@
 </span><span id="L-1662"><a href="#L-1662"><span class="linenos">1662</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-1663"><a href="#L-1663"><span class="linenos">1663</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="L-1664"><a href="#L-1664"><span class="linenos">1664</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="L-1665"><a href="#L-1665"><span class="linenos">1665</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="L-1665"><a href="#L-1665"><span class="linenos">1665</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="L-1666"><a href="#L-1666"><span class="linenos">1666</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="L-1667"><a href="#L-1667"><span class="linenos">1667</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="L-1668"><a href="#L-1668"><span class="linenos">1668</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -2010,7 +2010,7 @@
 </span><span id="L-1687"><a href="#L-1687"><span class="linenos">1687</span></a>
 </span><span id="L-1688"><a href="#L-1688"><span class="linenos">1688</span></a><span class="sd">    ResNet-101 is a larger architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 101 weight convolutional layers in total. See Table 1 in the paper for details.</span>
 </span><span id="L-1689"><a href="#L-1689"><span class="linenos">1689</span></a>
-</span><span id="L-1690"><a href="#L-1690"><span class="linenos">1690</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="L-1690"><a href="#L-1690"><span class="linenos">1690</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="L-1691"><a href="#L-1691"><span class="linenos">1691</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-1692"><a href="#L-1692"><span class="linenos">1692</span></a>
 </span><span id="L-1693"><a href="#L-1693"><span class="linenos">1693</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -2026,7 +2026,7 @@
 </span><span id="L-1703"><a href="#L-1703"><span class="linenos">1703</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-1704"><a href="#L-1704"><span class="linenos">1704</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="L-1705"><a href="#L-1705"><span class="linenos">1705</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="L-1706"><a href="#L-1706"><span class="linenos">1706</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="L-1706"><a href="#L-1706"><span class="linenos">1706</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="L-1707"><a href="#L-1707"><span class="linenos">1707</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="L-1708"><a href="#L-1708"><span class="linenos">1708</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="L-1709"><a href="#L-1709"><span class="linenos">1709</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -2051,7 +2051,7 @@
 </span><span id="L-1728"><a href="#L-1728"><span class="linenos">1728</span></a>
 </span><span id="L-1729"><a href="#L-1729"><span class="linenos">1729</span></a><span class="sd">    ResNet-152 is the largest architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 152 weight convolutional layers in total. See Table 1 in the paper for details.</span>
 </span><span id="L-1730"><a href="#L-1730"><span class="linenos">1730</span></a>
-</span><span id="L-1731"><a href="#L-1731"><span class="linenos">1731</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="L-1731"><a href="#L-1731"><span class="linenos">1731</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="L-1732"><a href="#L-1732"><span class="linenos">1732</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-1733"><a href="#L-1733"><span class="linenos">1733</span></a>
 </span><span id="L-1734"><a href="#L-1734"><span class="linenos">1734</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -2067,7 +2067,7 @@
 </span><span id="L-1744"><a href="#L-1744"><span class="linenos">1744</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-1745"><a href="#L-1745"><span class="linenos">1745</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="L-1746"><a href="#L-1746"><span class="linenos">1746</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="L-1747"><a href="#L-1747"><span class="linenos">1747</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="L-1747"><a href="#L-1747"><span class="linenos">1747</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="L-1748"><a href="#L-1748"><span class="linenos">1748</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="L-1749"><a href="#L-1749"><span class="linenos">1749</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="L-1750"><a href="#L-1750"><span class="linenos">1750</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -4430,7 +4430,7 @@
 </span><span id="HATMaskResNetBlockSmall-988"><a href="#HATMaskResNetBlockSmall-988"><span class="linenos"> 988</span></a>
 </span><span id="HATMaskResNetBlockSmall-989"><a href="#HATMaskResNetBlockSmall-989"><span class="linenos"> 989</span></a><span class="sd">    It consists of 2 weight convolutional layers, each followed by an activation function. See Table 1 or Figure 5 (left) in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html).</span>
 </span><span id="HATMaskResNetBlockSmall-990"><a href="#HATMaskResNetBlockSmall-990"><span class="linenos"> 990</span></a>
-</span><span id="HATMaskResNetBlockSmall-991"><a href="#HATMaskResNetBlockSmall-991"><span class="linenos"> 991</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="HATMaskResNetBlockSmall-991"><a href="#HATMaskResNetBlockSmall-991"><span class="linenos"> 991</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="HATMaskResNetBlockSmall-992"><a href="#HATMaskResNetBlockSmall-992"><span class="linenos"> 992</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="HATMaskResNetBlockSmall-993"><a href="#HATMaskResNetBlockSmall-993"><span class="linenos"> 993</span></a>
 </span><span id="HATMaskResNetBlockSmall-994"><a href="#HATMaskResNetBlockSmall-994"><span class="linenos"> 994</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -4453,11 +4453,11 @@
 </span><span id="HATMaskResNetBlockSmall-1011"><a href="#HATMaskResNetBlockSmall-1011"><span class="linenos">1011</span></a><span class="sd">        - **preceding_output_channels** (`int`): the number of channels of preceding output of this particular building block.</span>
 </span><span id="HATMaskResNetBlockSmall-1012"><a href="#HATMaskResNetBlockSmall-1012"><span class="linenos">1012</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block.</span>
 </span><span id="HATMaskResNetBlockSmall-1013"><a href="#HATMaskResNetBlockSmall-1013"><span class="linenos">1013</span></a><span class="sd">        - **overall_stride** (`int`): the overall stride of this building block. This stride is performed at 2nd (last) convolutional layer where the 1st convolutional layer remain stride of 1.</span>
-</span><span id="HATMaskResNetBlockSmall-1014"><a href="#HATMaskResNetBlockSmall-1014"><span class="linenos">1014</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNetBlockSmall-1014"><a href="#HATMaskResNetBlockSmall-1014"><span class="linenos">1014</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNetBlockSmall-1015"><a href="#HATMaskResNetBlockSmall-1015"><span class="linenos">1015</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNetBlockSmall-1016"><a href="#HATMaskResNetBlockSmall-1016"><span class="linenos">1016</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNetBlockSmall-1017"><a href="#HATMaskResNetBlockSmall-1017"><span class="linenos">1017</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
-</span><span id="HATMaskResNetBlockSmall-1018"><a href="#HATMaskResNetBlockSmall-1018"><span class="linenos">1018</span></a><span class="sd">        - **batch_normalization** (`str` | `None`): the way to use batch normalization after the fully-connected layers, should be one of the following:</span>
+</span><span id="HATMaskResNetBlockSmall-1018"><a href="#HATMaskResNetBlockSmall-1018"><span class="linenos">1018</span></a><span class="sd">        - **batch_normalization** (`str` | `None`): the way to use batch normalization after the fully-connected layers; one of:</span>
 </span><span id="HATMaskResNetBlockSmall-1019"><a href="#HATMaskResNetBlockSmall-1019"><span class="linenos">1019</span></a><span class="sd">            - `None`: no batch normalization layers.</span>
 </span><span id="HATMaskResNetBlockSmall-1020"><a href="#HATMaskResNetBlockSmall-1020"><span class="linenos">1020</span></a><span class="sd">            - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.</span>
 </span><span id="HATMaskResNetBlockSmall-1021"><a href="#HATMaskResNetBlockSmall-1021"><span class="linenos">1021</span></a><span class="sd">            - `independent`: use independent batch normalization layers for each task.</span>
@@ -4543,11 +4543,11 @@
 </span><span id="HATMaskResNetBlockSmall-1101"><a href="#HATMaskResNetBlockSmall-1101"><span class="linenos">1101</span></a>
 </span><span id="HATMaskResNetBlockSmall-1102"><a href="#HATMaskResNetBlockSmall-1102"><span class="linenos">1102</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNetBlockSmall-1103"><a href="#HATMaskResNetBlockSmall-1103"><span class="linenos">1103</span></a><span class="sd">        - **input** (`Tensor`): The input tensor from data.</span>
-</span><span id="HATMaskResNetBlockSmall-1104"><a href="#HATMaskResNetBlockSmall-1104"><span class="linenos">1104</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="HATMaskResNetBlockSmall-1104"><a href="#HATMaskResNetBlockSmall-1104"><span class="linenos">1104</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="HATMaskResNetBlockSmall-1105"><a href="#HATMaskResNetBlockSmall-1105"><span class="linenos">1105</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="HATMaskResNetBlockSmall-1106"><a href="#HATMaskResNetBlockSmall-1106"><span class="linenos">1106</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="HATMaskResNetBlockSmall-1107"><a href="#HATMaskResNetBlockSmall-1107"><span class="linenos">1107</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
-</span><span id="HATMaskResNetBlockSmall-1108"><a href="#HATMaskResNetBlockSmall-1108"><span class="linenos">1108</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="HATMaskResNetBlockSmall-1108"><a href="#HATMaskResNetBlockSmall-1108"><span class="linenos">1108</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="HATMaskResNetBlockSmall-1109"><a href="#HATMaskResNetBlockSmall-1109"><span class="linenos">1109</span></a><span class="sd">        - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBlockSmall-1110"><a href="#HATMaskResNetBlockSmall-1110"><span class="linenos">1110</span></a><span class="sd">        - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBlockSmall-1111"><a href="#HATMaskResNetBlockSmall-1111"><span class="linenos">1111</span></a><span class="sd">        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.</span>
@@ -4602,7 +4602,7 @@
 
 <p>It consists of 2 weight convolutional layers, each followed by an activation function. See Table 1 or Figure 5 (left) in the <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html">original ResNet paper</a>.</p>
 
-<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</p>
+<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</p>
 </div>
 
 
@@ -4636,11 +4636,11 @@
 </span><span id="HATMaskResNetBlockSmall.__init__-1011"><a href="#HATMaskResNetBlockSmall.__init__-1011"><span class="linenos">1011</span></a><span class="sd">        - **preceding_output_channels** (`int`): the number of channels of preceding output of this particular building block.</span>
 </span><span id="HATMaskResNetBlockSmall.__init__-1012"><a href="#HATMaskResNetBlockSmall.__init__-1012"><span class="linenos">1012</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block.</span>
 </span><span id="HATMaskResNetBlockSmall.__init__-1013"><a href="#HATMaskResNetBlockSmall.__init__-1013"><span class="linenos">1013</span></a><span class="sd">        - **overall_stride** (`int`): the overall stride of this building block. This stride is performed at 2nd (last) convolutional layer where the 1st convolutional layer remain stride of 1.</span>
-</span><span id="HATMaskResNetBlockSmall.__init__-1014"><a href="#HATMaskResNetBlockSmall.__init__-1014"><span class="linenos">1014</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNetBlockSmall.__init__-1014"><a href="#HATMaskResNetBlockSmall.__init__-1014"><span class="linenos">1014</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNetBlockSmall.__init__-1015"><a href="#HATMaskResNetBlockSmall.__init__-1015"><span class="linenos">1015</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNetBlockSmall.__init__-1016"><a href="#HATMaskResNetBlockSmall.__init__-1016"><span class="linenos">1016</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNetBlockSmall.__init__-1017"><a href="#HATMaskResNetBlockSmall.__init__-1017"><span class="linenos">1017</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
-</span><span id="HATMaskResNetBlockSmall.__init__-1018"><a href="#HATMaskResNetBlockSmall.__init__-1018"><span class="linenos">1018</span></a><span class="sd">        - **batch_normalization** (`str` | `None`): the way to use batch normalization after the fully-connected layers, should be one of the following:</span>
+</span><span id="HATMaskResNetBlockSmall.__init__-1018"><a href="#HATMaskResNetBlockSmall.__init__-1018"><span class="linenos">1018</span></a><span class="sd">        - **batch_normalization** (`str` | `None`): the way to use batch normalization after the fully-connected layers; one of:</span>
 </span><span id="HATMaskResNetBlockSmall.__init__-1019"><a href="#HATMaskResNetBlockSmall.__init__-1019"><span class="linenos">1019</span></a><span class="sd">            - `None`: no batch normalization layers.</span>
 </span><span id="HATMaskResNetBlockSmall.__init__-1020"><a href="#HATMaskResNetBlockSmall.__init__-1020"><span class="linenos">1020</span></a><span class="sd">            - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.</span>
 </span><span id="HATMaskResNetBlockSmall.__init__-1021"><a href="#HATMaskResNetBlockSmall.__init__-1021"><span class="linenos">1021</span></a><span class="sd">            - `independent`: use independent batch normalization layers for each task.</span>
@@ -4704,13 +4704,13 @@
 <li><strong>preceding_output_channels</strong> (<code>int</code>): the number of channels of preceding output of this particular building block.</li>
 <li><strong>input_channels</strong> (<code>int</code>): the number of channels of input of this building block.</li>
 <li><strong>overall_stride</strong> (<code>int</code>): the overall stride of this building block. This stride is performed at 2nd (last) convolutional layer where the 1st convolutional layer remain stride of 1.</li>
-<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks; one of:
 <ul>
 <li><code>sigmoid</code>: the sigmoid function.</li>
 </ul></li>
 <li><strong>activation_layer</strong> (<code>nn.Module</code>): activation function of each layer (if not <code>None</code>), if <code>None</code> this layer won't be used. Default <code>nn.ReLU</code>.</li>
 <li><strong>bias</strong> (<code>bool</code>): whether to use bias in the convolutional layer. Default <code>False</code>.</li>
-<li><strong>batch_normalization</strong> (<code>str</code> | <code>None</code>): the way to use batch normalization after the fully-connected layers, should be one of the following:
+<li><strong>batch_normalization</strong> (<code>str</code> | <code>None</code>): the way to use batch normalization after the fully-connected layers; one of:
 <ul>
 <li><code>None</code>: no batch normalization layers.</li>
 <li><code>shared</code>: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.</li>
@@ -4791,11 +4791,11 @@
 </span><span id="HATMaskResNetBlockSmall.forward-1101"><a href="#HATMaskResNetBlockSmall.forward-1101"><span class="linenos">1101</span></a>
 </span><span id="HATMaskResNetBlockSmall.forward-1102"><a href="#HATMaskResNetBlockSmall.forward-1102"><span class="linenos">1102</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNetBlockSmall.forward-1103"><a href="#HATMaskResNetBlockSmall.forward-1103"><span class="linenos">1103</span></a><span class="sd">        - **input** (`Tensor`): The input tensor from data.</span>
-</span><span id="HATMaskResNetBlockSmall.forward-1104"><a href="#HATMaskResNetBlockSmall.forward-1104"><span class="linenos">1104</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="HATMaskResNetBlockSmall.forward-1104"><a href="#HATMaskResNetBlockSmall.forward-1104"><span class="linenos">1104</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="HATMaskResNetBlockSmall.forward-1105"><a href="#HATMaskResNetBlockSmall.forward-1105"><span class="linenos">1105</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="HATMaskResNetBlockSmall.forward-1106"><a href="#HATMaskResNetBlockSmall.forward-1106"><span class="linenos">1106</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="HATMaskResNetBlockSmall.forward-1107"><a href="#HATMaskResNetBlockSmall.forward-1107"><span class="linenos">1107</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
-</span><span id="HATMaskResNetBlockSmall.forward-1108"><a href="#HATMaskResNetBlockSmall.forward-1108"><span class="linenos">1108</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="HATMaskResNetBlockSmall.forward-1108"><a href="#HATMaskResNetBlockSmall.forward-1108"><span class="linenos">1108</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="HATMaskResNetBlockSmall.forward-1109"><a href="#HATMaskResNetBlockSmall.forward-1109"><span class="linenos">1109</span></a><span class="sd">        - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBlockSmall.forward-1110"><a href="#HATMaskResNetBlockSmall.forward-1110"><span class="linenos">1110</span></a><span class="sd">        - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBlockSmall.forward-1111"><a href="#HATMaskResNetBlockSmall.forward-1111"><span class="linenos">1111</span></a><span class="sd">        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.</span>
@@ -4852,7 +4852,7 @@
 
 <ul>
 <li><strong>input</strong> (<code>Tensor</code>): The input tensor from data.</li>
-<li><strong>stage</strong> (<code>str</code>): the stage of the forward pass, should be one of the following:
+<li><strong>stage</strong> (<code>str</code>): the stage of the forward pass; one of:
 <ol>
 <li>'train': training stage.</li>
 <li>'validation': validation stage.</li>
@@ -4908,7 +4908,7 @@
 </span><span id="HATMaskResNetBlockLarge-1160"><a href="#HATMaskResNetBlockLarge-1160"><span class="linenos">1160</span></a>
 </span><span id="HATMaskResNetBlockLarge-1161"><a href="#HATMaskResNetBlockLarge-1161"><span class="linenos">1161</span></a><span class="sd">    It consists of 3 weight convolutional layers, each followed by an activation function. See Table 1 or Figure 5 (right) in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html).</span>
 </span><span id="HATMaskResNetBlockLarge-1162"><a href="#HATMaskResNetBlockLarge-1162"><span class="linenos">1162</span></a>
-</span><span id="HATMaskResNetBlockLarge-1163"><a href="#HATMaskResNetBlockLarge-1163"><span class="linenos">1163</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="HATMaskResNetBlockLarge-1163"><a href="#HATMaskResNetBlockLarge-1163"><span class="linenos">1163</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="HATMaskResNetBlockLarge-1164"><a href="#HATMaskResNetBlockLarge-1164"><span class="linenos">1164</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="HATMaskResNetBlockLarge-1165"><a href="#HATMaskResNetBlockLarge-1165"><span class="linenos">1165</span></a>
 </span><span id="HATMaskResNetBlockLarge-1166"><a href="#HATMaskResNetBlockLarge-1166"><span class="linenos">1166</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -4930,7 +4930,7 @@
 </span><span id="HATMaskResNetBlockLarge-1182"><a href="#HATMaskResNetBlockLarge-1182"><span class="linenos">1182</span></a><span class="sd">        - **preceding_output_channels** (`int`): the number of channels of preceding output of this particular building block.</span>
 </span><span id="HATMaskResNetBlockLarge-1183"><a href="#HATMaskResNetBlockLarge-1183"><span class="linenos">1183</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block.</span>
 </span><span id="HATMaskResNetBlockLarge-1184"><a href="#HATMaskResNetBlockLarge-1184"><span class="linenos">1184</span></a><span class="sd">        - **overall_stride** (`int`): the overall stride of this building block. This stride is performed at 2nd (middle) convolutional layer where 1st and 3rd convolutional layers remain stride of 1.</span>
-</span><span id="HATMaskResNetBlockLarge-1185"><a href="#HATMaskResNetBlockLarge-1185"><span class="linenos">1185</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNetBlockLarge-1185"><a href="#HATMaskResNetBlockLarge-1185"><span class="linenos">1185</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNetBlockLarge-1186"><a href="#HATMaskResNetBlockLarge-1186"><span class="linenos">1186</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNetBlockLarge-1187"><a href="#HATMaskResNetBlockLarge-1187"><span class="linenos">1187</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNetBlockLarge-1188"><a href="#HATMaskResNetBlockLarge-1188"><span class="linenos">1188</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -4986,11 +4986,11 @@
 </span><span id="HATMaskResNetBlockLarge-1238"><a href="#HATMaskResNetBlockLarge-1238"><span class="linenos">1238</span></a>
 </span><span id="HATMaskResNetBlockLarge-1239"><a href="#HATMaskResNetBlockLarge-1239"><span class="linenos">1239</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNetBlockLarge-1240"><a href="#HATMaskResNetBlockLarge-1240"><span class="linenos">1240</span></a><span class="sd">        - **input** (`Tensor`): The input tensor from data.</span>
-</span><span id="HATMaskResNetBlockLarge-1241"><a href="#HATMaskResNetBlockLarge-1241"><span class="linenos">1241</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="HATMaskResNetBlockLarge-1241"><a href="#HATMaskResNetBlockLarge-1241"><span class="linenos">1241</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="HATMaskResNetBlockLarge-1242"><a href="#HATMaskResNetBlockLarge-1242"><span class="linenos">1242</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="HATMaskResNetBlockLarge-1243"><a href="#HATMaskResNetBlockLarge-1243"><span class="linenos">1243</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="HATMaskResNetBlockLarge-1244"><a href="#HATMaskResNetBlockLarge-1244"><span class="linenos">1244</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
-</span><span id="HATMaskResNetBlockLarge-1245"><a href="#HATMaskResNetBlockLarge-1245"><span class="linenos">1245</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="HATMaskResNetBlockLarge-1245"><a href="#HATMaskResNetBlockLarge-1245"><span class="linenos">1245</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="HATMaskResNetBlockLarge-1246"><a href="#HATMaskResNetBlockLarge-1246"><span class="linenos">1246</span></a><span class="sd">        - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBlockLarge-1247"><a href="#HATMaskResNetBlockLarge-1247"><span class="linenos">1247</span></a><span class="sd">        - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBlockLarge-1248"><a href="#HATMaskResNetBlockLarge-1248"><span class="linenos">1248</span></a><span class="sd">        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.</span>
@@ -5053,7 +5053,7 @@
 
 <p>It consists of 3 weight convolutional layers, each followed by an activation function. See Table 1 or Figure 5 (right) in the <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html">original ResNet paper</a>.</p>
 
-<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</p>
+<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</p>
 </div>
 
 
@@ -5086,7 +5086,7 @@
 </span><span id="HATMaskResNetBlockLarge.__init__-1182"><a href="#HATMaskResNetBlockLarge.__init__-1182"><span class="linenos">1182</span></a><span class="sd">        - **preceding_output_channels** (`int`): the number of channels of preceding output of this particular building block.</span>
 </span><span id="HATMaskResNetBlockLarge.__init__-1183"><a href="#HATMaskResNetBlockLarge.__init__-1183"><span class="linenos">1183</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block.</span>
 </span><span id="HATMaskResNetBlockLarge.__init__-1184"><a href="#HATMaskResNetBlockLarge.__init__-1184"><span class="linenos">1184</span></a><span class="sd">        - **overall_stride** (`int`): the overall stride of this building block. This stride is performed at 2nd (middle) convolutional layer where 1st and 3rd convolutional layers remain stride of 1.</span>
-</span><span id="HATMaskResNetBlockLarge.__init__-1185"><a href="#HATMaskResNetBlockLarge.__init__-1185"><span class="linenos">1185</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNetBlockLarge.__init__-1185"><a href="#HATMaskResNetBlockLarge.__init__-1185"><span class="linenos">1185</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNetBlockLarge.__init__-1186"><a href="#HATMaskResNetBlockLarge.__init__-1186"><span class="linenos">1186</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNetBlockLarge.__init__-1187"><a href="#HATMaskResNetBlockLarge.__init__-1187"><span class="linenos">1187</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNetBlockLarge.__init__-1188"><a href="#HATMaskResNetBlockLarge.__init__-1188"><span class="linenos">1188</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -5141,7 +5141,7 @@
 <li><strong>preceding_output_channels</strong> (<code>int</code>): the number of channels of preceding output of this particular building block.</li>
 <li><strong>input_channels</strong> (<code>int</code>): the number of channels of input of this building block.</li>
 <li><strong>overall_stride</strong> (<code>int</code>): the overall stride of this building block. This stride is performed at 2nd (middle) convolutional layer where 1st and 3rd convolutional layers remain stride of 1.</li>
-<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks; one of:
 <ul>
 <li><code>sigmoid</code>: the sigmoid function.</li>
 </ul></li>
@@ -5176,11 +5176,11 @@
 </span><span id="HATMaskResNetBlockLarge.forward-1238"><a href="#HATMaskResNetBlockLarge.forward-1238"><span class="linenos">1238</span></a>
 </span><span id="HATMaskResNetBlockLarge.forward-1239"><a href="#HATMaskResNetBlockLarge.forward-1239"><span class="linenos">1239</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNetBlockLarge.forward-1240"><a href="#HATMaskResNetBlockLarge.forward-1240"><span class="linenos">1240</span></a><span class="sd">        - **input** (`Tensor`): The input tensor from data.</span>
-</span><span id="HATMaskResNetBlockLarge.forward-1241"><a href="#HATMaskResNetBlockLarge.forward-1241"><span class="linenos">1241</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="HATMaskResNetBlockLarge.forward-1241"><a href="#HATMaskResNetBlockLarge.forward-1241"><span class="linenos">1241</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="HATMaskResNetBlockLarge.forward-1242"><a href="#HATMaskResNetBlockLarge.forward-1242"><span class="linenos">1242</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="HATMaskResNetBlockLarge.forward-1243"><a href="#HATMaskResNetBlockLarge.forward-1243"><span class="linenos">1243</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="HATMaskResNetBlockLarge.forward-1244"><a href="#HATMaskResNetBlockLarge.forward-1244"><span class="linenos">1244</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
-</span><span id="HATMaskResNetBlockLarge.forward-1245"><a href="#HATMaskResNetBlockLarge.forward-1245"><span class="linenos">1245</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="HATMaskResNetBlockLarge.forward-1245"><a href="#HATMaskResNetBlockLarge.forward-1245"><span class="linenos">1245</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="HATMaskResNetBlockLarge.forward-1246"><a href="#HATMaskResNetBlockLarge.forward-1246"><span class="linenos">1246</span></a><span class="sd">        - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBlockLarge.forward-1247"><a href="#HATMaskResNetBlockLarge.forward-1247"><span class="linenos">1247</span></a><span class="sd">        - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBlockLarge.forward-1248"><a href="#HATMaskResNetBlockLarge.forward-1248"><span class="linenos">1248</span></a><span class="sd">        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.</span>
@@ -5245,7 +5245,7 @@
 
 <ul>
 <li><strong>input</strong> (<code>Tensor</code>): The input tensor from data.</li>
-<li><strong>stage</strong> (<code>str</code>): the stage of the forward pass, should be one of the following:
+<li><strong>stage</strong> (<code>str</code>): the stage of the forward pass; one of:
 <ol>
 <li>'train': training stage.</li>
 <li>'validation': validation stage.</li>
@@ -5304,7 +5304,7 @@
 </span><span id="HATMaskResNetBase-1307"><a href="#HATMaskResNetBase-1307"><span class="linenos">1307</span></a>
 </span><span id="HATMaskResNetBase-1308"><a href="#HATMaskResNetBase-1308"><span class="linenos">1308</span></a><span class="sd">    ResNet is a convolutional network architecture, which has 1st convolutional parameter layer and a maxpooling layer, connecting to 4 convolutional layers which contains multiple convolutional parameter layer. Each layer of the 4 are constructed from basic building blocks which are either small (`ResNetBlockSmall`) or large (`ResNetBlockLarge`). Each building block contains several convolutional parameter layers. The building blocks are connected by a skip connection which is a direct connection from the input of the block to the output of the block, and this is why it&#39;s called residual (find &quot;shortcut connections&quot; in the paper for more details). After the 5th convolutional layer, there are average pooling layer and a fully connected layer which connects to the CL output heads.</span>
 </span><span id="HATMaskResNetBase-1309"><a href="#HATMaskResNetBase-1309"><span class="linenos">1309</span></a>
-</span><span id="HATMaskResNetBase-1310"><a href="#HATMaskResNetBase-1310"><span class="linenos">1310</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="HATMaskResNetBase-1310"><a href="#HATMaskResNetBase-1310"><span class="linenos">1310</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="HATMaskResNetBase-1311"><a href="#HATMaskResNetBase-1311"><span class="linenos">1311</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="HATMaskResNetBase-1312"><a href="#HATMaskResNetBase-1312"><span class="linenos">1312</span></a>
 </span><span id="HATMaskResNetBase-1313"><a href="#HATMaskResNetBase-1313"><span class="linenos">1313</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -5328,7 +5328,7 @@
 </span><span id="HATMaskResNetBase-1331"><a href="#HATMaskResNetBase-1331"><span class="linenos">1331</span></a><span class="sd">        - **building_block_preceding_output_channels** (`tuple[int, int, int, int]`): the number of channels of preceding output of each building block in the 2-5 convolutional layer correspondingly.</span>
 </span><span id="HATMaskResNetBase-1332"><a href="#HATMaskResNetBase-1332"><span class="linenos">1332</span></a><span class="sd">        - **building_block_input_channels** (`tuple[int, int, int, int]`): the number of channels of input of each building block in the 2-5 convolutional layer correspondingly.</span>
 </span><span id="HATMaskResNetBase-1333"><a href="#HATMaskResNetBase-1333"><span class="linenos">1333</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNetBase-1334"><a href="#HATMaskResNetBase-1334"><span class="linenos">1334</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNetBase-1334"><a href="#HATMaskResNetBase-1334"><span class="linenos">1334</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNetBase-1335"><a href="#HATMaskResNetBase-1335"><span class="linenos">1335</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNetBase-1336"><a href="#HATMaskResNetBase-1336"><span class="linenos">1336</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNetBase-1337"><a href="#HATMaskResNetBase-1337"><span class="linenos">1337</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.</span>
@@ -5450,11 +5450,11 @@
 </span><span id="HATMaskResNetBase-1453"><a href="#HATMaskResNetBase-1453"><span class="linenos">1453</span></a>
 </span><span id="HATMaskResNetBase-1454"><a href="#HATMaskResNetBase-1454"><span class="linenos">1454</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNetBase-1455"><a href="#HATMaskResNetBase-1455"><span class="linenos">1455</span></a><span class="sd">        - **input** (`Tensor`): the input tensor from data.</span>
-</span><span id="HATMaskResNetBase-1456"><a href="#HATMaskResNetBase-1456"><span class="linenos">1456</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="HATMaskResNetBase-1456"><a href="#HATMaskResNetBase-1456"><span class="linenos">1456</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="HATMaskResNetBase-1457"><a href="#HATMaskResNetBase-1457"><span class="linenos">1457</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="HATMaskResNetBase-1458"><a href="#HATMaskResNetBase-1458"><span class="linenos">1458</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="HATMaskResNetBase-1459"><a href="#HATMaskResNetBase-1459"><span class="linenos">1459</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
-</span><span id="HATMaskResNetBase-1460"><a href="#HATMaskResNetBase-1460"><span class="linenos">1460</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="HATMaskResNetBase-1460"><a href="#HATMaskResNetBase-1460"><span class="linenos">1460</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="HATMaskResNetBase-1461"><a href="#HATMaskResNetBase-1461"><span class="linenos">1461</span></a><span class="sd">        - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBase-1462"><a href="#HATMaskResNetBase-1462"><span class="linenos">1462</span></a><span class="sd">        - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBase-1463"><a href="#HATMaskResNetBase-1463"><span class="linenos">1463</span></a><span class="sd">        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.</span>
@@ -5544,7 +5544,7 @@
 
 <p>ResNet is a convolutional network architecture, which has 1st convolutional parameter layer and a maxpooling layer, connecting to 4 convolutional layers which contains multiple convolutional parameter layer. Each layer of the 4 are constructed from basic building blocks which are either small (<code><a href="#ResNetBlockSmall">ResNetBlockSmall</a></code>) or large (<code><a href="#ResNetBlockLarge">ResNetBlockLarge</a></code>). Each building block contains several convolutional parameter layers. The building blocks are connected by a skip connection which is a direct connection from the input of the block to the output of the block, and this is why it's called residual (find "shortcut connections" in the paper for more details). After the 5th convolutional layer, there are average pooling layer and a fully connected layer which connects to the CL output heads.</p>
 
-<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</p>
+<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</p>
 </div>
 
 
@@ -5579,7 +5579,7 @@
 </span><span id="HATMaskResNetBase.__init__-1331"><a href="#HATMaskResNetBase.__init__-1331"><span class="linenos">1331</span></a><span class="sd">        - **building_block_preceding_output_channels** (`tuple[int, int, int, int]`): the number of channels of preceding output of each building block in the 2-5 convolutional layer correspondingly.</span>
 </span><span id="HATMaskResNetBase.__init__-1332"><a href="#HATMaskResNetBase.__init__-1332"><span class="linenos">1332</span></a><span class="sd">        - **building_block_input_channels** (`tuple[int, int, int, int]`): the number of channels of input of each building block in the 2-5 convolutional layer correspondingly.</span>
 </span><span id="HATMaskResNetBase.__init__-1333"><a href="#HATMaskResNetBase.__init__-1333"><span class="linenos">1333</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNetBase.__init__-1334"><a href="#HATMaskResNetBase.__init__-1334"><span class="linenos">1334</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNetBase.__init__-1334"><a href="#HATMaskResNetBase.__init__-1334"><span class="linenos">1334</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNetBase.__init__-1335"><a href="#HATMaskResNetBase.__init__-1335"><span class="linenos">1335</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNetBase.__init__-1336"><a href="#HATMaskResNetBase.__init__-1336"><span class="linenos">1336</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNetBase.__init__-1337"><a href="#HATMaskResNetBase.__init__-1337"><span class="linenos">1337</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.</span>
@@ -5619,7 +5619,7 @@
 <li><strong>building_block_preceding_output_channels</strong> (<code>tuple[int, int, int, int]</code>): the number of channels of preceding output of each building block in the 2-5 convolutional layer correspondingly.</li>
 <li><strong>building_block_input_channels</strong> (<code>tuple[int, int, int, int]</code>): the number of channels of input of each building block in the 2-5 convolutional layer correspondingly.</li>
 <li><strong>output_dim</strong> (<code>int</code>): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</li>
-<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks; one of:
 <ul>
 <li><code>sigmoid</code>: the sigmoid function.</li>
 </ul></li>
@@ -5688,11 +5688,11 @@
 </span><span id="HATMaskResNetBase.forward-1453"><a href="#HATMaskResNetBase.forward-1453"><span class="linenos">1453</span></a>
 </span><span id="HATMaskResNetBase.forward-1454"><a href="#HATMaskResNetBase.forward-1454"><span class="linenos">1454</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNetBase.forward-1455"><a href="#HATMaskResNetBase.forward-1455"><span class="linenos">1455</span></a><span class="sd">        - **input** (`Tensor`): the input tensor from data.</span>
-</span><span id="HATMaskResNetBase.forward-1456"><a href="#HATMaskResNetBase.forward-1456"><span class="linenos">1456</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="HATMaskResNetBase.forward-1456"><a href="#HATMaskResNetBase.forward-1456"><span class="linenos">1456</span></a><span class="sd">        - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="HATMaskResNetBase.forward-1457"><a href="#HATMaskResNetBase.forward-1457"><span class="linenos">1457</span></a><span class="sd">            1. &#39;train&#39;: training stage.</span>
 </span><span id="HATMaskResNetBase.forward-1458"><a href="#HATMaskResNetBase.forward-1458"><span class="linenos">1458</span></a><span class="sd">            2. &#39;validation&#39;: validation stage.</span>
 </span><span id="HATMaskResNetBase.forward-1459"><a href="#HATMaskResNetBase.forward-1459"><span class="linenos">1459</span></a><span class="sd">            3. &#39;test&#39;: testing stage.</span>
-</span><span id="HATMaskResNetBase.forward-1460"><a href="#HATMaskResNetBase.forward-1460"><span class="linenos">1460</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
+</span><span id="HATMaskResNetBase.forward-1460"><a href="#HATMaskResNetBase.forward-1460"><span class="linenos">1460</span></a><span class="sd">        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn&#39;t apply to testing stage. See chapter 2.4 &quot;Hard Attention Training&quot; in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).</span>
 </span><span id="HATMaskResNetBase.forward-1461"><a href="#HATMaskResNetBase.forward-1461"><span class="linenos">1461</span></a><span class="sd">        - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBase.forward-1462"><a href="#HATMaskResNetBase.forward-1462"><span class="linenos">1462</span></a><span class="sd">        - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.</span>
 </span><span id="HATMaskResNetBase.forward-1463"><a href="#HATMaskResNetBase.forward-1463"><span class="linenos">1463</span></a><span class="sd">        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.</span>
@@ -5782,7 +5782,7 @@
 
 <ul>
 <li><strong>input</strong> (<code>Tensor</code>): the input tensor from data.</li>
-<li><strong>stage</strong> (<code>str</code>): the stage of the forward pass, should be one of the following:
+<li><strong>stage</strong> (<code>str</code>): the stage of the forward pass; one of:
 <ol>
 <li>'train': training stage.</li>
 <li>'validation': validation stage.</li>
@@ -5841,7 +5841,7 @@
 </span><span id="HATMaskResNet18-1547"><a href="#HATMaskResNet18-1547"><span class="linenos">1547</span></a>
 </span><span id="HATMaskResNet18-1548"><a href="#HATMaskResNet18-1548"><span class="linenos">1548</span></a><span class="sd">    ResNet-18 is a smaller architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 18 weight convolutional layers in total. See Table 1 in the paper for details.</span>
 </span><span id="HATMaskResNet18-1549"><a href="#HATMaskResNet18-1549"><span class="linenos">1549</span></a>
-</span><span id="HATMaskResNet18-1550"><a href="#HATMaskResNet18-1550"><span class="linenos">1550</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="HATMaskResNet18-1550"><a href="#HATMaskResNet18-1550"><span class="linenos">1550</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="HATMaskResNet18-1551"><a href="#HATMaskResNet18-1551"><span class="linenos">1551</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="HATMaskResNet18-1552"><a href="#HATMaskResNet18-1552"><span class="linenos">1552</span></a>
 </span><span id="HATMaskResNet18-1553"><a href="#HATMaskResNet18-1553"><span class="linenos">1553</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -5858,7 +5858,7 @@
 </span><span id="HATMaskResNet18-1564"><a href="#HATMaskResNet18-1564"><span class="linenos">1564</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNet18-1565"><a href="#HATMaskResNet18-1565"><span class="linenos">1565</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="HATMaskResNet18-1566"><a href="#HATMaskResNet18-1566"><span class="linenos">1566</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNet18-1567"><a href="#HATMaskResNet18-1567"><span class="linenos">1567</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNet18-1567"><a href="#HATMaskResNet18-1567"><span class="linenos">1567</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNet18-1568"><a href="#HATMaskResNet18-1568"><span class="linenos">1568</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNet18-1569"><a href="#HATMaskResNet18-1569"><span class="linenos">1569</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNet18-1570"><a href="#HATMaskResNet18-1570"><span class="linenos">1570</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -5900,7 +5900,7 @@
 
 <p>ResNet-18 is a smaller architecture proposed in the <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html">original ResNet paper</a>. It consists of 18 weight convolutional layers in total. See Table 1 in the paper for details.</p>
 
-<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</p>
+<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</p>
 </div>
 
 
@@ -5928,7 +5928,7 @@
 </span><span id="HATMaskResNet18.__init__-1564"><a href="#HATMaskResNet18.__init__-1564"><span class="linenos">1564</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNet18.__init__-1565"><a href="#HATMaskResNet18.__init__-1565"><span class="linenos">1565</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="HATMaskResNet18.__init__-1566"><a href="#HATMaskResNet18.__init__-1566"><span class="linenos">1566</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNet18.__init__-1567"><a href="#HATMaskResNet18.__init__-1567"><span class="linenos">1567</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNet18.__init__-1567"><a href="#HATMaskResNet18.__init__-1567"><span class="linenos">1567</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNet18.__init__-1568"><a href="#HATMaskResNet18.__init__-1568"><span class="linenos">1568</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNet18.__init__-1569"><a href="#HATMaskResNet18.__init__-1569"><span class="linenos">1569</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNet18.__init__-1570"><a href="#HATMaskResNet18.__init__-1570"><span class="linenos">1570</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -5971,7 +5971,7 @@
 <ul>
 <li><strong>input_channels</strong> (<code>int</code>): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</li>
 <li><strong>output_dim</strong> (<code>int</code>): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</li>
-<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks; one of:
 <ul>
 <li><code>sigmoid</code>: the sigmoid function.</li>
 </ul></li>
@@ -6024,7 +6024,7 @@
 </span><span id="HATMaskResNet34-1606"><a href="#HATMaskResNet34-1606"><span class="linenos">1606</span></a>
 </span><span id="HATMaskResNet34-1607"><a href="#HATMaskResNet34-1607"><span class="linenos">1607</span></a><span class="sd">    ResNet-34 is a smaller architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 34 weight convolutional layers in total. See Table 1 in the paper for details.</span>
 </span><span id="HATMaskResNet34-1608"><a href="#HATMaskResNet34-1608"><span class="linenos">1608</span></a>
-</span><span id="HATMaskResNet34-1609"><a href="#HATMaskResNet34-1609"><span class="linenos">1609</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="HATMaskResNet34-1609"><a href="#HATMaskResNet34-1609"><span class="linenos">1609</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="HATMaskResNet34-1610"><a href="#HATMaskResNet34-1610"><span class="linenos">1610</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="HATMaskResNet34-1611"><a href="#HATMaskResNet34-1611"><span class="linenos">1611</span></a>
 </span><span id="HATMaskResNet34-1612"><a href="#HATMaskResNet34-1612"><span class="linenos">1612</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -6040,7 +6040,7 @@
 </span><span id="HATMaskResNet34-1622"><a href="#HATMaskResNet34-1622"><span class="linenos">1622</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNet34-1623"><a href="#HATMaskResNet34-1623"><span class="linenos">1623</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="HATMaskResNet34-1624"><a href="#HATMaskResNet34-1624"><span class="linenos">1624</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNet34-1625"><a href="#HATMaskResNet34-1625"><span class="linenos">1625</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNet34-1625"><a href="#HATMaskResNet34-1625"><span class="linenos">1625</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNet34-1626"><a href="#HATMaskResNet34-1626"><span class="linenos">1626</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNet34-1627"><a href="#HATMaskResNet34-1627"><span class="linenos">1627</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNet34-1628"><a href="#HATMaskResNet34-1628"><span class="linenos">1628</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -6065,7 +6065,7 @@
 
 <p>ResNet-34 is a smaller architecture proposed in the <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html">original ResNet paper</a>. It consists of 34 weight convolutional layers in total. See Table 1 in the paper for details.</p>
 
-<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</p>
+<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</p>
 </div>
 
 
@@ -6092,7 +6092,7 @@
 </span><span id="HATMaskResNet34.__init__-1622"><a href="#HATMaskResNet34.__init__-1622"><span class="linenos">1622</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNet34.__init__-1623"><a href="#HATMaskResNet34.__init__-1623"><span class="linenos">1623</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="HATMaskResNet34.__init__-1624"><a href="#HATMaskResNet34.__init__-1624"><span class="linenos">1624</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNet34.__init__-1625"><a href="#HATMaskResNet34.__init__-1625"><span class="linenos">1625</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNet34.__init__-1625"><a href="#HATMaskResNet34.__init__-1625"><span class="linenos">1625</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNet34.__init__-1626"><a href="#HATMaskResNet34.__init__-1626"><span class="linenos">1626</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNet34.__init__-1627"><a href="#HATMaskResNet34.__init__-1627"><span class="linenos">1627</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNet34.__init__-1628"><a href="#HATMaskResNet34.__init__-1628"><span class="linenos">1628</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -6118,7 +6118,7 @@
 <ul>
 <li><strong>input_channels</strong> (<code>int</code>): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</li>
 <li><strong>output_dim</strong> (<code>int</code>): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</li>
-<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks; one of:
 <ul>
 <li><code>sigmoid</code>: the sigmoid function.</li>
 </ul></li>
@@ -6170,7 +6170,7 @@
 </span><span id="HATMaskResNet50-1647"><a href="#HATMaskResNet50-1647"><span class="linenos">1647</span></a>
 </span><span id="HATMaskResNet50-1648"><a href="#HATMaskResNet50-1648"><span class="linenos">1648</span></a><span class="sd">    ResNet-50 is a larger architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 50 weight convolutional layers in total. See Table 1 in the paper for details.</span>
 </span><span id="HATMaskResNet50-1649"><a href="#HATMaskResNet50-1649"><span class="linenos">1649</span></a>
-</span><span id="HATMaskResNet50-1650"><a href="#HATMaskResNet50-1650"><span class="linenos">1650</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="HATMaskResNet50-1650"><a href="#HATMaskResNet50-1650"><span class="linenos">1650</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="HATMaskResNet50-1651"><a href="#HATMaskResNet50-1651"><span class="linenos">1651</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="HATMaskResNet50-1652"><a href="#HATMaskResNet50-1652"><span class="linenos">1652</span></a>
 </span><span id="HATMaskResNet50-1653"><a href="#HATMaskResNet50-1653"><span class="linenos">1653</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -6186,7 +6186,7 @@
 </span><span id="HATMaskResNet50-1663"><a href="#HATMaskResNet50-1663"><span class="linenos">1663</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNet50-1664"><a href="#HATMaskResNet50-1664"><span class="linenos">1664</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="HATMaskResNet50-1665"><a href="#HATMaskResNet50-1665"><span class="linenos">1665</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNet50-1666"><a href="#HATMaskResNet50-1666"><span class="linenos">1666</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNet50-1666"><a href="#HATMaskResNet50-1666"><span class="linenos">1666</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNet50-1667"><a href="#HATMaskResNet50-1667"><span class="linenos">1667</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNet50-1668"><a href="#HATMaskResNet50-1668"><span class="linenos">1668</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNet50-1669"><a href="#HATMaskResNet50-1669"><span class="linenos">1669</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -6211,7 +6211,7 @@
 
 <p>ResNet-50 is a larger architecture proposed in the <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html">original ResNet paper</a>. It consists of 50 weight convolutional layers in total. See Table 1 in the paper for details.</p>
 
-<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</p>
+<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</p>
 </div>
 
 
@@ -6238,7 +6238,7 @@
 </span><span id="HATMaskResNet50.__init__-1663"><a href="#HATMaskResNet50.__init__-1663"><span class="linenos">1663</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNet50.__init__-1664"><a href="#HATMaskResNet50.__init__-1664"><span class="linenos">1664</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="HATMaskResNet50.__init__-1665"><a href="#HATMaskResNet50.__init__-1665"><span class="linenos">1665</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNet50.__init__-1666"><a href="#HATMaskResNet50.__init__-1666"><span class="linenos">1666</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNet50.__init__-1666"><a href="#HATMaskResNet50.__init__-1666"><span class="linenos">1666</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNet50.__init__-1667"><a href="#HATMaskResNet50.__init__-1667"><span class="linenos">1667</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNet50.__init__-1668"><a href="#HATMaskResNet50.__init__-1668"><span class="linenos">1668</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNet50.__init__-1669"><a href="#HATMaskResNet50.__init__-1669"><span class="linenos">1669</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -6264,7 +6264,7 @@
 <ul>
 <li><strong>input_channels</strong> (<code>int</code>): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</li>
 <li><strong>output_dim</strong> (<code>int</code>): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</li>
-<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks; one of:
 <ul>
 <li><code>sigmoid</code>: the sigmoid function.</li>
 </ul></li>
@@ -6316,7 +6316,7 @@
 </span><span id="HATMaskResNet101-1688"><a href="#HATMaskResNet101-1688"><span class="linenos">1688</span></a>
 </span><span id="HATMaskResNet101-1689"><a href="#HATMaskResNet101-1689"><span class="linenos">1689</span></a><span class="sd">    ResNet-101 is a larger architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 101 weight convolutional layers in total. See Table 1 in the paper for details.</span>
 </span><span id="HATMaskResNet101-1690"><a href="#HATMaskResNet101-1690"><span class="linenos">1690</span></a>
-</span><span id="HATMaskResNet101-1691"><a href="#HATMaskResNet101-1691"><span class="linenos">1691</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="HATMaskResNet101-1691"><a href="#HATMaskResNet101-1691"><span class="linenos">1691</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="HATMaskResNet101-1692"><a href="#HATMaskResNet101-1692"><span class="linenos">1692</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="HATMaskResNet101-1693"><a href="#HATMaskResNet101-1693"><span class="linenos">1693</span></a>
 </span><span id="HATMaskResNet101-1694"><a href="#HATMaskResNet101-1694"><span class="linenos">1694</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -6332,7 +6332,7 @@
 </span><span id="HATMaskResNet101-1704"><a href="#HATMaskResNet101-1704"><span class="linenos">1704</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNet101-1705"><a href="#HATMaskResNet101-1705"><span class="linenos">1705</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="HATMaskResNet101-1706"><a href="#HATMaskResNet101-1706"><span class="linenos">1706</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNet101-1707"><a href="#HATMaskResNet101-1707"><span class="linenos">1707</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNet101-1707"><a href="#HATMaskResNet101-1707"><span class="linenos">1707</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNet101-1708"><a href="#HATMaskResNet101-1708"><span class="linenos">1708</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNet101-1709"><a href="#HATMaskResNet101-1709"><span class="linenos">1709</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNet101-1710"><a href="#HATMaskResNet101-1710"><span class="linenos">1710</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -6357,7 +6357,7 @@
 
 <p>ResNet-101 is a larger architecture proposed in the <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html">original ResNet paper</a>. It consists of 101 weight convolutional layers in total. See Table 1 in the paper for details.</p>
 
-<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</p>
+<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</p>
 </div>
 
 
@@ -6384,7 +6384,7 @@
 </span><span id="HATMaskResNet101.__init__-1704"><a href="#HATMaskResNet101.__init__-1704"><span class="linenos">1704</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNet101.__init__-1705"><a href="#HATMaskResNet101.__init__-1705"><span class="linenos">1705</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="HATMaskResNet101.__init__-1706"><a href="#HATMaskResNet101.__init__-1706"><span class="linenos">1706</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNet101.__init__-1707"><a href="#HATMaskResNet101.__init__-1707"><span class="linenos">1707</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNet101.__init__-1707"><a href="#HATMaskResNet101.__init__-1707"><span class="linenos">1707</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNet101.__init__-1708"><a href="#HATMaskResNet101.__init__-1708"><span class="linenos">1708</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNet101.__init__-1709"><a href="#HATMaskResNet101.__init__-1709"><span class="linenos">1709</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNet101.__init__-1710"><a href="#HATMaskResNet101.__init__-1710"><span class="linenos">1710</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -6410,7 +6410,7 @@
 <ul>
 <li><strong>input_channels</strong> (<code>int</code>): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</li>
 <li><strong>output_dim</strong> (<code>int</code>): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</li>
-<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks; one of:
 <ul>
 <li><code>sigmoid</code>: the sigmoid function.</li>
 </ul></li>
@@ -6462,7 +6462,7 @@
 </span><span id="HATMaskResNet152-1729"><a href="#HATMaskResNet152-1729"><span class="linenos">1729</span></a>
 </span><span id="HATMaskResNet152-1730"><a href="#HATMaskResNet152-1730"><span class="linenos">1730</span></a><span class="sd">    ResNet-152 is the largest architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 152 weight convolutional layers in total. See Table 1 in the paper for details.</span>
 </span><span id="HATMaskResNet152-1731"><a href="#HATMaskResNet152-1731"><span class="linenos">1731</span></a>
-</span><span id="HATMaskResNet152-1732"><a href="#HATMaskResNet152-1732"><span class="linenos">1732</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</span>
+</span><span id="HATMaskResNet152-1732"><a href="#HATMaskResNet152-1732"><span class="linenos">1732</span></a><span class="sd">    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</span>
 </span><span id="HATMaskResNet152-1733"><a href="#HATMaskResNet152-1733"><span class="linenos">1733</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="HATMaskResNet152-1734"><a href="#HATMaskResNet152-1734"><span class="linenos">1734</span></a>
 </span><span id="HATMaskResNet152-1735"><a href="#HATMaskResNet152-1735"><span class="linenos">1735</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -6478,7 +6478,7 @@
 </span><span id="HATMaskResNet152-1745"><a href="#HATMaskResNet152-1745"><span class="linenos">1745</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNet152-1746"><a href="#HATMaskResNet152-1746"><span class="linenos">1746</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="HATMaskResNet152-1747"><a href="#HATMaskResNet152-1747"><span class="linenos">1747</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNet152-1748"><a href="#HATMaskResNet152-1748"><span class="linenos">1748</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNet152-1748"><a href="#HATMaskResNet152-1748"><span class="linenos">1748</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNet152-1749"><a href="#HATMaskResNet152-1749"><span class="linenos">1749</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNet152-1750"><a href="#HATMaskResNet152-1750"><span class="linenos">1750</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNet152-1751"><a href="#HATMaskResNet152-1751"><span class="linenos">1751</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -6503,7 +6503,7 @@
 
 <p>ResNet-152 is the largest architecture proposed in the <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html">original ResNet paper</a>. It consists of 152 weight convolutional layers in total. See Table 1 in the paper for details.</p>
 
-<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.</p>
+<p>Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.</p>
 </div>
 
 
@@ -6530,7 +6530,7 @@
 </span><span id="HATMaskResNet152.__init__-1745"><a href="#HATMaskResNet152.__init__-1745"><span class="linenos">1745</span></a><span class="sd">        **Args:**</span>
 </span><span id="HATMaskResNet152.__init__-1746"><a href="#HATMaskResNet152.__init__-1746"><span class="linenos">1746</span></a><span class="sd">        - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</span>
 </span><span id="HATMaskResNet152.__init__-1747"><a href="#HATMaskResNet152.__init__-1747"><span class="linenos">1747</span></a><span class="sd">        - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</span>
-</span><span id="HATMaskResNet152.__init__-1748"><a href="#HATMaskResNet152.__init__-1748"><span class="linenos">1748</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:</span>
+</span><span id="HATMaskResNet152.__init__-1748"><a href="#HATMaskResNet152.__init__-1748"><span class="linenos">1748</span></a><span class="sd">        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:</span>
 </span><span id="HATMaskResNet152.__init__-1749"><a href="#HATMaskResNet152.__init__-1749"><span class="linenos">1749</span></a><span class="sd">            - `sigmoid`: the sigmoid function.</span>
 </span><span id="HATMaskResNet152.__init__-1750"><a href="#HATMaskResNet152.__init__-1750"><span class="linenos">1750</span></a><span class="sd">        - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won&#39;t be used. Default `nn.ReLU`.</span>
 </span><span id="HATMaskResNet152.__init__-1751"><a href="#HATMaskResNet152.__init__-1751"><span class="linenos">1751</span></a><span class="sd">        - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.</span>
@@ -6556,7 +6556,7 @@
 <ul>
 <li><strong>input_channels</strong> (<code>int</code>): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.</li>
 <li><strong>output_dim</strong> (<code>int</code>): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.</li>
-<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+<li><strong>gate</strong> (<code>str</code>): the type of gate function turning the real value task embeddings into attention masks; one of:
 <ul>
 <li><code>sigmoid</code>: the sigmoid function.</li>
 </ul></li>

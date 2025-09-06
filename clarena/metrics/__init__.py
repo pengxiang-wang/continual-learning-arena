@@ -2,20 +2,22 @@ r"""
 
 # Metrics
 
-This submodule provides the **metrics** in CLArena. This includes:
+This submodule provides the **metric callbacks** in CLArena, which control each metric's computation, logging and visualization process.
 
-- Callbacks that control each metric's calculation, logging and visualization process. They are implemented as subclasses of `MetricCallback`.
-- Custom metrics that can be used in continual learning experiments. They are implemented as classes in `torchmetrics`.
+Here are the base classes for metric callbacks, which inherit from PyTorch Lightning `Callback`:
 
-Please note that this is an API documentation. Please refer to the main documentation pages for more information about the metrics and how to configure and implement them:
+- `MetricCallback`: the base class for all metric callbacks.
 
-- [**Configure Metrics**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiment/metrics)
-- [**Implement Your Metrics**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/metrics)
+Please note that this is an API documentation. Please refer to the main documentation pages for more information about how to configure and implement metric callbacks:
+
+- [**Configure Metrics**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/components/metrics)
+- [**Implement Custom Callback**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/custom-implementation/callback)
 - [**A Summary of Continual Learning Metrics**](https://pengxiang-wang.com/posts/continual-learning-metrics)
 
 """
 
 from .base import MetricCallback
+
 from .cl_acc import CLAccuracy
 from .cl_loss import CLLoss
 from .cul_dd import CULDistributionDistance
@@ -27,20 +29,21 @@ from .hat_masks import HATMasks
 
 from .mtl_acc import MTLAccuracy
 from .mtl_loss import MTLLoss
+
 from .stl_acc import STLAccuracy
 from .stl_loss import STLLoss
 
 __all__ = [
     "MetricCallback",
-    "CLAccuracy",
-    "CLLoss",
-    "CULDistributionDistance",
-    "CULAccuracyDifference",
-    "HATAdjustmentRate",
-    "HATNetworkCapacity",
-    "HATMasks",
-    "MTLAccuracy",
-    "MTLLoss",
-    "STLAccuracy",
-    "STLLoss",
+    "cl_acc",
+    "cl_loss",
+    "cul_dd",
+    "cul_ad",
+    "hat_adjustment_rate",
+    "hat_network_capacity",
+    "hat_masks",
+    "mtl_acc",
+    "mtl_loss",
+    "stl_acc",
+    "stl_loss",
 ]

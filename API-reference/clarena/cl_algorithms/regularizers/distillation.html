@@ -127,7 +127,7 @@
 </span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a><span class="sd">        - **factor** (`float`): the regularization factor.</span>
 </span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a><span class="sd">        - **temperature** (`float`): the temperature of the distillation, should be a positive float.</span>
-</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a><span class="sd">        - **distance** (`str`): the type of distance function used in the distillation, should be one of the following:</span>
+</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a><span class="sd">        - **distance** (`str`): the type of distance function used in the distillation; one of:</span>
 </span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a><span class="sd">            1. &quot;lwf_cross_entropy&quot;: the modified cross entropy loss from LwF. See equation (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).</span>
 </span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
@@ -220,7 +220,7 @@
 </span><span id="DistillationReg-30"><a href="#DistillationReg-30"><span class="linenos">30</span></a><span class="sd">        **Args:**</span>
 </span><span id="DistillationReg-31"><a href="#DistillationReg-31"><span class="linenos">31</span></a><span class="sd">        - **factor** (`float`): the regularization factor.</span>
 </span><span id="DistillationReg-32"><a href="#DistillationReg-32"><span class="linenos">32</span></a><span class="sd">        - **temperature** (`float`): the temperature of the distillation, should be a positive float.</span>
-</span><span id="DistillationReg-33"><a href="#DistillationReg-33"><span class="linenos">33</span></a><span class="sd">        - **distance** (`str`): the type of distance function used in the distillation, should be one of the following:</span>
+</span><span id="DistillationReg-33"><a href="#DistillationReg-33"><span class="linenos">33</span></a><span class="sd">        - **distance** (`str`): the type of distance function used in the distillation; one of:</span>
 </span><span id="DistillationReg-34"><a href="#DistillationReg-34"><span class="linenos">34</span></a><span class="sd">            1. &quot;lwf_cross_entropy&quot;: the modified cross entropy loss from LwF. See equation (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).</span>
 </span><span id="DistillationReg-35"><a href="#DistillationReg-35"><span class="linenos">35</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="DistillationReg-36"><a href="#DistillationReg-36"><span class="linenos">36</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
@@ -314,7 +314,7 @@
 </span><span id="DistillationReg.__init__-30"><a href="#DistillationReg.__init__-30"><span class="linenos">30</span></a><span class="sd">        **Args:**</span>
 </span><span id="DistillationReg.__init__-31"><a href="#DistillationReg.__init__-31"><span class="linenos">31</span></a><span class="sd">        - **factor** (`float`): the regularization factor.</span>
 </span><span id="DistillationReg.__init__-32"><a href="#DistillationReg.__init__-32"><span class="linenos">32</span></a><span class="sd">        - **temperature** (`float`): the temperature of the distillation, should be a positive float.</span>
-</span><span id="DistillationReg.__init__-33"><a href="#DistillationReg.__init__-33"><span class="linenos">33</span></a><span class="sd">        - **distance** (`str`): the type of distance function used in the distillation, should be one of the following:</span>
+</span><span id="DistillationReg.__init__-33"><a href="#DistillationReg.__init__-33"><span class="linenos">33</span></a><span class="sd">        - **distance** (`str`): the type of distance function used in the distillation; one of:</span>
 </span><span id="DistillationReg.__init__-34"><a href="#DistillationReg.__init__-34"><span class="linenos">34</span></a><span class="sd">            1. &quot;lwf_cross_entropy&quot;: the modified cross entropy loss from LwF. See equation (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).</span>
 </span><span id="DistillationReg.__init__-35"><a href="#DistillationReg.__init__-35"><span class="linenos">35</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="DistillationReg.__init__-36"><a href="#DistillationReg.__init__-36"><span class="linenos">36</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
@@ -335,7 +335,7 @@
 <ul>
 <li><strong>factor</strong> (<code><a href="#DistillationReg.float">float</a></code>): the regularization factor.</li>
 <li><strong>temperature</strong> (<code><a href="#DistillationReg.float">float</a></code>): the temperature of the distillation, should be a positive float.</li>
-<li><strong>distance</strong> (<code>str</code>): the type of distance function used in the distillation, should be one of the following:
+<li><strong>distance</strong> (<code>str</code>): the type of distance function used in the distillation; one of:
 <ol>
 <li>"lwf_cross_entropy": the modified cross entropy loss from LwF. See equation (3) in the <a href="https://ieeexplore.ieee.org/abstract/document/8107520">LwF paper</a>.</li>
 </ol></li>

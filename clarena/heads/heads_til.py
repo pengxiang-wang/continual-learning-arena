@@ -2,7 +2,12 @@ r"""The submodule in `heads` for TIL heads."""
 
 __all__ = ["HeadsTIL"]
 
+import logging
+
 from torch import Tensor, nn
+
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
 class HeadsTIL(nn.Module):
@@ -66,4 +71,5 @@ class HeadsTIL(nn.Module):
         head_t = self.get_head(task_id)
         logits = head_t(feature)
 
+        return logits
         return logits

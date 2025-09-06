@@ -118,7 +118,7 @@
 </span><span id="L-29"><a href="#L-29"><span class="linenos"> 29</span></a>
 </span><span id="L-30"><a href="#L-30"><span class="linenos"> 30</span></a><span class="sd">    **Args:**</span>
 </span><span id="L-31"><a href="#L-31"><span class="linenos"> 31</span></a><span class="sd">    - **cfg** (`DictConfig`): the config dict to preprocess.</span>
-</span><span id="L-32"><a href="#L-32"><span class="linenos"> 32</span></a><span class="sd">    - **expr_type** (`str`): the type of the experiment, should be one of the following:</span>
+</span><span id="L-32"><a href="#L-32"><span class="linenos"> 32</span></a><span class="sd">    - **expr_type** (`str`): the type of the experiment; one of:</span>
 </span><span id="L-33"><a href="#L-33"><span class="linenos"> 33</span></a><span class="sd">        1. &#39;clmain_train&#39;: continual learning main experiment.</span>
 </span><span id="L-34"><a href="#L-34"><span class="linenos"> 34</span></a><span class="sd">        2. &#39;clmain_eval&#39;: evaluating trained continual learning main experiment.</span>
 </span><span id="L-35"><a href="#L-35"><span class="linenos"> 35</span></a><span class="sd">        3. &#39;clrefjl_train&#39;: joint learning as a reference experiment of continual learning.</span>
@@ -300,8 +300,8 @@
 </span><span id="L-211"><a href="#L-211"><span class="linenos">211</span></a>
 </span><span id="L-212"><a href="#L-212"><span class="linenos">212</span></a>        <span class="n">cfg</span><span class="o">.</span><span class="n">train_tasks</span> <span class="o">=</span> <span class="n">train_tasks</span>
 </span><span id="L-213"><a href="#L-213"><span class="linenos">213</span></a>
-</span><span id="L-214"><a href="#L-214"><span class="linenos">214</span></a>        <span class="c1"># delete the unlearning_algorithm, since this is a joint learning experiment</span>
-</span><span id="L-215"><a href="#L-215"><span class="linenos">215</span></a>        <span class="k">del</span> <span class="n">cfg</span><span class="o">.</span><span class="n">unlearning_algorithm</span>
+</span><span id="L-214"><a href="#L-214"><span class="linenos">214</span></a>        <span class="c1"># delete the cul_algorithm, since this is a joint learning experiment</span>
+</span><span id="L-215"><a href="#L-215"><span class="linenos">215</span></a>        <span class="k">del</span> <span class="n">cfg</span><span class="o">.</span><span class="n">cul_algorithm</span>
 </span><span id="L-216"><a href="#L-216"><span class="linenos">216</span></a>
 </span><span id="L-217"><a href="#L-217"><span class="linenos">217</span></a>        <span class="c1"># revise callbacks</span>
 </span><span id="L-218"><a href="#L-218"><span class="linenos">218</span></a>        <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="n">cfg</span><span class="o">.</span><span class="n">callbacks</span><span class="p">:</span>
@@ -315,8 +315,8 @@
 </span><span id="L-226"><a href="#L-226"><span class="linenos">226</span></a>
 </span><span id="L-227"><a href="#L-227"><span class="linenos">227</span></a>        <span class="c1"># just do the CLExperiment using the unlearning experiment config will automatically ignore the unlearning process, which is exactly the full experiment</span>
 </span><span id="L-228"><a href="#L-228"><span class="linenos">228</span></a>
-</span><span id="L-229"><a href="#L-229"><span class="linenos">229</span></a>        <span class="c1"># delete the unlearning_algorithm, since this is a joint learning experiment</span>
-</span><span id="L-230"><a href="#L-230"><span class="linenos">230</span></a>        <span class="k">del</span> <span class="n">cfg</span><span class="o">.</span><span class="n">unlearning_algorithm</span>
+</span><span id="L-229"><a href="#L-229"><span class="linenos">229</span></a>        <span class="c1"># delete the cul_algorithm, since this is a joint learning experiment</span>
+</span><span id="L-230"><a href="#L-230"><span class="linenos">230</span></a>        <span class="k">del</span> <span class="n">cfg</span><span class="o">.</span><span class="n">cul_algorithm</span>
 </span><span id="L-231"><a href="#L-231"><span class="linenos">231</span></a>
 </span><span id="L-232"><a href="#L-232"><span class="linenos">232</span></a>        <span class="c1"># revise callbacks</span>
 </span><span id="L-233"><a href="#L-233"><span class="linenos">233</span></a>        <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="n">cfg</span><span class="o">.</span><span class="n">callbacks</span><span class="p">:</span>
@@ -529,7 +529,7 @@
 </span><span id="preprocess_config-30"><a href="#preprocess_config-30"><span class="linenos"> 30</span></a>
 </span><span id="preprocess_config-31"><a href="#preprocess_config-31"><span class="linenos"> 31</span></a><span class="sd">    **Args:**</span>
 </span><span id="preprocess_config-32"><a href="#preprocess_config-32"><span class="linenos"> 32</span></a><span class="sd">    - **cfg** (`DictConfig`): the config dict to preprocess.</span>
-</span><span id="preprocess_config-33"><a href="#preprocess_config-33"><span class="linenos"> 33</span></a><span class="sd">    - **expr_type** (`str`): the type of the experiment, should be one of the following:</span>
+</span><span id="preprocess_config-33"><a href="#preprocess_config-33"><span class="linenos"> 33</span></a><span class="sd">    - **expr_type** (`str`): the type of the experiment; one of:</span>
 </span><span id="preprocess_config-34"><a href="#preprocess_config-34"><span class="linenos"> 34</span></a><span class="sd">        1. &#39;clmain_train&#39;: continual learning main experiment.</span>
 </span><span id="preprocess_config-35"><a href="#preprocess_config-35"><span class="linenos"> 35</span></a><span class="sd">        2. &#39;clmain_eval&#39;: evaluating trained continual learning main experiment.</span>
 </span><span id="preprocess_config-36"><a href="#preprocess_config-36"><span class="linenos"> 36</span></a><span class="sd">        3. &#39;clrefjl_train&#39;: joint learning as a reference experiment of continual learning.</span>
@@ -711,8 +711,8 @@
 </span><span id="preprocess_config-212"><a href="#preprocess_config-212"><span class="linenos">212</span></a>
 </span><span id="preprocess_config-213"><a href="#preprocess_config-213"><span class="linenos">213</span></a>        <span class="n">cfg</span><span class="o">.</span><span class="n">train_tasks</span> <span class="o">=</span> <span class="n">train_tasks</span>
 </span><span id="preprocess_config-214"><a href="#preprocess_config-214"><span class="linenos">214</span></a>
-</span><span id="preprocess_config-215"><a href="#preprocess_config-215"><span class="linenos">215</span></a>        <span class="c1"># delete the unlearning_algorithm, since this is a joint learning experiment</span>
-</span><span id="preprocess_config-216"><a href="#preprocess_config-216"><span class="linenos">216</span></a>        <span class="k">del</span> <span class="n">cfg</span><span class="o">.</span><span class="n">unlearning_algorithm</span>
+</span><span id="preprocess_config-215"><a href="#preprocess_config-215"><span class="linenos">215</span></a>        <span class="c1"># delete the cul_algorithm, since this is a joint learning experiment</span>
+</span><span id="preprocess_config-216"><a href="#preprocess_config-216"><span class="linenos">216</span></a>        <span class="k">del</span> <span class="n">cfg</span><span class="o">.</span><span class="n">cul_algorithm</span>
 </span><span id="preprocess_config-217"><a href="#preprocess_config-217"><span class="linenos">217</span></a>
 </span><span id="preprocess_config-218"><a href="#preprocess_config-218"><span class="linenos">218</span></a>        <span class="c1"># revise callbacks</span>
 </span><span id="preprocess_config-219"><a href="#preprocess_config-219"><span class="linenos">219</span></a>        <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="n">cfg</span><span class="o">.</span><span class="n">callbacks</span><span class="p">:</span>
@@ -726,8 +726,8 @@
 </span><span id="preprocess_config-227"><a href="#preprocess_config-227"><span class="linenos">227</span></a>
 </span><span id="preprocess_config-228"><a href="#preprocess_config-228"><span class="linenos">228</span></a>        <span class="c1"># just do the CLExperiment using the unlearning experiment config will automatically ignore the unlearning process, which is exactly the full experiment</span>
 </span><span id="preprocess_config-229"><a href="#preprocess_config-229"><span class="linenos">229</span></a>
-</span><span id="preprocess_config-230"><a href="#preprocess_config-230"><span class="linenos">230</span></a>        <span class="c1"># delete the unlearning_algorithm, since this is a joint learning experiment</span>
-</span><span id="preprocess_config-231"><a href="#preprocess_config-231"><span class="linenos">231</span></a>        <span class="k">del</span> <span class="n">cfg</span><span class="o">.</span><span class="n">unlearning_algorithm</span>
+</span><span id="preprocess_config-230"><a href="#preprocess_config-230"><span class="linenos">230</span></a>        <span class="c1"># delete the cul_algorithm, since this is a joint learning experiment</span>
+</span><span id="preprocess_config-231"><a href="#preprocess_config-231"><span class="linenos">231</span></a>        <span class="k">del</span> <span class="n">cfg</span><span class="o">.</span><span class="n">cul_algorithm</span>
 </span><span id="preprocess_config-232"><a href="#preprocess_config-232"><span class="linenos">232</span></a>
 </span><span id="preprocess_config-233"><a href="#preprocess_config-233"><span class="linenos">233</span></a>        <span class="c1"># revise callbacks</span>
 </span><span id="preprocess_config-234"><a href="#preprocess_config-234"><span class="linenos">234</span></a>        <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="n">cfg</span><span class="o">.</span><span class="n">callbacks</span><span class="p">:</span>
@@ -808,7 +808,7 @@
 
 <ul>
 <li><strong>cfg</strong> (<code>DictConfig</code>): the config dict to preprocess.</li>
-<li><strong>expr_type</strong> (<code>str</code>): the type of the experiment, should be one of the following:
+<li><strong>expr_type</strong> (<code>str</code>): the type of the experiment; one of:
 <ol>
 <li>'clmain_train': continual learning main experiment.</li>
 <li>'clmain_eval': evaluating trained continual learning main experiment.</li>

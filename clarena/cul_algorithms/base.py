@@ -1,5 +1,5 @@
 r"""
-The submoduule in `unlearning_algorithms` for unlearning alogrithm bases.
+The submoduule in `cul_algorithms` for continual unlearning alogrithm bases.
 """
 
 __all__ = ["CULAlgorithm"]
@@ -7,31 +7,34 @@ __all__ = ["CULAlgorithm"]
 import logging
 from abc import abstractmethod
 
-from clarena.cl_algorithms import CLAlgorithm
+from clarena.cl_algorithms import UnlearnableCLAlgorithm
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 class CULAlgorithm:
-    r"""The base class of unlearning algorithms."""
+    r"""The base class of continual unlearning algorithms."""
 
-    def __init__(self, model: CLAlgorithm) -> None:
-        r"""Initialize the unlearning algorithm with the continual learning model.
-
+    def __init__(self, model: UnlearnableCLAlgorithm) -> None:
+        r"""
         **Args:**
-        - **model** (`CLAlgorithm`): the continual learning model (`CLAlgorithm` object which already contains the backbone and heads).
+        - **model** (`UnlearnableCLAlgorithm`): the continual learning model.
         """
-        self.model: CLAlgorithm = model
-        r"""Store the continual learning model."""
 
-        # task control
+        # components
+        self.model: UnlearnableCLAlgorithm = model
+        r"""The continual learning model."""
+
+        # task ID control
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
-        self.unlearning_task_ids: list[int]
-        r"""The list of task IDs to be unlearned after `self.task_id`. If none of the tasks need to be unlearned, it will be an empty list."""
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`."""
+        self.processed_task_ids: list[int] = []
+        r"""Task IDs that have been processed."""
+        self.unlearning_task_ids: list[int] = []
+        r"""The list of task IDs that are requested to be unlearned after training `self.task_id`."""
         self.unlearned_task_ids: set[int] = set()
-        r"""Store the list of task IDs that have been unlearned in the experiment. """
+        r"""The list of task IDs that have been unlearned in the experiment. """
         self.if_permanent_t: bool
         r"""Whether the task is permanent or not. If `True`, the task will not be unlearned i.e. not shown in future unlearning requests."""
 
@@ -70,4 +73,4 @@ class CULAlgorithm:
 
     @abstractmethod
     def unlearn(self) -> None:
-        r"""Unlearn the requested unlearning tasks in current task `self.task_id`."""
+        r"""Unlearn the requested unlearning tasks after training `self.task_id`. **It must be implemented in subclasses.**"""

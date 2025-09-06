@@ -28,17 +28,23 @@ class SingleLearning(STLAlgorithm):
         self,
         backbone: Backbone,
         head: HeadSTL,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the SingleLearning algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
-        - **backbone** (`CLBackbone`): backbone network.
-        - **head** (`HeadsMTL`): output head.
+        - **backbone** (`Backbone`): backbone network.
+        - **head** (`HeadSTL`): output head.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
         """
-        super().__init__(backbone=backbone, head=head)
+        super().__init__(
+            backbone=backbone,
+            head=head,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
 
     def training_step(self, batch: Any) -> dict[str, Tensor]:
-        r"""Training step for single learning.
+        r"""Training step.
 
         **Args:**
         - **batch** (`Any`): a batch of training data.
@@ -48,26 +54,29 @@ class SingleLearning(STLAlgorithm):
         """
         x, y = batch
 
-        logits, activations = self.forward(x, stage="train")
-
         # classification loss
+        logits, activations = self.forward(x, stage="train")
         loss_cls = self.criterion(logits, y)
 
         # total loss
         loss = loss_cls
 
+        # predicted labels
+        preds = logits.argmax(dim=1)
+
         # accuracy of the batch
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        acc = (preds == y).float().mean()
 
         return {
+            "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
             "activations": activations,
         }
 
-    def validation_step(self, batch: DataLoader, batch_idx: int) -> dict[str, Tensor]:
-        r"""Validation step for single learning.
+    def validation_step(self, batch: Any) -> dict[str, Tensor]:
+        r"""Validation step.
 
         **Args:**
         - **batch** (`Any`): a batch of validation data.
@@ -77,21 +86,20 @@ class SingleLearning(STLAlgorithm):
         """
 
         x, y = batch
-
-        # the batch is from the same task, so no need to divide the input batch by tasks
-        logits, activations = self.forward(x, stage="validation")
-
+        logits, _ = self.forward(x, stage="validation")
         loss_cls = self.criterion(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        preds = logits.argmax(dim=1)
+        acc = (preds == y).float().mean()
 
         # Return metrics for lightning loggers callback to handle at `on_validation_batch_end()`
         return {
+            "preds": preds,
             "loss_cls": loss_cls,
             "acc": acc,
         }
 
-    def test_step(self, batch: DataLoader, batch_idx: int) -> dict[str, Tensor]:
-        r"""Test step for single learning.
+    def test_step(self, batch: DataLoader) -> dict[str, Tensor]:
+        r"""Test step.
 
         **Args:**
         - **batch** (`Any`): a batch of test data.
@@ -101,13 +109,14 @@ class SingleLearning(STLAlgorithm):
         """
 
         x, y = batch
-
-        logits, activations = self.forward(x, stage="test")
+        logits, _ = self.forward(x, stage="test")
         loss_cls = self.criterion(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        preds = logits.argmax(dim=1)
+        acc = (preds == y).float().mean()
 
         # Return metrics for lightning loggers callback to handle at `on_test_batch_end()`
         return {
+            "preds": preds,
             "loss_cls": loss_cls,
             "acc": acc,
         }

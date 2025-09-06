@@ -1,11 +1,16 @@
 r"""The submodule in `utils` for evaluation utilities."""
 
+import logging
+
 from lightning import LightningModule
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 
 from clarena.cl_algorithms import CLAlgorithm
-from clarena.unlearning_algorithms import CULAlgorithm
+from clarena.cul_algorithms import CULAlgorithm
+
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
 class CULEvaluation(LightningModule):
@@ -14,17 +19,16 @@ class CULEvaluation(LightningModule):
     def __init__(
         self,
         main_model: CULAlgorithm,
-        ref_model: CLAlgorithm,
-        full_model: CLAlgorithm,
+        refretrain_model: CLAlgorithm,
+        reforiginal_model: CLAlgorithm,
         dd_eval_task_ids: list[int],
         ad_eval_task_ids: list[int],
     ):
-        r"""Initialize the evaluation module for continual unlearning.
-
+        r"""
         **Args:**
         - **main_model** (`CULAlgorithm`): the main model to evaluate.
-        - **ref_model** (`CLAlgorithm`): the reference model to evaluate against.
-        - **full_model** (`CLAlgorithm`): the full model that has been trained on all tasks.
+        - **refretrain_model** (`CLAlgorithm`): the reference retrain model to evaluate against.
+        - **reforiginal_model** (`CLAlgorithm`): the reference original model that has been trained on all tasks.
         - **dd_eval_task_ids** (`list[int]`): the list of task IDs to evaluate the DD on.
         - **ad_eval_task_ids** (`list[int]`): the list of task IDs to evaluate the accuracy difference on.
         """
@@ -34,34 +38,16 @@ class CULEvaluation(LightningModule):
         r"""The loss function bewteen the output logits and the target labels. Default is cross-entropy loss."""
 
         self.main_model = main_model
-        r"""Store the main model for evaluation."""
-        self.ref_model = ref_model
-        r"""Store the reference model for evaluation."""
-        self.full_model = full_model
-        r"""Store the full model for evaluation."""
+        r"""The main model for evaluation."""
+        self.refretrain_model = refretrain_model
+        r"""The reference retrain model for evaluation."""
+        self.reforiginal_model = reforiginal_model
+        r"""The reference original model for evaluation."""
 
         self.dd_eval_task_ids: list[int] = dd_eval_task_ids
-        r"""Store the task IDs to evaluate the DD on. """
+        r"""The task IDs to evaluate the DD on. """
         self.ad_eval_task_ids: list[int] = ad_eval_task_ids
-        r"""Store the task IDs to evaluate the accuracy difference on. """
-
-        # task ID controls
-        self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`."""
-        self.processed_task_ids: list[int] = []
-        r"""Task IDs that have been processed in the experiment."""
-
-    def setup_task_id(
-        self,
-        task_id: int,
-    ) -> None:
-        r"""Set up which task the CUL evaluation is on. This must be done before `forward()` method is called.
-
-        **Args:**
-        - **task_id** (`int`): the target task ID.
-        """
-        self.task_id = task_id
-        self.processed_task_ids.append(task_id)
+        r"""The task IDs to evaluate the AD on. """
 
     def get_test_task_id_from_dataloader_idx(self, dataloader_idx: int) -> int:
         r"""Get the test task ID from the dataloader index.
@@ -70,7 +56,7 @@ class CULEvaluation(LightningModule):
         - **dataloader_idx** (`int`): the dataloader index.
 
         **Returns:**
-        - **test_task_id** (`str`): the test task ID.
+        - **test_task_id** (`int`): the test task ID.
         """
         dataset_test = self.trainer.datamodule.dataset_test
         test_task_id = list(dataset_test.keys())[dataloader_idx]
@@ -94,7 +80,7 @@ class CULEvaluation(LightningModule):
 
         # get the aggregated backbone output (instead of logits)
         agg_out_main = self.main_model.aggregated_backbone_output(x)
-        agg_out_ref = self.ref_model.aggregated_backbone_output(x)
+        agg_out_ref = self.refretrain_model.aggregated_backbone_output(x)
 
         logits_main, activations_main = self.main_model.forward(
             x, stage="test", task_id=test_task_id
@@ -102,7 +88,7 @@ class CULEvaluation(LightningModule):
         loss_cls_main = self.criterion(logits_main, y)
         acc_main = (logits_main.argmax(dim=1) == y).float().mean()
 
-        logits_full, activations_full = self.full_model.forward(
+        logits_full, activations_full = self.reforiginal_model.forward(
             x, stage="test", task_id=test_task_id
         )  # use the corresponding head to test (instead of the current task `self.task_id`)
         loss_cls_full = self.criterion(logits_full, y)
@@ -119,7 +105,6 @@ class CULEvaluation(LightningModule):
         }
 
 
-# # 结果在 eval_module.results
 # print("Unlearning JS divergence results:", eval_module.results)
 
 
@@ -163,6 +148,8 @@ class CULEvaluation(LightningModule):
 #                     aggregated_backbone_output_unlearning_test_reference,
 #                 )
 
+#             print("js", js)
+#             print("js", js)
 #             print("js", js)
 #             print("js", js)
 #             print("js", js)

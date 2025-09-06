@@ -21,7 +21,7 @@ pylogger = logging.getLogger(__name__)
 class SaveModels(Callback):
     r"""Saves the model at the end of training. In continual learning / unlearning, applies to all tasks."""
 
-    def __init__(self, save_dir: str) -> None:
+    def __init__(self, save_dir: str, save_after_each_task: bool = False) -> None:
         r"""Initialize the SaveModel callback.
 
         **Args:**
@@ -32,15 +32,21 @@ class SaveModels(Callback):
 
         os.makedirs(self.save_dir, exist_ok=True)
 
+        self.save_after_each_task = save_after_each_task
+        r"""Whether to save the model after each task in continual learning / unlearning."""
+
     def on_fit_end(
         self, trainer: Trainer, pl_module: CLAlgorithm | MTLAlgorithm | STLAlgorithm
     ) -> None:
         r"""Save the model at the end of each training task."""
         save_path = None
         if isinstance(pl_module, CLAlgorithm):
-            save_path = os.path.join(
-                self.save_dir, f"task_{pl_module.task_id}_model.pth"
-            )
+            if self.save_after_each_task:
+                save_path = os.path.join(
+                    self.save_dir, f"model_after_task_{pl_module.task_id}.pth"
+                )
+            else:
+                save_path = os.path.join(self.save_dir, "cl_model.pth")
         elif isinstance(pl_module, MTLAlgorithm):
             save_path = os.path.join(self.save_dir, "mtl_model.pth")
         elif isinstance(pl_module, STLAlgorithm):

@@ -29,14 +29,21 @@ class Fix(Finetuning):
         self,
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the Fix algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+
         """
-        super().__init__(backbone=backbone, heads=heads)
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
 
         # freeze only once after task 1
         self._backbone_frozen: bool = False

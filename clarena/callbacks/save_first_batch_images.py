@@ -10,7 +10,9 @@ import os
 
 import torch
 import torchvision
+import wandb
 from lightning import Callback, Trainer
+from lightning.pytorch.loggers import WandbLogger
 
 from clarena.cl_algorithms import CLAlgorithm
 from clarena.mtl_algorithms import MTLAlgorithm
@@ -53,15 +55,16 @@ class SaveFirstBatchImages(Callback):
         self.called: bool = False
         r"""Flag to avoid calling the callback multiple times."""
 
-    def on_train_start(
-        self, trainer: Trainer, pl_module: CLAlgorithm | MTLAlgorithm | STLAlgorithm
+    def on_train_batch_end(
+        self,
+        trainer: Trainer,
+        pl_module: CLAlgorithm | MTLAlgorithm | STLAlgorithm,
+        outputs,
+        batch,
+        batch_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         r"""Save images and labels into files in the first batch of training data at the beginning of the training of the task."""
-        if self.called:
-            return  # flag to avoid calling the callback multiple times
-
-        dataloader = trainer.train_dataloader
-        batch = next(iter(dataloader))  # get the first batch
 
         if isinstance(pl_module, CLAlgorithm):
             image_batch, label_batch = batch
@@ -125,3 +128,42 @@ class SaveFirstBatchImages(Callback):
             labels_file.close()
 
         self.called = True  # flag to avoid calling the callback multiple times
+
+    def on_validation_batch_end(
+        self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx: int = 0
+    ):
+        """Called when the validation batch ends."""
+
+        wandb_logger = wandb_logger = next(
+            (logger for logger in pl_module.loggers if isinstance(logger, WandbLogger)),
+            None,
+        )
+
+        # `outputs` comes from `LightningModule.validation_step`
+        # which corresponds to our model predictions in this case
+
+        # Let's log 20 sample image predictions from the first batch
+        if batch_idx == 0:
+            n = 20
+            x, y = batch[:2]
+            x = (x - x.min()) / (x.max() - x.min())
+            images = [wandb.Image(img) for img in x[:n]]
+            captions = [
+                f"Ground Truth: {y_i} - Prediction: {y_pred}"
+                for y_i, y_pred in zip(y[:n], outputs["preds"][:n])
+            ]
+
+            # Option 1: log images with `WandbLogger.log_image`
+            if wandb_logger is not None:
+                wandb_logger.log_image(
+                    key="sample_images", images=images, caption=captions
+                )
+
+            # Option 2: log images and predictions as a W&B Table
+            columns = ["image", "ground truth", "prediction"]
+            data = [
+                [wandb.Image(x_i), y_i, y_pred]
+                for x_i, y_i, y_pred in list(zip(x[:n], y[:n], outputs["preds"][:n]))
+            ]
+            if wandb_logger is not None:
+                wandb_logger.log_table(key="sample_table", columns=columns, data=data)

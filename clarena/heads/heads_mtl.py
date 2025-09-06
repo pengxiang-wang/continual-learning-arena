@@ -2,8 +2,13 @@ r"""The submodule in `heads` for MTL heads."""
 
 __all__ = ["HeadsMTL"]
 
+import logging
+
 import torch
 from torch import Tensor, nn
+
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
 class HeadsMTL(nn.Module):

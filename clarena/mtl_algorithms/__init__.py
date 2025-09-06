@@ -4,16 +4,20 @@ r"""
 
 This submodule provides the **multi-task learning algorithms** in CLArena.
 
-The algorithms are implemented as subclasses of `MTLAlgorithm`.
+Here are the base classes for MTL algorithms, which inherit from PyTorch Lightning `LightningModule`:
 
-Please note that this is an API documantation. Please refer to the main documentation pages for more information about the backbone networks and how to configure and implement them:
+- `MTLAlgorithm`: the base class for all multi-task learning algorithms.
 
-- [**Configure MTL Algorithm**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiment/cl-algorithm)
-- [**Implement Your CL Algorithm Class**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/cl-algorithm)
-- [**A Beginners' Guide to Continual Learning (Methodology Overview)**](https://pengxiang-wang.com/posts/continual-learning-beginners-guide#sec-methodology)
+
+Please note that this is an API documantation. Please refer to the main documentation pages for more information about how to configure and implement MTL algorithms:
+
+- [**Configure MTL Algorithm**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/components/mtl-algorithm)
+- [**Implement Custom MTL Algorithm**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/custom-implementation/mtl-algorithm)
+
 """
 
 from .base import MTLAlgorithm
 
-#
 from .joint_learning import JointLearning
+
+__all__ = ["MTLAlgorithm", "joint_learning"]

@@ -354,7 +354,7 @@
 </span><span id="L-202"><a href="#L-202"><span class="linenos">202</span></a>
 </span><span id="L-203"><a href="#L-203"><span class="linenos">203</span></a><span class="sd">    MLP is a dense network architecture with several fully connected layers, each followed by an activation function. The last layer connects to the CL output heads.</span>
 </span><span id="L-204"><a href="#L-204"><span class="linenos">204</span></a>
-</span><span id="L-205"><a href="#L-205"><span class="linenos">205</span></a><span class="sd">    The mask is applied to units (neurons) in each fully connected layer. The mask is generated from the unit-wise task embedding and the gate function.</span>
+</span><span id="L-205"><a href="#L-205"><span class="linenos">205</span></a><span class="sd">    The mask is applied to units (neurons) in each fully connected layer. The mask is generated from the neuron-wise task embedding and the gate function.</span>
 </span><span id="L-206"><a href="#L-206"><span class="linenos">206</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-207"><a href="#L-207"><span class="linenos">207</span></a>
 </span><span id="L-208"><a href="#L-208"><span class="linenos">208</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -720,7 +720,7 @@
 </span><span id="L-568"><a href="#L-568"><span class="linenos">568</span></a>
 </span><span id="L-569"><a href="#L-569"><span class="linenos">569</span></a><span class="c1">#         **Args:**</span>
 </span><span id="L-570"><a href="#L-570"><span class="linenos">570</span></a><span class="c1">#         - **input** (`Tensor`): The input tensor from data.</span>
-</span><span id="L-571"><a href="#L-571"><span class="linenos">571</span></a><span class="c1">#         - **stage** (`str`): the stage of the forward pass, should be one of the following:</span>
+</span><span id="L-571"><a href="#L-571"><span class="linenos">571</span></a><span class="c1">#         - **stage** (`str`): the stage of the forward pass; one of:</span>
 </span><span id="L-572"><a href="#L-572"><span class="linenos">572</span></a><span class="c1">#             1. &#39;train&#39;: training stage.</span>
 </span><span id="L-573"><a href="#L-573"><span class="linenos">573</span></a><span class="c1">#             2. &#39;validation&#39;: validation stage.</span>
 </span><span id="L-574"><a href="#L-574"><span class="linenos">574</span></a><span class="c1">#             3. &#39;test&#39;: testing stage.</span>
@@ -1423,7 +1423,7 @@
 </span><span id="HATMaskMLP-203"><a href="#HATMaskMLP-203"><span class="linenos">203</span></a>
 </span><span id="HATMaskMLP-204"><a href="#HATMaskMLP-204"><span class="linenos">204</span></a><span class="sd">    MLP is a dense network architecture with several fully connected layers, each followed by an activation function. The last layer connects to the CL output heads.</span>
 </span><span id="HATMaskMLP-205"><a href="#HATMaskMLP-205"><span class="linenos">205</span></a>
-</span><span id="HATMaskMLP-206"><a href="#HATMaskMLP-206"><span class="linenos">206</span></a><span class="sd">    The mask is applied to units (neurons) in each fully connected layer. The mask is generated from the unit-wise task embedding and the gate function.</span>
+</span><span id="HATMaskMLP-206"><a href="#HATMaskMLP-206"><span class="linenos">206</span></a><span class="sd">    The mask is applied to units (neurons) in each fully connected layer. The mask is generated from the neuron-wise task embedding and the gate function.</span>
 </span><span id="HATMaskMLP-207"><a href="#HATMaskMLP-207"><span class="linenos">207</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="HATMaskMLP-208"><a href="#HATMaskMLP-208"><span class="linenos">208</span></a>
 </span><span id="HATMaskMLP-209"><a href="#HATMaskMLP-209"><span class="linenos">209</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -1596,7 +1596,7 @@
 
 <p>MLP is a dense network architecture with several fully connected layers, each followed by an activation function. The last layer connects to the CL output heads.</p>
 
-<p>The mask is applied to units (neurons) in each fully connected layer. The mask is generated from the unit-wise task embedding and the gate function.</p>
+<p>The mask is applied to units (neurons) in each fully connected layer. The mask is generated from the neuron-wise task embedding and the gate function.</p>
 </div>
 
 

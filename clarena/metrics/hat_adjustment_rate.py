@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm
 from torch import Tensor
 
-from clarena.cl_algorithms import HAT, CLAlgorithm
+from clarena.cl_algorithms import HAT
 from clarena.metrics import MetricCallback
 
 # always get logger for built-in logging in each module
@@ -37,8 +37,7 @@ class HATAdjustmentRate(MetricCallback):
         save_dir: str,
         plot_adjustment_rate_every_n_steps: int | None = None,
     ) -> None:
-        r"""Initialize the `HATAdjustmentRate`.
-
+        r"""
         **Args:**
         - **save_dir** (`str` | `None`): The directory to save the adjustment rate figures. Better inside the output folder.
         - **plot_adjustment_rate_every_n_steps** (`int` | `None`): the frequency of plotting adjustment rate figures in terms of number of batches during training.
@@ -49,12 +48,13 @@ class HATAdjustmentRate(MetricCallback):
         self.plot_adjustment_rate_every_n_steps: int = (
             plot_adjustment_rate_every_n_steps
         )
-        r"""Store the frequency of plotting adjustment rate in terms of number of batches."""
+        r"""The frequency of plotting adjustment rate in terms of number of batches."""
 
+        # task ID control
         self.task_id: int
-        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Starting from 1. """
+        r"""Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`."""
 
-    def on_fit_start(self, trainer: Trainer, pl_module: CLAlgorithm) -> None:
+    def on_fit_start(self, trainer: Trainer, pl_module: HAT) -> None:
         r"""Get the current task ID in the beginning of a task's fitting (training and validation). Sanity check the `pl_module` to be `HAT`.
 
         **Raises:**
@@ -74,7 +74,7 @@ class HATAdjustmentRate(MetricCallback):
     def on_train_batch_end(
         self,
         trainer: Trainer,
-        pl_module: CLAlgorithm,
+        pl_module: HAT,
         outputs: dict[str, Any],
         batch: Any,
         batch_idx: int,
@@ -82,7 +82,7 @@ class HATAdjustmentRate(MetricCallback):
         r"""Plot adjustment rate after training batch.
 
         **Args:**
-        - **outputs** (`dict[str, Any]`): the outputs of the training step, which is the returns of the `training_step()` method in the `CLAlgorithm`.
+        - **outputs** (`dict[str, Any]`): the outputs of the training step, which is the returns of the `training_step()` method in the `HAT`.
         - **batch** (`Any`): the training data batch.
         - **batch_idx** (`int`): the index of the current batch. This is for the file name of mask figures.
         """
@@ -115,7 +115,7 @@ class HATAdjustmentRate(MetricCallback):
         """Plot adjustment rate in [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a)) algorithm. This includes the adjustment rate weight and adjustment rate bias (if applicable).
 
         **Args:**
-        - **adjustment_rate** (`dict[str, Tensor]`): the adjustment rate. Key (`str`) is layer name, value (`Tensor`) is the adjustment rate tensor. If it's adjustment rate weight, it has size same as weights. If it's adjustment rate bias, it has size same as biases.
+        - **adjustment_rate** (`dict[str, Tensor]`): the adjustment rate. Keys (`str`) are layer names and values (`Tensor`) are the adjustment rate tensors. If it's adjustment rate weight, it has size same as weights. If it's adjustment rate bias, it has size same as biases.
         - **weight_or_bias** (`str`): the type of adjustment rate. It can be either 'weight' or 'bias'. This is to form the plot name.
         - **step** (`int`): the training step (batch index) of the adjustment rate to be plotted. This is to form the plot name. Keep `None` for not showing the step in the plot name.
         """

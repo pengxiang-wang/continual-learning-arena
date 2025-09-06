@@ -287,7 +287,7 @@
 </span><span id="L-54"><a href="#L-54"><span class="linenos"> 54</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-55"><a href="#L-55"><span class="linenos"> 55</span></a><span class="sd">        - **root** (`str` | `list[str]`): the root directory where the original data files for constructing the MTL dataset physically live. If `list[str]`, it should be a list of strings, each string is the root directory for each task.</span>
 </span><span id="L-56"><a href="#L-56"><span class="linenos"> 56</span></a><span class="sd">        - **num_tasks** (`int`): the maximum number of tasks supported by the MTL dataset.</span>
-</span><span id="L-57"><a href="#L-57"><span class="linenos"> 57</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset. Should be one of the following:</span>
+</span><span id="L-57"><a href="#L-57"><span class="linenos"> 57</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset; one of:</span>
 </span><span id="L-58"><a href="#L-58"><span class="linenos"> 58</span></a><span class="sd">            - &#39;mixed&#39;: mixed sampling strategy, which samples from all tasks&#39; datasets.</span>
 </span><span id="L-59"><a href="#L-59"><span class="linenos"> 59</span></a><span class="sd">        - **batch_size** (`int`): The batch size in train, val, test dataloader.</span>
 </span><span id="L-60"><a href="#L-60"><span class="linenos"> 60</span></a><span class="sd">        - **num_workers** (`int`): the number of workers for dataloaders.</span>
@@ -367,7 +367,7 @@
 </span><span id="L-134"><a href="#L-134"><span class="linenos">134</span></a>        <span class="n">MTLDataset</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="L-135"><a href="#L-135"><span class="linenos">135</span></a>
 </span><span id="L-136"><a href="#L-136"><span class="linenos">136</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="L-137"><a href="#L-137"><span class="linenos">137</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="L-137"><a href="#L-137"><span class="linenos">137</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="L-138"><a href="#L-138"><span class="linenos">138</span></a>        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span>
 </span><span id="L-139"><a href="#L-139"><span class="linenos">139</span></a>            <span class="s2">&quot;root&quot;</span><span class="p">,</span>
 </span><span id="L-140"><a href="#L-140"><span class="linenos">140</span></a>            <span class="s2">&quot;custom_transforms&quot;</span><span class="p">,</span>
@@ -401,7 +401,7 @@
 </span><span id="L-168"><a href="#L-168"><span class="linenos">168</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up the dataset for different stages.</span>
 </span><span id="L-169"><a href="#L-169"><span class="linenos">169</span></a>
 </span><span id="L-170"><a href="#L-170"><span class="linenos">170</span></a><span class="sd">        **Args:**</span>
-</span><span id="L-171"><a href="#L-171"><span class="linenos">171</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
+</span><span id="L-171"><a href="#L-171"><span class="linenos">171</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment; one of:</span>
 </span><span id="L-172"><a href="#L-172"><span class="linenos">172</span></a><span class="sd">            - &#39;fit&#39;: training and validation dataset should be assigned to `self.dataset_train` and `self.dataset_val`.</span>
 </span><span id="L-173"><a href="#L-173"><span class="linenos">173</span></a><span class="sd">            - &#39;test&#39;: test dataset should be assigned to `self.dataset_test`.</span>
 </span><span id="L-174"><a href="#L-174"><span class="linenos">174</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -558,7 +558,7 @@
 </span><span id="L-325"><a href="#L-325"><span class="linenos">325</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;DataLoader generator for stage train. It is automatically called before training.</span>
 </span><span id="L-326"><a href="#L-326"><span class="linenos">326</span></a>
 </span><span id="L-327"><a href="#L-327"><span class="linenos">327</span></a><span class="sd">        **Returns:**</span>
-</span><span id="L-328"><a href="#L-328"><span class="linenos">328</span></a><span class="sd">        - **train_dataloader** (`Dataloader`): the train DataLoader of task.</span>
+</span><span id="L-328"><a href="#L-328"><span class="linenos">328</span></a><span class="sd">        - **train_dataloader** (`DataLoader`): the train DataLoader of task.</span>
 </span><span id="L-329"><a href="#L-329"><span class="linenos">329</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="L-330"><a href="#L-330"><span class="linenos">330</span></a>
 </span><span id="L-331"><a href="#L-331"><span class="linenos">331</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
@@ -647,7 +647,7 @@
 </span><span id="L-414"><a href="#L-414"><span class="linenos">414</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-415"><a href="#L-415"><span class="linenos">415</span></a><span class="sd">        - **datasets** (`dict[int, str]`): the dict of dataset class paths for each task. The keys are task IDs and the values are the dataset class paths (as strings) to use for each task.</span>
 </span><span id="L-416"><a href="#L-416"><span class="linenos">416</span></a><span class="sd">        - **root** (`str` | `dict[int, str]`): the root directory where the original data files for constructing the MTL dataset physically live. If `dict[int, str]`, it should be a dict of task IDs and their corresponding root directories.</span>
-</span><span id="L-417"><a href="#L-417"><span class="linenos">417</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset. Should be one of the following:</span>
+</span><span id="L-417"><a href="#L-417"><span class="linenos">417</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset; one of:</span>
 </span><span id="L-418"><a href="#L-418"><span class="linenos">418</span></a><span class="sd">            - &#39;mixed&#39;: mixed sampling strategy, which samples from all tasks&#39; datasets.</span>
 </span><span id="L-419"><a href="#L-419"><span class="linenos">419</span></a><span class="sd">        - **batch_size** (`int`): The batch size in train, val, test dataloader.</span>
 </span><span id="L-420"><a href="#L-420"><span class="linenos">420</span></a><span class="sd">        - **num_workers** (`int`): the number of workers for dataloaders.</span>
@@ -735,7 +735,7 @@
 </span><span id="L-502"><a href="#L-502"><span class="linenos">502</span></a>
 </span><span id="L-503"><a href="#L-503"><span class="linenos">503</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-504"><a href="#L-504"><span class="linenos">504</span></a><span class="sd">        - **cl_dataset** (`CLDataset`): the CL dataset object to be used for constructing the MTL dataset.</span>
-</span><span id="L-505"><a href="#L-505"><span class="linenos">505</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset. Should be one of the following:</span>
+</span><span id="L-505"><a href="#L-505"><span class="linenos">505</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset; one of:</span>
 </span><span id="L-506"><a href="#L-506"><span class="linenos">506</span></a><span class="sd">            - &#39;mixed&#39;: mixed sampling strategy, which samples from all tasks&#39; datasets.</span>
 </span><span id="L-507"><a href="#L-507"><span class="linenos">507</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="L-508"><a href="#L-508"><span class="linenos">508</span></a>
@@ -774,7 +774,7 @@
 </span><span id="L-541"><a href="#L-541"><span class="linenos">541</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up the dataset for different stages.</span>
 </span><span id="L-542"><a href="#L-542"><span class="linenos">542</span></a>
 </span><span id="L-543"><a href="#L-543"><span class="linenos">543</span></a><span class="sd">        **Args:**</span>
-</span><span id="L-544"><a href="#L-544"><span class="linenos">544</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
+</span><span id="L-544"><a href="#L-544"><span class="linenos">544</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment; one of:</span>
 </span><span id="L-545"><a href="#L-545"><span class="linenos">545</span></a><span class="sd">            - &#39;fit&#39;: training and validation dataset should be assigned to `self.dataset_train` and `self.dataset_val`.</span>
 </span><span id="L-546"><a href="#L-546"><span class="linenos">546</span></a><span class="sd">            - &#39;test&#39;: test dataset should be assigned to `self.dataset_test`.</span>
 </span><span id="L-547"><a href="#L-547"><span class="linenos">547</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -938,7 +938,7 @@
 </span><span id="MTLDataset-55"><a href="#MTLDataset-55"><span class="linenos"> 55</span></a><span class="sd">        **Args:**</span>
 </span><span id="MTLDataset-56"><a href="#MTLDataset-56"><span class="linenos"> 56</span></a><span class="sd">        - **root** (`str` | `list[str]`): the root directory where the original data files for constructing the MTL dataset physically live. If `list[str]`, it should be a list of strings, each string is the root directory for each task.</span>
 </span><span id="MTLDataset-57"><a href="#MTLDataset-57"><span class="linenos"> 57</span></a><span class="sd">        - **num_tasks** (`int`): the maximum number of tasks supported by the MTL dataset.</span>
-</span><span id="MTLDataset-58"><a href="#MTLDataset-58"><span class="linenos"> 58</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset. Should be one of the following:</span>
+</span><span id="MTLDataset-58"><a href="#MTLDataset-58"><span class="linenos"> 58</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset; one of:</span>
 </span><span id="MTLDataset-59"><a href="#MTLDataset-59"><span class="linenos"> 59</span></a><span class="sd">            - &#39;mixed&#39;: mixed sampling strategy, which samples from all tasks&#39; datasets.</span>
 </span><span id="MTLDataset-60"><a href="#MTLDataset-60"><span class="linenos"> 60</span></a><span class="sd">        - **batch_size** (`int`): The batch size in train, val, test dataloader.</span>
 </span><span id="MTLDataset-61"><a href="#MTLDataset-61"><span class="linenos"> 61</span></a><span class="sd">        - **num_workers** (`int`): the number of workers for dataloaders.</span>
@@ -1018,7 +1018,7 @@
 </span><span id="MTLDataset-135"><a href="#MTLDataset-135"><span class="linenos">135</span></a>        <span class="n">MTLDataset</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="MTLDataset-136"><a href="#MTLDataset-136"><span class="linenos">136</span></a>
 </span><span id="MTLDataset-137"><a href="#MTLDataset-137"><span class="linenos">137</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="MTLDataset-138"><a href="#MTLDataset-138"><span class="linenos">138</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="MTLDataset-138"><a href="#MTLDataset-138"><span class="linenos">138</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="MTLDataset-139"><a href="#MTLDataset-139"><span class="linenos">139</span></a>        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span>
 </span><span id="MTLDataset-140"><a href="#MTLDataset-140"><span class="linenos">140</span></a>            <span class="s2">&quot;root&quot;</span><span class="p">,</span>
 </span><span id="MTLDataset-141"><a href="#MTLDataset-141"><span class="linenos">141</span></a>            <span class="s2">&quot;custom_transforms&quot;</span><span class="p">,</span>
@@ -1052,7 +1052,7 @@
 </span><span id="MTLDataset-169"><a href="#MTLDataset-169"><span class="linenos">169</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up the dataset for different stages.</span>
 </span><span id="MTLDataset-170"><a href="#MTLDataset-170"><span class="linenos">170</span></a>
 </span><span id="MTLDataset-171"><a href="#MTLDataset-171"><span class="linenos">171</span></a><span class="sd">        **Args:**</span>
-</span><span id="MTLDataset-172"><a href="#MTLDataset-172"><span class="linenos">172</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
+</span><span id="MTLDataset-172"><a href="#MTLDataset-172"><span class="linenos">172</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment; one of:</span>
 </span><span id="MTLDataset-173"><a href="#MTLDataset-173"><span class="linenos">173</span></a><span class="sd">            - &#39;fit&#39;: training and validation dataset should be assigned to `self.dataset_train` and `self.dataset_val`.</span>
 </span><span id="MTLDataset-174"><a href="#MTLDataset-174"><span class="linenos">174</span></a><span class="sd">            - &#39;test&#39;: test dataset should be assigned to `self.dataset_test`.</span>
 </span><span id="MTLDataset-175"><a href="#MTLDataset-175"><span class="linenos">175</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -1209,7 +1209,7 @@
 </span><span id="MTLDataset-326"><a href="#MTLDataset-326"><span class="linenos">326</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;DataLoader generator for stage train. It is automatically called before training.</span>
 </span><span id="MTLDataset-327"><a href="#MTLDataset-327"><span class="linenos">327</span></a>
 </span><span id="MTLDataset-328"><a href="#MTLDataset-328"><span class="linenos">328</span></a><span class="sd">        **Returns:**</span>
-</span><span id="MTLDataset-329"><a href="#MTLDataset-329"><span class="linenos">329</span></a><span class="sd">        - **train_dataloader** (`Dataloader`): the train DataLoader of task.</span>
+</span><span id="MTLDataset-329"><a href="#MTLDataset-329"><span class="linenos">329</span></a><span class="sd">        - **train_dataloader** (`DataLoader`): the train DataLoader of task.</span>
 </span><span id="MTLDataset-330"><a href="#MTLDataset-330"><span class="linenos">330</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="MTLDataset-331"><a href="#MTLDataset-331"><span class="linenos">331</span></a>
 </span><span id="MTLDataset-332"><a href="#MTLDataset-332"><span class="linenos">332</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
@@ -1307,7 +1307,7 @@
 </span><span id="MTLDataset.__init__-55"><a href="#MTLDataset.__init__-55"><span class="linenos"> 55</span></a><span class="sd">        **Args:**</span>
 </span><span id="MTLDataset.__init__-56"><a href="#MTLDataset.__init__-56"><span class="linenos"> 56</span></a><span class="sd">        - **root** (`str` | `list[str]`): the root directory where the original data files for constructing the MTL dataset physically live. If `list[str]`, it should be a list of strings, each string is the root directory for each task.</span>
 </span><span id="MTLDataset.__init__-57"><a href="#MTLDataset.__init__-57"><span class="linenos"> 57</span></a><span class="sd">        - **num_tasks** (`int`): the maximum number of tasks supported by the MTL dataset.</span>
-</span><span id="MTLDataset.__init__-58"><a href="#MTLDataset.__init__-58"><span class="linenos"> 58</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset. Should be one of the following:</span>
+</span><span id="MTLDataset.__init__-58"><a href="#MTLDataset.__init__-58"><span class="linenos"> 58</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset; one of:</span>
 </span><span id="MTLDataset.__init__-59"><a href="#MTLDataset.__init__-59"><span class="linenos"> 59</span></a><span class="sd">            - &#39;mixed&#39;: mixed sampling strategy, which samples from all tasks&#39; datasets.</span>
 </span><span id="MTLDataset.__init__-60"><a href="#MTLDataset.__init__-60"><span class="linenos"> 60</span></a><span class="sd">        - **batch_size** (`int`): The batch size in train, val, test dataloader.</span>
 </span><span id="MTLDataset.__init__-61"><a href="#MTLDataset.__init__-61"><span class="linenos"> 61</span></a><span class="sd">        - **num_workers** (`int`): the number of workers for dataloaders.</span>
@@ -1395,7 +1395,7 @@
 <ul>
 <li><strong>root</strong> (<code>str</code> | <code>list[str]</code>): the root directory where the original data files for constructing the MTL dataset physically live. If <code>list[str]</code>, it should be a list of strings, each string is the root directory for each task.</li>
 <li><strong>num_tasks</strong> (<code>int</code>): the maximum number of tasks supported by the MTL dataset.</li>
-<li><strong>sampling_strategy</strong> (<code>str</code>): the sampling strategy that construct training batch from each task's dataset. Should be one of the following:
+<li><strong>sampling_strategy</strong> (<code>str</code>): the sampling strategy that construct training batch from each task's dataset; one of:
 <ul>
 <li>'mixed': mixed sampling strategy, which samples from all tasks' datasets.</li>
 </ul></li>
@@ -1634,7 +1634,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
     </div>
     <a class="headerlink" href="#MTLDataset.sanity_check"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="MTLDataset.sanity_check-137"><a href="#MTLDataset.sanity_check-137"><span class="linenos">137</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="MTLDataset.sanity_check-138"><a href="#MTLDataset.sanity_check-138"><span class="linenos">138</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="MTLDataset.sanity_check-138"><a href="#MTLDataset.sanity_check-138"><span class="linenos">138</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="MTLDataset.sanity_check-139"><a href="#MTLDataset.sanity_check-139"><span class="linenos">139</span></a>        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span>
 </span><span id="MTLDataset.sanity_check-140"><a href="#MTLDataset.sanity_check-140"><span class="linenos">140</span></a>            <span class="s2">&quot;root&quot;</span><span class="p">,</span>
 </span><span id="MTLDataset.sanity_check-141"><a href="#MTLDataset.sanity_check-141"><span class="linenos">141</span></a>            <span class="s2">&quot;custom_transforms&quot;</span><span class="p">,</span>
@@ -1651,7 +1651,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span></pre></div>
 
 
-            <div class="docstring"><p>Check the sanity of the arguments.</p>
+            <div class="docstring"><p>Sanity check.</p>
 </div>
 
 
@@ -1736,7 +1736,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span><span id="MTLDataset.setup-169"><a href="#MTLDataset.setup-169"><span class="linenos">169</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up the dataset for different stages.</span>
 </span><span id="MTLDataset.setup-170"><a href="#MTLDataset.setup-170"><span class="linenos">170</span></a>
 </span><span id="MTLDataset.setup-171"><a href="#MTLDataset.setup-171"><span class="linenos">171</span></a><span class="sd">        **Args:**</span>
-</span><span id="MTLDataset.setup-172"><a href="#MTLDataset.setup-172"><span class="linenos">172</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
+</span><span id="MTLDataset.setup-172"><a href="#MTLDataset.setup-172"><span class="linenos">172</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment; one of:</span>
 </span><span id="MTLDataset.setup-173"><a href="#MTLDataset.setup-173"><span class="linenos">173</span></a><span class="sd">            - &#39;fit&#39;: training and validation dataset should be assigned to `self.dataset_train` and `self.dataset_val`.</span>
 </span><span id="MTLDataset.setup-174"><a href="#MTLDataset.setup-174"><span class="linenos">174</span></a><span class="sd">            - &#39;test&#39;: test dataset should be assigned to `self.dataset_test`.</span>
 </span><span id="MTLDataset.setup-175"><a href="#MTLDataset.setup-175"><span class="linenos">175</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -1786,7 +1786,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 <p><strong>Args:</strong></p>
 
 <ul>
-<li><strong>stage</strong> (<code>str</code>): the stage of the experiment. Should be one of the following:
+<li><strong>stage</strong> (<code>str</code>): the stage of the experiment; one of:
 <ul>
 <li>'fit': training and validation dataset should be assigned to <code>self.dataset_train</code> and <code>self.dataset_val</code>.</li>
 <li>'test': test dataset should be assigned to <code>self.dataset_test</code>.</li>
@@ -2068,7 +2068,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span><span id="MTLDataset.train_dataloader-326"><a href="#MTLDataset.train_dataloader-326"><span class="linenos">326</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;DataLoader generator for stage train. It is automatically called before training.</span>
 </span><span id="MTLDataset.train_dataloader-327"><a href="#MTLDataset.train_dataloader-327"><span class="linenos">327</span></a>
 </span><span id="MTLDataset.train_dataloader-328"><a href="#MTLDataset.train_dataloader-328"><span class="linenos">328</span></a><span class="sd">        **Returns:**</span>
-</span><span id="MTLDataset.train_dataloader-329"><a href="#MTLDataset.train_dataloader-329"><span class="linenos">329</span></a><span class="sd">        - **train_dataloader** (`Dataloader`): the train DataLoader of task.</span>
+</span><span id="MTLDataset.train_dataloader-329"><a href="#MTLDataset.train_dataloader-329"><span class="linenos">329</span></a><span class="sd">        - **train_dataloader** (`DataLoader`): the train DataLoader of task.</span>
 </span><span id="MTLDataset.train_dataloader-330"><a href="#MTLDataset.train_dataloader-330"><span class="linenos">330</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="MTLDataset.train_dataloader-331"><a href="#MTLDataset.train_dataloader-331"><span class="linenos">331</span></a>
 </span><span id="MTLDataset.train_dataloader-332"><a href="#MTLDataset.train_dataloader-332"><span class="linenos">332</span></a>        <span class="n">pylogger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
@@ -2097,7 +2097,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 <p><strong>Returns:</strong></p>
 
 <ul>
-<li><strong>train_dataloader</strong> (<code>Dataloader</code>): the train DataLoader of task.</li>
+<li><strong>train_dataloader</strong> (<code>DataLoader</code>): the train DataLoader of task.</li>
 </ul>
 </div>
 
@@ -2229,7 +2229,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span><span id="MTLDatasetFromRaw-415"><a href="#MTLDatasetFromRaw-415"><span class="linenos">415</span></a><span class="sd">        **Args:**</span>
 </span><span id="MTLDatasetFromRaw-416"><a href="#MTLDatasetFromRaw-416"><span class="linenos">416</span></a><span class="sd">        - **datasets** (`dict[int, str]`): the dict of dataset class paths for each task. The keys are task IDs and the values are the dataset class paths (as strings) to use for each task.</span>
 </span><span id="MTLDatasetFromRaw-417"><a href="#MTLDatasetFromRaw-417"><span class="linenos">417</span></a><span class="sd">        - **root** (`str` | `dict[int, str]`): the root directory where the original data files for constructing the MTL dataset physically live. If `dict[int, str]`, it should be a dict of task IDs and their corresponding root directories.</span>
-</span><span id="MTLDatasetFromRaw-418"><a href="#MTLDatasetFromRaw-418"><span class="linenos">418</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset. Should be one of the following:</span>
+</span><span id="MTLDatasetFromRaw-418"><a href="#MTLDatasetFromRaw-418"><span class="linenos">418</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset; one of:</span>
 </span><span id="MTLDatasetFromRaw-419"><a href="#MTLDatasetFromRaw-419"><span class="linenos">419</span></a><span class="sd">            - &#39;mixed&#39;: mixed sampling strategy, which samples from all tasks&#39; datasets.</span>
 </span><span id="MTLDatasetFromRaw-420"><a href="#MTLDatasetFromRaw-420"><span class="linenos">420</span></a><span class="sd">        - **batch_size** (`int`): The batch size in train, val, test dataloader.</span>
 </span><span id="MTLDatasetFromRaw-421"><a href="#MTLDatasetFromRaw-421"><span class="linenos">421</span></a><span class="sd">        - **num_workers** (`int`): the number of workers for dataloaders.</span>
@@ -2341,7 +2341,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span><span id="MTLDatasetFromRaw.__init__-415"><a href="#MTLDatasetFromRaw.__init__-415"><span class="linenos">415</span></a><span class="sd">        **Args:**</span>
 </span><span id="MTLDatasetFromRaw.__init__-416"><a href="#MTLDatasetFromRaw.__init__-416"><span class="linenos">416</span></a><span class="sd">        - **datasets** (`dict[int, str]`): the dict of dataset class paths for each task. The keys are task IDs and the values are the dataset class paths (as strings) to use for each task.</span>
 </span><span id="MTLDatasetFromRaw.__init__-417"><a href="#MTLDatasetFromRaw.__init__-417"><span class="linenos">417</span></a><span class="sd">        - **root** (`str` | `dict[int, str]`): the root directory where the original data files for constructing the MTL dataset physically live. If `dict[int, str]`, it should be a dict of task IDs and their corresponding root directories.</span>
-</span><span id="MTLDatasetFromRaw.__init__-418"><a href="#MTLDatasetFromRaw.__init__-418"><span class="linenos">418</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset. Should be one of the following:</span>
+</span><span id="MTLDatasetFromRaw.__init__-418"><a href="#MTLDatasetFromRaw.__init__-418"><span class="linenos">418</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset; one of:</span>
 </span><span id="MTLDatasetFromRaw.__init__-419"><a href="#MTLDatasetFromRaw.__init__-419"><span class="linenos">419</span></a><span class="sd">            - &#39;mixed&#39;: mixed sampling strategy, which samples from all tasks&#39; datasets.</span>
 </span><span id="MTLDatasetFromRaw.__init__-420"><a href="#MTLDatasetFromRaw.__init__-420"><span class="linenos">420</span></a><span class="sd">        - **batch_size** (`int`): The batch size in train, val, test dataloader.</span>
 </span><span id="MTLDatasetFromRaw.__init__-421"><a href="#MTLDatasetFromRaw.__init__-421"><span class="linenos">421</span></a><span class="sd">        - **num_workers** (`int`): the number of workers for dataloaders.</span>
@@ -2385,7 +2385,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 <ul>
 <li><strong>datasets</strong> (<code>dict[int, str]</code>): the dict of dataset class paths for each task. The keys are task IDs and the values are the dataset class paths (as strings) to use for each task.</li>
 <li><strong>root</strong> (<code>str</code> | <code>dict[int, str]</code>): the root directory where the original data files for constructing the MTL dataset physically live. If <code>dict[int, str]</code>, it should be a dict of task IDs and their corresponding root directories.</li>
-<li><strong>sampling_strategy</strong> (<code>str</code>): the sampling strategy that construct training batch from each task's dataset. Should be one of the following:
+<li><strong>sampling_strategy</strong> (<code>str</code>): the sampling strategy that construct training batch from each task's dataset; one of:
 <ul>
 <li>'mixed': mixed sampling strategy, which samples from all tasks' datasets.</li>
 </ul></li>
@@ -2595,7 +2595,7 @@ If it is a dict, the keys are task IDs and the values are whether to include the
 </span><span id="MTLDatasetFromCL-503"><a href="#MTLDatasetFromCL-503"><span class="linenos">503</span></a>
 </span><span id="MTLDatasetFromCL-504"><a href="#MTLDatasetFromCL-504"><span class="linenos">504</span></a><span class="sd">        **Args:**</span>
 </span><span id="MTLDatasetFromCL-505"><a href="#MTLDatasetFromCL-505"><span class="linenos">505</span></a><span class="sd">        - **cl_dataset** (`CLDataset`): the CL dataset object to be used for constructing the MTL dataset.</span>
-</span><span id="MTLDatasetFromCL-506"><a href="#MTLDatasetFromCL-506"><span class="linenos">506</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset. Should be one of the following:</span>
+</span><span id="MTLDatasetFromCL-506"><a href="#MTLDatasetFromCL-506"><span class="linenos">506</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset; one of:</span>
 </span><span id="MTLDatasetFromCL-507"><a href="#MTLDatasetFromCL-507"><span class="linenos">507</span></a><span class="sd">            - &#39;mixed&#39;: mixed sampling strategy, which samples from all tasks&#39; datasets.</span>
 </span><span id="MTLDatasetFromCL-508"><a href="#MTLDatasetFromCL-508"><span class="linenos">508</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="MTLDatasetFromCL-509"><a href="#MTLDatasetFromCL-509"><span class="linenos">509</span></a>
@@ -2634,7 +2634,7 @@ If it is a dict, the keys are task IDs and the values are whether to include the
 </span><span id="MTLDatasetFromCL-542"><a href="#MTLDatasetFromCL-542"><span class="linenos">542</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up the dataset for different stages.</span>
 </span><span id="MTLDatasetFromCL-543"><a href="#MTLDatasetFromCL-543"><span class="linenos">543</span></a>
 </span><span id="MTLDatasetFromCL-544"><a href="#MTLDatasetFromCL-544"><span class="linenos">544</span></a><span class="sd">        **Args:**</span>
-</span><span id="MTLDatasetFromCL-545"><a href="#MTLDatasetFromCL-545"><span class="linenos">545</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
+</span><span id="MTLDatasetFromCL-545"><a href="#MTLDatasetFromCL-545"><span class="linenos">545</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment; one of:</span>
 </span><span id="MTLDatasetFromCL-546"><a href="#MTLDatasetFromCL-546"><span class="linenos">546</span></a><span class="sd">            - &#39;fit&#39;: training and validation dataset should be assigned to `self.dataset_train` and `self.dataset_val`.</span>
 </span><span id="MTLDatasetFromCL-547"><a href="#MTLDatasetFromCL-547"><span class="linenos">547</span></a><span class="sd">            - &#39;test&#39;: test dataset should be assigned to `self.dataset_test`.</span>
 </span><span id="MTLDatasetFromCL-548"><a href="#MTLDatasetFromCL-548"><span class="linenos">548</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -2732,7 +2732,7 @@ If it is a dict, the keys are task IDs and the values are whether to include the
 </span><span id="MTLDatasetFromCL.__init__-503"><a href="#MTLDatasetFromCL.__init__-503"><span class="linenos">503</span></a>
 </span><span id="MTLDatasetFromCL.__init__-504"><a href="#MTLDatasetFromCL.__init__-504"><span class="linenos">504</span></a><span class="sd">        **Args:**</span>
 </span><span id="MTLDatasetFromCL.__init__-505"><a href="#MTLDatasetFromCL.__init__-505"><span class="linenos">505</span></a><span class="sd">        - **cl_dataset** (`CLDataset`): the CL dataset object to be used for constructing the MTL dataset.</span>
-</span><span id="MTLDatasetFromCL.__init__-506"><a href="#MTLDatasetFromCL.__init__-506"><span class="linenos">506</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset. Should be one of the following:</span>
+</span><span id="MTLDatasetFromCL.__init__-506"><a href="#MTLDatasetFromCL.__init__-506"><span class="linenos">506</span></a><span class="sd">        - **sampling_strategy** (`str`): the sampling strategy that construct training batch from each task&#39;s dataset; one of:</span>
 </span><span id="MTLDatasetFromCL.__init__-507"><a href="#MTLDatasetFromCL.__init__-507"><span class="linenos">507</span></a><span class="sd">            - &#39;mixed&#39;: mixed sampling strategy, which samples from all tasks&#39; datasets.</span>
 </span><span id="MTLDatasetFromCL.__init__-508"><a href="#MTLDatasetFromCL.__init__-508"><span class="linenos">508</span></a><span class="sd">        &quot;&quot;&quot;</span>
 </span><span id="MTLDatasetFromCL.__init__-509"><a href="#MTLDatasetFromCL.__init__-509"><span class="linenos">509</span></a>
@@ -2771,7 +2771,7 @@ If it is a dict, the keys are task IDs and the values are whether to include the
 
 <ul>
 <li><strong>cl_dataset</strong> (<code>CLDataset</code>): the CL dataset object to be used for constructing the MTL dataset.</li>
-<li><strong>sampling_strategy</strong> (<code>str</code>): the sampling strategy that construct training batch from each task's dataset. Should be one of the following:
+<li><strong>sampling_strategy</strong> (<code>str</code>): the sampling strategy that construct training batch from each task's dataset; one of:
 <ul>
 <li>'mixed': mixed sampling strategy, which samples from all tasks' datasets.</li>
 </ul></li>
@@ -2830,7 +2830,7 @@ If it is a dict, the keys are task IDs and the values are whether to include the
 </span><span id="MTLDatasetFromCL.setup-542"><a href="#MTLDatasetFromCL.setup-542"><span class="linenos">542</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up the dataset for different stages.</span>
 </span><span id="MTLDatasetFromCL.setup-543"><a href="#MTLDatasetFromCL.setup-543"><span class="linenos">543</span></a>
 </span><span id="MTLDatasetFromCL.setup-544"><a href="#MTLDatasetFromCL.setup-544"><span class="linenos">544</span></a><span class="sd">        **Args:**</span>
-</span><span id="MTLDatasetFromCL.setup-545"><a href="#MTLDatasetFromCL.setup-545"><span class="linenos">545</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
+</span><span id="MTLDatasetFromCL.setup-545"><a href="#MTLDatasetFromCL.setup-545"><span class="linenos">545</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment; one of:</span>
 </span><span id="MTLDatasetFromCL.setup-546"><a href="#MTLDatasetFromCL.setup-546"><span class="linenos">546</span></a><span class="sd">            - &#39;fit&#39;: training and validation dataset should be assigned to `self.dataset_train` and `self.dataset_val`.</span>
 </span><span id="MTLDatasetFromCL.setup-547"><a href="#MTLDatasetFromCL.setup-547"><span class="linenos">547</span></a><span class="sd">            - &#39;test&#39;: test dataset should be assigned to `self.dataset_test`.</span>
 </span><span id="MTLDatasetFromCL.setup-548"><a href="#MTLDatasetFromCL.setup-548"><span class="linenos">548</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -2897,7 +2897,7 @@ If it is a dict, the keys are task IDs and the values are whether to include the
 <p><strong>Args:</strong></p>
 
 <ul>
-<li><strong>stage</strong> (<code>str</code>): the stage of the experiment. Should be one of the following:
+<li><strong>stage</strong> (<code>str</code>): the stage of the experiment; one of:
 <ul>
 <li>'fit': training and validation dataset should be assigned to <code>self.dataset_train</code> and <code>self.dataset_val</code>.</li>
 <li>'test': test dataset should be assigned to <code>self.dataset_test</code>.</li>

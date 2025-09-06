@@ -158,7 +158,7 @@
 </span><span id="L-60"><a href="#L-60"><span class="linenos"> 60</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.</span>
 </span><span id="L-61"><a href="#L-61"><span class="linenos"> 61</span></a><span class="sd">        - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.</span>
 </span><span id="L-62"><a href="#L-62"><span class="linenos"> 62</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.</span>
-</span><span id="L-63"><a href="#L-63"><span class="linenos"> 63</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:</span>
+</span><span id="L-63"><a href="#L-63"><span class="linenos"> 63</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation; one of:</span>
 </span><span id="L-64"><a href="#L-64"><span class="linenos"> 64</span></a><span class="sd">            1. &#39;all&#39;: permute all pixels.</span>
 </span><span id="L-65"><a href="#L-65"><span class="linenos"> 65</span></a><span class="sd">            2. &#39;by_channel&#39;: permute channel by channel separately. All channels are applied the same permutation order.</span>
 </span><span id="L-66"><a href="#L-66"><span class="linenos"> 66</span></a><span class="sd">            3. &#39;first_channel_only&#39;: permute only the first channel.</span>
@@ -288,7 +288,7 @@
 </span><span id="PermutedCountry211-61"><a href="#PermutedCountry211-61"><span class="linenos"> 61</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.</span>
 </span><span id="PermutedCountry211-62"><a href="#PermutedCountry211-62"><span class="linenos"> 62</span></a><span class="sd">        - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.</span>
 </span><span id="PermutedCountry211-63"><a href="#PermutedCountry211-63"><span class="linenos"> 63</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.</span>
-</span><span id="PermutedCountry211-64"><a href="#PermutedCountry211-64"><span class="linenos"> 64</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:</span>
+</span><span id="PermutedCountry211-64"><a href="#PermutedCountry211-64"><span class="linenos"> 64</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation; one of:</span>
 </span><span id="PermutedCountry211-65"><a href="#PermutedCountry211-65"><span class="linenos"> 65</span></a><span class="sd">            1. &#39;all&#39;: permute all pixels.</span>
 </span><span id="PermutedCountry211-66"><a href="#PermutedCountry211-66"><span class="linenos"> 66</span></a><span class="sd">            2. &#39;by_channel&#39;: permute channel by channel separately. All channels are applied the same permutation order.</span>
 </span><span id="PermutedCountry211-67"><a href="#PermutedCountry211-67"><span class="linenos"> 67</span></a><span class="sd">            3. &#39;first_channel_only&#39;: permute only the first channel.</span>
@@ -413,7 +413,7 @@
 </span><span id="PermutedCountry211.__init__-61"><a href="#PermutedCountry211.__init__-61"><span class="linenos">61</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.</span>
 </span><span id="PermutedCountry211.__init__-62"><a href="#PermutedCountry211.__init__-62"><span class="linenos">62</span></a><span class="sd">        - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.</span>
 </span><span id="PermutedCountry211.__init__-63"><a href="#PermutedCountry211.__init__-63"><span class="linenos">63</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.</span>
-</span><span id="PermutedCountry211.__init__-64"><a href="#PermutedCountry211.__init__-64"><span class="linenos">64</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:</span>
+</span><span id="PermutedCountry211.__init__-64"><a href="#PermutedCountry211.__init__-64"><span class="linenos">64</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation; one of:</span>
 </span><span id="PermutedCountry211.__init__-65"><a href="#PermutedCountry211.__init__-65"><span class="linenos">65</span></a><span class="sd">            1. &#39;all&#39;: permute all pixels.</span>
 </span><span id="PermutedCountry211.__init__-66"><a href="#PermutedCountry211.__init__-66"><span class="linenos">66</span></a><span class="sd">            2. &#39;by_channel&#39;: permute channel by channel separately. All channels are applied the same permutation order.</span>
 </span><span id="PermutedCountry211.__init__-67"><a href="#PermutedCountry211.__init__-67"><span class="linenos">67</span></a><span class="sd">            3. &#39;first_channel_only&#39;: permute only the first channel.</span>
@@ -454,7 +454,7 @@ If it is a dict, the keys are task IDs and the values are the number of channels
 If it is a dict, the keys are task IDs and the values are whether to include the <code>ToTensor()</code> transform for each task. If it is a single boolean value, it is applied to all tasks.</li>
 <li><strong>resize</strong> (<code>tuple[int, int]</code> | <code>None</code> or dict of them): the size to resize the images to. Default is <code>None</code>, which means no resize.
 If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is <code>None</code>, no resize is applied.</li>
-<li><strong>permutation_mode</strong> (<code>str</code>): the mode of permutation, should be one of the following:
+<li><strong>permutation_mode</strong> (<code>str</code>): the mode of permutation; one of:
 <ol>
 <li>'all': permute all pixels.</li>
 <li>'by_channel': permute channel by channel separately. All channels are applied the same permutation order.</li>

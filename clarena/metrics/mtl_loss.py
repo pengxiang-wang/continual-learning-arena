@@ -42,8 +42,7 @@ class MTLLoss(MetricCallback):
         test_loss_cls_csv_name: str = "loss_cls.csv",
         test_loss_cls_plot_name: str | None = None,
     ) -> None:
-        r"""Initialize the `MTLLoss`.
-
+        r"""
         **Args:**
         - **save_dir** (`str`): The directory where data and figures of metrics will be saved. Better inside the output folder.
         - **test_loss_cls_csv_name**(`str`): file name to save classification loss of all tasks and average classification loss as CSV file.
@@ -238,7 +237,7 @@ class MTLLoss(MetricCallback):
         )
 
         # plot the test metrics
-        if self.test_loss_cls_plot_path:
+        if hasattr(self, "test_loss_cls_plot_path"):
             self.plot_test_loss_cls_from_csv(
                 csv_path=self.test_loss_cls_csv_path,
                 plot_path=self.test_loss_cls_plot_path,

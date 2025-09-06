@@ -1,17 +1,28 @@
-"""The submodule in `utils` for transforming tensors."""
+"""The submodule in `utils` for data transforms."""
 
-__all__ = ["ClassMapping", "Permute", "min_max_normalize", "js_div"]
+__all__ = [
+    "ClassMapping",
+    "Permute",
+    "insert_permute_in_compose",
+    "min_max_normalize",
+    "js_div",
+]
+
+import logging
 
 import torch
 from torch import Tensor, nn
+from torchvision import transforms
+
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
 class ClassMapping:
     r"""Class mapping to dataset labels. Used as a PyTorch target Transform."""
 
     def __init__(self, class_map: dict[str | int, int]) -> None:
-        r"""Initialize the class mapping transform object from the class map.
-
+        r"""
         **Args:**
         - **cl_class_map** (`dict[str | int, int]`): the class map.
         """
@@ -58,7 +69,7 @@ class Permute:
         - **seed** (`int` or `None`): seed for permutation operation. If None, the permutation will use a default seed from PyTorch generator.
         """
         self.mode = mode
-        r"""Store the mode of permutation."""
+        r"""The mode of permutation."""
 
         # get generator for permutation
         torch_generator = torch.Generator()
@@ -133,6 +144,33 @@ class Permute:
             img_permuted[0] = first_channel_permuted
 
             return img_permuted
+
+
+def insert_permute_in_compose(compose: transforms.Compose, permute_transform: Permute):
+    r"""Insert `permute_transform` in a `compose` (`transforms.Compose`)."""
+
+    last_insert_index = -1
+
+    for index, transform in enumerate(compose.transforms):
+        if transform.__class__ in [
+            transforms.Grayscale,
+            transforms.ToTensor,
+            transforms.Resize,
+        ]:
+            last_insert_index = index  # insert after this one
+
+    if last_insert_index >= 0:
+        # insert permute after last detected transform
+        new_list = (
+            compose.transforms[:last_insert_index]
+            + [permute_transform]
+            + compose.transforms[last_insert_index:]
+        )
+    else:
+        # None of repeat/to_tensor/resize found → insert at start
+        new_list = [permute_transform] + compose.transforms
+
+    return transforms.Compose(new_list)
 
 
 def min_max_normalize(

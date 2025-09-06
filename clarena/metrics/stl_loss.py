@@ -36,8 +36,7 @@ class STLLoss(MetricCallback):
         save_dir: str,
         test_loss_cls_csv_name: str = "loss_cls.csv",
     ) -> None:
-        r"""Initialize the `STLLoss`.
-
+        r"""
         **Args:**
         - **save_dir** (`str`): The directory where data and figures of metrics will be saved. Better inside the output folder.
         - **test_loss_cls_csv_name**(`str`): file name to save classification loss of all tasks and average classification loss as CSV file.
@@ -48,7 +47,7 @@ class STLLoss(MetricCallback):
         self.test_loss_cls_csv_path: str = os.path.join(
             save_dir, test_loss_cls_csv_name
         )
-        r"""Store the path to save test classification loss of all tasks and average classification loss CSV file."""
+        r"""The path to save test classification loss of all tasks and average classification loss CSV file."""
 
         # training accumulated metrics
         self.loss_cls_training_epoch: MeanMetricBatch

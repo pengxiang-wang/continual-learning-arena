@@ -187,7 +187,7 @@
                         <label class="view-source-button" for="mod-clmain_train-view-source"><span>View Source</span></label>
 
                         <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos">  1</span></a><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-2"><a href="#L-2"><span class="linenos">  2</span></a><span class="sd">The submodule in `experiments` for training continual learning main experiment.</span>
+</span><span id="L-2"><a href="#L-2"><span class="linenos">  2</span></a><span class="sd">The submodule in `pipelines` for training continual learning main experiment.</span>
 </span><span id="L-3"><a href="#L-3"><span class="linenos">  3</span></a><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-4"><a href="#L-4"><span class="linenos">  4</span></a>
 </span><span id="L-5"><a href="#L-5"><span class="linenos">  5</span></a><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CLMainTrain&quot;</span><span class="p">]</span>
@@ -278,7 +278,7 @@
 </span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span>
 </span><span id="L-91"><a href="#L-91"><span class="linenos"> 91</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`.&quot;&quot;&quot;</span>
 </span><span id="L-92"><a href="#L-92"><span class="linenos"> 92</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed in the experiment.&quot;&quot;&quot;</span>
+</span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed.&quot;&quot;&quot;</span>
 </span><span id="L-94"><a href="#L-94"><span class="linenos"> 94</span></a>
 </span><span id="L-95"><a href="#L-95"><span class="linenos"> 95</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the config dict `self.cfg`.&quot;&quot;&quot;</span>
@@ -757,7 +757,7 @@
 </span><span id="CLMainTrain-91"><a href="#CLMainTrain-91"><span class="linenos"> 91</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span>
 </span><span id="CLMainTrain-92"><a href="#CLMainTrain-92"><span class="linenos"> 92</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`.&quot;&quot;&quot;</span>
 </span><span id="CLMainTrain-93"><a href="#CLMainTrain-93"><span class="linenos"> 93</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span id="CLMainTrain-94"><a href="#CLMainTrain-94"><span class="linenos"> 94</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed in the experiment.&quot;&quot;&quot;</span>
+</span><span id="CLMainTrain-94"><a href="#CLMainTrain-94"><span class="linenos"> 94</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed.&quot;&quot;&quot;</span>
 </span><span id="CLMainTrain-95"><a href="#CLMainTrain-95"><span class="linenos"> 95</span></a>
 </span><span id="CLMainTrain-96"><a href="#CLMainTrain-96"><span class="linenos"> 96</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="CLMainTrain-97"><a href="#CLMainTrain-97"><span class="linenos"> 97</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the config dict `self.cfg`.&quot;&quot;&quot;</span>
@@ -1234,7 +1234,7 @@ instantiation, training, and evaluation across sequential tasks.</p>
 </span><span id="CLMainTrain.__init__-91"><a href="#CLMainTrain.__init__-91"><span class="linenos">91</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span>
 </span><span id="CLMainTrain.__init__-92"><a href="#CLMainTrain.__init__-92"><span class="linenos">92</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`.&quot;&quot;&quot;</span>
 </span><span id="CLMainTrain.__init__-93"><a href="#CLMainTrain.__init__-93"><span class="linenos">93</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span id="CLMainTrain.__init__-94"><a href="#CLMainTrain.__init__-94"><span class="linenos">94</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed in the experiment.&quot;&quot;&quot;</span>
+</span><span id="CLMainTrain.__init__-94"><a href="#CLMainTrain.__init__-94"><span class="linenos">94</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed.&quot;&quot;&quot;</span>
 </span></pre></div>
 
 
@@ -1465,7 +1465,7 @@ instantiation, training, and evaluation across sequential tasks.</p>
     </div>
     <a class="headerlink" href="#CLMainTrain.processed_task_ids"></a>
     
-            <div class="docstring"><p>Task IDs that have been processed in the experiment.</p>
+            <div class="docstring"><p>Task IDs that have been processed.</p>
 </div>
 
 

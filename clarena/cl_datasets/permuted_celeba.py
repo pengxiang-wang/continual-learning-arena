@@ -12,7 +12,6 @@ from torchvision.datasets import CelebA
 from torchvision.transforms import transforms
 
 from clarena.cl_datasets import CLPermutedDataset
-from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -21,7 +20,7 @@ pylogger = logging.getLogger(__name__)
 class PermutedCelebA(CLPermutedDataset):
     r"""Permuted CelebA dataset. The [CelebFaces Attributes Dataset (CelebA)](https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html) is a large-scale celebrity faces dataset. It consists of 202,599 face images of 10,177 celebrity identities (classes), each 178x218 color image.
 
-    Note that the original CelebA dataset is not a classification dataset but a attributes dataset. We only use the identity of each face as the class label for classification.
+    Note that the original CelebA dataset is not a classification dataset but an attributes dataset. We only use the identity of each face as the class label for classification.
     """
 
     original_dataset_python_class: type[Dataset] = CelebA
@@ -31,7 +30,6 @@ class PermutedCelebA(CLPermutedDataset):
         self,
         root: str,
         num_tasks: int,
-        validation_percentage: float,
         batch_size: int | dict[int, int] = 1,
         num_workers: int | dict[int, int] = 0,
         custom_transforms: (
@@ -46,8 +44,7 @@ class PermutedCelebA(CLPermutedDataset):
         permutation_mode: str = "first_channel_only",
         permutation_seeds: dict[int, int] | None = None,
     ) -> None:
-        r"""Initialize the dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **root** (`str`): the root directory where the original CelebA data 'CelebA/' live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset. This decides the valid task IDs from 1 to `num_tasks`.
@@ -63,7 +60,7 @@ class PermutedCelebA(CLPermutedDataset):
         If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.
         - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.
         If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.
-        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
+        - **permutation_mode** (`str`): the mode of permutation; one of:
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
             3. 'first_channel_only': permute only the first channel.
@@ -106,7 +103,7 @@ class PermutedCelebA(CLPermutedDataset):
             split="train",
             target_type="identity",
             transform=self.train_and_val_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 
@@ -115,7 +112,7 @@ class PermutedCelebA(CLPermutedDataset):
             split="valid",
             target_type="identity",
             transform=self.train_and_val_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 
@@ -132,7 +129,7 @@ class PermutedCelebA(CLPermutedDataset):
             split="test",
             target_type="identity",
             transform=self.test_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 

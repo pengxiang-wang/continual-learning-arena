@@ -38,6 +38,7 @@ class HAT(CLAlgorithm):
         mask_sparsity_reg_mode: str = "original",
         task_embedding_init_mode: str = "N01",
         alpha: float | None = None,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the HAT algorithm with the network.
 
@@ -62,8 +63,25 @@ class HAT(CLAlgorithm):
             4. 'U-10': uniform distribution $U(-1, 0)$.
             5. 'last': inherit the task embedding from the last task.
         - **alpha** (`float` | `None`): the `alpha` in the 'HAT-const-alpha' mode. Applies only when `adjustment_mode` is 'hat_const_alpha'.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+
         """
-        super().__init__(backbone=backbone, heads=heads)
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
+
+        # save additional algorithmic hyperparameters
+        self.save_hyperparameters(
+            "adjustment_mode",
+            "s_max",
+            "clamp_threshold",
+            "mask_sparsity_reg_factor",
+            "mask_sparsity_reg_mode",
+            "task_embedding_init_mode",
+            "alpha",
+        )
 
         self.adjustment_mode: str = adjustment_mode
         r"""The adjustment mode for gradient clipping."""
@@ -80,7 +98,7 @@ class HAT(CLAlgorithm):
         )
         r"""The mask sparsity regularizer."""
         self.task_embedding_init_mode: str = task_embedding_init_mode
-        r"""Store the task embedding initialization mode."""
+        r"""The task embedding initialization mode."""
         self.alpha: float | None = alpha
         r"""The hyperparameter alpha for `hat_const_alpha`."""
         # self.epsilon: float | None = None
@@ -95,7 +113,7 @@ class HAT(CLAlgorithm):
         HAT.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments."""
+        r"""Sanity check."""
 
         # check the backbone and heads
         if not isinstance(self.backbone, HATMaskBackbone):
@@ -185,7 +203,7 @@ class HAT(CLAlgorithm):
             adjustment_rate_bias_layer = 1
 
             weight_mask, bias_mask = self.backbone.get_layer_measure_parameter_wise(
-                unit_wise_measure=self.cumulative_mask_for_previous_tasks,
+                neuron_wise_measure=self.cumulative_mask_for_previous_tasks,
                 layer_name=layer_name,
                 aggregation_mode="min",
             )
@@ -281,7 +299,7 @@ class HAT(CLAlgorithm):
 
         **Args:**
         - **input** (`Tensor`): The input tensor from data.
-        - **stage** (`str`): the stage of the forward pass, should be one of the following:
+        - **stage** (`str`): the stage of the forward pass; one of:
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
@@ -315,7 +333,7 @@ class HAT(CLAlgorithm):
 
         **Args:**
         - **batch** (`Any`): a batch of training data.
-        - **batch_idx** (`int`): the index of the batch. Used for calculating annealed scalar in HAT. See Sec. 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
+        - **batch_idx** (`int`): the index of the batch. Used for calculating annealed scalar in HAT. See Sec. 2.4 "Hard Attention Training" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
 
         **Returns:**
         - **outputs** (`dict[str, Tensor]`): a dictionary containing loss and other metrics from this training step. Keys (`str`) are metric names, and values (`Tensor`) are the metrics. Must include the key 'loss' (total loss) in the case of automatic optimization, according to PyTorch Lightning. For HAT, it includes 'mask' and 'capacity' for logging.
@@ -382,7 +400,7 @@ class HAT(CLAlgorithm):
         }
 
     def on_train_end(self) -> None:
-        r"""Store the mask and update the cumulative mask after training the task."""
+        r"""The mask and update the cumulative mask after training the task."""
 
         # store the mask for the current task
         mask_t = self.backbone.store_mask()

@@ -34,6 +34,7 @@ class CBP(Finetuning):
         replacement_rate: float,
         maturity_threshold: int,
         utility_decay_rate: float,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the Finetuning algorithm with the network. It has no additional hyperparameters.
 
@@ -43,22 +44,35 @@ class CBP(Finetuning):
         - **replacement_rate** (`float`): the replacement rate of units. It is the precentage of units to be reinitialized during training.
         - **maturity_threshold** (`int`): the maturity threshold of units. It is the number of training steps before a unit can be reinitialized.
         - **utility_decay_rate** (`float`): the utility decay rate of units. It is the rate at which the utility of a unit decays over time.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+
         """
-        super().__init__(backbone=backbone, heads=heads)
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
 
         self.replacement_rate: float = replacement_rate
-        r"""Store the replacement rate of units. """
+        r"""The replacement rate of units. """
         self.maturity_threshold: int = maturity_threshold
-        r"""Store the maturity threshold of units. """
+        r"""The maturity threshold of units. """
         self.utility_decay_rate: float = utility_decay_rate
-        r"""Store the utility decay rate of units. """
+        r"""The utility decay rate of units. """
+
+        # save additional algorithmic hyperparameters
+        self.save_hyperparameters(
+            "replacement_rate",
+            "maturity_threshold",
+            "utility_decay_rate",
+        )
 
         self.contribution_utility: dict[str, Tensor] = {}
-        r"""Store the contribution utility of units. See equation (1) in the [continual backpropagation paper](https://www.nature.com/articles/s41586-024-07711-7). Keys are layer names and values are the utility tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units, ). """
+        r"""The contribution utility of units. See equation (1) in the [continual backpropagation paper](https://www.nature.com/articles/s41586-024-07711-7). Keys are layer names and values are the utility tensor for the layer. The utility tensor is the same size as the feature tensor with size (number of units, ). """
         self.num_replacements: dict[str, int] = {}
-        r"""Store the number of replacements of units in each layer. Keys are layer names and values are the number of replacements for the layer. """
+        r"""The number of replacements of units in each layer. Keys are layer names and values are the number of replacements for the layer. """
         self.age: dict[str, Tensor] = {}
-        r"""Store the age of units. Keys are layer names and values are the age tensor for the layer. The age tensor is the same size as the feature tensor with size (1, number of units). """
+        r"""The age of units. Keys are layer names and values are the age tensor for the layer. The age tensor is the same size as the feature tensor with size (1, number of units). """
 
     def on_train_start(self) -> None:
         r"""Initialize the utility, number of replacements and age for each layer as zeros."""

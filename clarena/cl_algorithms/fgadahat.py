@@ -64,6 +64,7 @@ class FGAdaHAT(AdaHAT):
         importance_summing_strategy_linear_step: float | None = None,
         importance_summing_strategy_exponential_rate: float | None = None,
         importance_summing_strategy_log_base: float | None = None,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the FG-AdaHAT algorithm with the network.
 
@@ -134,6 +135,8 @@ class FGAdaHAT(AdaHAT):
         - **importance_summing_strategy_linear_step** (`float` | `None`): linear step for the importance summing strategy (used when `importance_summing_strategy` is 'linear_decrease'). Must be > 0.
         - **importance_summing_strategy_exponential_rate** (`float` | `None`): exponential rate for the importance summing strategy (used when `importance_summing_strategy` is 'exponential_decrease'). Must be > 1.
         - **importance_summing_strategy_log_base** (`float` | `None`): base for the logarithm in the importance summing strategy (used when `importance_summing_strategy` is 'log_decrease'). Must be > 1.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+
         """
         super().__init__(
             backbone=backbone,
@@ -146,13 +149,33 @@ class FGAdaHAT(AdaHAT):
             mask_sparsity_reg_mode=mask_sparsity_reg_mode,
             task_embedding_init_mode=task_embedding_init_mode,
             epsilon=base_mask_sparsity_reg,  # the epsilon is now the base mask sparsity regularization factor
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
+
+        # save additional algorithmic hyperparameters
+        self.save_hyperparameters(
+            "adjustment_intensity",
+            "importance_type",
+            "importance_summing_strategy",
+            "importance_scheduler_type",
+            "neuron_to_weight_importance_aggregation_mode",
+            "s_max",
+            "clamp_threshold",
+            "mask_sparsity_reg_factor",
+            "mask_sparsity_reg_mode",
+            "base_importance",
+            "base_mask_sparsity_reg",
+            "base_linear",
+            "filter_by_cumulative_mask",
+            "filter_unmasked_importance",
+            "step_multiply_training_mask",
         )
 
         self.importance_type: str | None = importance_type
         r"""The type of the neuron-wise importance added to AdaHAT importance."""
 
         self.importance_scheduler_type: str = importance_scheduler_type
-        r"""Store the type of the importance scheduler."""
+        r"""The type of the importance scheduler."""
         self.neuron_to_weight_importance_aggregation_mode: str = (
             neuron_to_weight_importance_aggregation_mode
         )
@@ -197,14 +220,14 @@ class FGAdaHAT(AdaHAT):
         r"""The summative neuron-wise importance values of units for previous tasks before the current task `self.task_id`. See $I^{<t}_{l}$ in the paper. Keys are layer names and values are the summative importance tensor for the layer. The summative importance tensor has the same size as the feature tensor with size (number of units, ). """
 
         self.num_steps_t: int
-        r"""Store the number of training steps for the current task `self.task_id`."""
+        r"""The number of training steps for the current task `self.task_id`."""
         # set manual optimization
         self.automatic_optimization = False
 
         FGAdaHAT.sanity_check(self)
 
     def sanity_check(self) -> None:
-        r"""Check the sanity of the arguments."""
+        r"""Sanity check."""
 
         # check importance type
         if self.importance_type not in [
@@ -353,14 +376,14 @@ class FGAdaHAT(AdaHAT):
             # aggregate the neuron-wise importance to weight-wise importance. Note that the neuron-wise importance has already been min-max scaled to $[0, 1]$ in the `on_train_batch_end()` method, added the base value, and filtered by the mask
             weight_importance, bias_importance = (
                 self.backbone.get_layer_measure_parameter_wise(
-                    unit_wise_measure=self.summative_importance_for_previous_tasks,
+                    neuron_wise_measure=self.summative_importance_for_previous_tasks,
                     layer_name=layer_name,
                     aggregation_mode=self.neuron_to_weight_importance_aggregation_mode,
                 )
             )
 
             weight_mask, bias_mask = self.backbone.get_layer_measure_parameter_wise(
-                unit_wise_measure=self.cumulative_mask_for_previous_tasks,
+                neuron_wise_measure=self.cumulative_mask_for_previous_tasks,
                 layer_name=layer_name,
                 aggregation_mode="min",
             )

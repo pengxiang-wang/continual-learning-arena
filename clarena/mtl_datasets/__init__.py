@@ -1,26 +1,27 @@
 r"""
 
-# Continual Learning Datasets
+# Multi-Task Learning Datasets
 
-This submodule provides the **continual learning datasets** that can be used in CLArena.
+This submodule provides the **multi-task learning datasets** that can be used in CLArena.
 
-The datasets are implemented as subclasses of `CLDataset` classes, which are the base class for all continual learning datasets in CLArena.
+Here are the base classes for multi-task learning datasets, which inherit from Lightning `LightningDataModule`:
 
-- `CLDataset`: The base class for continual learning datasets.
-- `CLPermutedDataset`: The base class for permuted continual learning datasets. A child class of `CLDataset`.
-- `CLSplitDataset`: The base class for split continual learning datasets. A child class of `CLDataset`.
-- `CLCombinedDataset`: The base class for combined continual learning datasets. A child class of `CLDataset`.
+- `MTLDataset`: The base class for all multi-task learning datasets.
+    - `MTLCombinedDataset`: The base class for combined multi-task learning datasets. A child class of `MTLDataset`.
+    - `MTLDatasetFromCL`: The base class for constructing multi-task learning datasets from continual learning datasets. A child class of `MTLDataset`.
 
-Please note that this is an API documantation. Please refer to the main documentation pages for more information about the CL datasets and how to configure and implement them:
+Please note that this is an API documantation. Please refer to the main documentation pages for more information about how to configure and implement MTL datasets:
 
-- [**Configure CL Dataset**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/configure-your-experiment/cl-dataset)
-- [**Implement Your CL Dataset Class**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/implement-your-cl-modules/cl-dataset)
-- [**A Beginners' Guide to Continual Learning (CL Dataset)**](https://pengxiang-wang.com/posts/continual-learning-beginners-guide#sec-CL-dataset)
+- [**Configure MTL Dataset**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/components/mtl-dataset)
+- [**Implement Custom MTL Dataset**](https://pengxiang-wang.com/projects/continual-learning-arena/docs/custom-implementation/mtl_dataset)
 
 
 
 """
 
-from .base import MTLDataset, MTLDatasetFromRaw, MTLDatasetFromCL
+from .base import MTLDataset, MTLCombinedDataset, MTLDatasetFromCL
 
-from .multi_domain_sentiment import MultiDomainSentiment
+from .combined import Combined
+
+
+__all__ = ["MTLDataset", "MTLCombinedDataset", "MTLDatasetFromCL", "combined"]

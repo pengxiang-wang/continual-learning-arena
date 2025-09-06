@@ -12,7 +12,6 @@ from torchvision.datasets import Country211
 from torchvision.transforms import transforms
 
 from clarena.cl_datasets import CLPermutedDataset
-from clarena.utils.transforms import ClassMapping
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -22,7 +21,6 @@ class PermutedCountry211(CLPermutedDataset):
     r"""Permuted Country211 dataset. The [Country211 dataset](https://github.com/openai/CLIP/blob/main/data/country211.md) is a collection of geolocation pictures of different countries. It consists of 31,650 training, 10,550 validation, and 21,100 test images of 211 countries (classes), each 256x256 color image."""
 
     original_dataset_python_class: type[Dataset] = Country211
-
     r"""The original dataset class."""
 
     def __init__(
@@ -43,8 +41,7 @@ class PermutedCountry211(CLPermutedDataset):
         permutation_mode: str = "first_channel_only",
         permutation_seeds: dict[int, int] | None = None,
     ) -> None:
-        r"""Initialize the dataset object providing the root where data files live.
-
+        r"""
         **Args:**
         - **root** (`str`): the root directory where the original Country211 data 'Country211/' live.
         - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset. This decides the valid task IDs from 1 to `num_tasks`.
@@ -60,7 +57,7 @@ class PermutedCountry211(CLPermutedDataset):
         If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.
         - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.
         If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.
-        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:
+        - **permutation_mode** (`str`): the mode of permutation; one of:
             1. 'all': permute all pixels.
             2. 'by_channel': permute channel by channel separately. All channels are applied the same permutation order.
             3. 'first_channel_only': permute only the first channel.
@@ -105,7 +102,7 @@ class PermutedCountry211(CLPermutedDataset):
             root=self.root_t,
             split="train",
             transform=self.train_and_val_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 
@@ -128,7 +125,7 @@ class PermutedCountry211(CLPermutedDataset):
             root=self.root_t,
             split="test",
             transform=self.test_transforms(),
-            target_transform=ClassMapping(self.get_cl_class_map(self.task_id)),
+            target_transform=self.target_transform(),
             download=False,
         )
 

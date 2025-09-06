@@ -148,7 +148,7 @@
 </span><span id="L-47"><a href="#L-47"><span class="linenos"> 47</span></a>
 </span><span id="L-48"><a href="#L-48"><span class="linenos"> 48</span></a><span class="sd">        **Args:**</span>
 </span><span id="L-49"><a href="#L-49"><span class="linenos"> 49</span></a><span class="sd">        - **root** (`str`): the root directory where the original Oxford-IIIT Pet data &#39;OxfordIIITPet/&#39; live.</span>
-</span><span id="L-50"><a href="#L-50"><span class="linenos"> 50</span></a><span class="sd">        - **target_type** (`str`): the target type, should be one of the following:</span>
+</span><span id="L-50"><a href="#L-50"><span class="linenos"> 50</span></a><span class="sd">        - **target_type** (`str`): the target type; one of:</span>
 </span><span id="L-51"><a href="#L-51"><span class="linenos"> 51</span></a><span class="sd">            1. &#39;category&#39;: Label for one of the 37 pet categories.</span>
 </span><span id="L-52"><a href="#L-52"><span class="linenos"> 52</span></a><span class="sd">            2. &#39;binary-category&#39;: Binary label for cat or dog.</span>
 </span><span id="L-53"><a href="#L-53"><span class="linenos"> 53</span></a><span class="sd">        - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset. This decides the valid task IDs from 1 to `num_tasks`.</span>
@@ -165,7 +165,7 @@
 </span><span id="L-64"><a href="#L-64"><span class="linenos"> 64</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.</span>
 </span><span id="L-65"><a href="#L-65"><span class="linenos"> 65</span></a><span class="sd">        - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.</span>
 </span><span id="L-66"><a href="#L-66"><span class="linenos"> 66</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.</span>
-</span><span id="L-67"><a href="#L-67"><span class="linenos"> 67</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:</span>
+</span><span id="L-67"><a href="#L-67"><span class="linenos"> 67</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation; one of:</span>
 </span><span id="L-68"><a href="#L-68"><span class="linenos"> 68</span></a><span class="sd">            1. &#39;all&#39;: permute all pixels.</span>
 </span><span id="L-69"><a href="#L-69"><span class="linenos"> 69</span></a><span class="sd">            2. &#39;by_channel&#39;: permute channel by channel separately. All channels are applied the same permutation order.</span>
 </span><span id="L-70"><a href="#L-70"><span class="linenos"> 70</span></a><span class="sd">            3. &#39;first_channel_only&#39;: permute only the first channel.</span>
@@ -301,7 +301,7 @@
 </span><span id="PermutedOxfordIIITPet-48"><a href="#PermutedOxfordIIITPet-48"><span class="linenos"> 48</span></a>
 </span><span id="PermutedOxfordIIITPet-49"><a href="#PermutedOxfordIIITPet-49"><span class="linenos"> 49</span></a><span class="sd">        **Args:**</span>
 </span><span id="PermutedOxfordIIITPet-50"><a href="#PermutedOxfordIIITPet-50"><span class="linenos"> 50</span></a><span class="sd">        - **root** (`str`): the root directory where the original Oxford-IIIT Pet data &#39;OxfordIIITPet/&#39; live.</span>
-</span><span id="PermutedOxfordIIITPet-51"><a href="#PermutedOxfordIIITPet-51"><span class="linenos"> 51</span></a><span class="sd">        - **target_type** (`str`): the target type, should be one of the following:</span>
+</span><span id="PermutedOxfordIIITPet-51"><a href="#PermutedOxfordIIITPet-51"><span class="linenos"> 51</span></a><span class="sd">        - **target_type** (`str`): the target type; one of:</span>
 </span><span id="PermutedOxfordIIITPet-52"><a href="#PermutedOxfordIIITPet-52"><span class="linenos"> 52</span></a><span class="sd">            1. &#39;category&#39;: Label for one of the 37 pet categories.</span>
 </span><span id="PermutedOxfordIIITPet-53"><a href="#PermutedOxfordIIITPet-53"><span class="linenos"> 53</span></a><span class="sd">            2. &#39;binary-category&#39;: Binary label for cat or dog.</span>
 </span><span id="PermutedOxfordIIITPet-54"><a href="#PermutedOxfordIIITPet-54"><span class="linenos"> 54</span></a><span class="sd">        - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset. This decides the valid task IDs from 1 to `num_tasks`.</span>
@@ -318,7 +318,7 @@
 </span><span id="PermutedOxfordIIITPet-65"><a href="#PermutedOxfordIIITPet-65"><span class="linenos"> 65</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.</span>
 </span><span id="PermutedOxfordIIITPet-66"><a href="#PermutedOxfordIIITPet-66"><span class="linenos"> 66</span></a><span class="sd">        - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.</span>
 </span><span id="PermutedOxfordIIITPet-67"><a href="#PermutedOxfordIIITPet-67"><span class="linenos"> 67</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.</span>
-</span><span id="PermutedOxfordIIITPet-68"><a href="#PermutedOxfordIIITPet-68"><span class="linenos"> 68</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:</span>
+</span><span id="PermutedOxfordIIITPet-68"><a href="#PermutedOxfordIIITPet-68"><span class="linenos"> 68</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation; one of:</span>
 </span><span id="PermutedOxfordIIITPet-69"><a href="#PermutedOxfordIIITPet-69"><span class="linenos"> 69</span></a><span class="sd">            1. &#39;all&#39;: permute all pixels.</span>
 </span><span id="PermutedOxfordIIITPet-70"><a href="#PermutedOxfordIIITPet-70"><span class="linenos"> 70</span></a><span class="sd">            2. &#39;by_channel&#39;: permute channel by channel separately. All channels are applied the same permutation order.</span>
 </span><span id="PermutedOxfordIIITPet-71"><a href="#PermutedOxfordIIITPet-71"><span class="linenos"> 71</span></a><span class="sd">            3. &#39;first_channel_only&#39;: permute only the first channel.</span>
@@ -453,7 +453,7 @@
 </span><span id="PermutedOxfordIIITPet.__init__-48"><a href="#PermutedOxfordIIITPet.__init__-48"><span class="linenos">48</span></a>
 </span><span id="PermutedOxfordIIITPet.__init__-49"><a href="#PermutedOxfordIIITPet.__init__-49"><span class="linenos">49</span></a><span class="sd">        **Args:**</span>
 </span><span id="PermutedOxfordIIITPet.__init__-50"><a href="#PermutedOxfordIIITPet.__init__-50"><span class="linenos">50</span></a><span class="sd">        - **root** (`str`): the root directory where the original Oxford-IIIT Pet data &#39;OxfordIIITPet/&#39; live.</span>
-</span><span id="PermutedOxfordIIITPet.__init__-51"><a href="#PermutedOxfordIIITPet.__init__-51"><span class="linenos">51</span></a><span class="sd">        - **target_type** (`str`): the target type, should be one of the following:</span>
+</span><span id="PermutedOxfordIIITPet.__init__-51"><a href="#PermutedOxfordIIITPet.__init__-51"><span class="linenos">51</span></a><span class="sd">        - **target_type** (`str`): the target type; one of:</span>
 </span><span id="PermutedOxfordIIITPet.__init__-52"><a href="#PermutedOxfordIIITPet.__init__-52"><span class="linenos">52</span></a><span class="sd">            1. &#39;category&#39;: Label for one of the 37 pet categories.</span>
 </span><span id="PermutedOxfordIIITPet.__init__-53"><a href="#PermutedOxfordIIITPet.__init__-53"><span class="linenos">53</span></a><span class="sd">            2. &#39;binary-category&#39;: Binary label for cat or dog.</span>
 </span><span id="PermutedOxfordIIITPet.__init__-54"><a href="#PermutedOxfordIIITPet.__init__-54"><span class="linenos">54</span></a><span class="sd">        - **num_tasks** (`int`): the maximum number of tasks supported by the CL dataset. This decides the valid task IDs from 1 to `num_tasks`.</span>
@@ -470,7 +470,7 @@
 </span><span id="PermutedOxfordIIITPet.__init__-65"><a href="#PermutedOxfordIIITPet.__init__-65"><span class="linenos">65</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.</span>
 </span><span id="PermutedOxfordIIITPet.__init__-66"><a href="#PermutedOxfordIIITPet.__init__-66"><span class="linenos">66</span></a><span class="sd">        - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.</span>
 </span><span id="PermutedOxfordIIITPet.__init__-67"><a href="#PermutedOxfordIIITPet.__init__-67"><span class="linenos">67</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.</span>
-</span><span id="PermutedOxfordIIITPet.__init__-68"><a href="#PermutedOxfordIIITPet.__init__-68"><span class="linenos">68</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:</span>
+</span><span id="PermutedOxfordIIITPet.__init__-68"><a href="#PermutedOxfordIIITPet.__init__-68"><span class="linenos">68</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation; one of:</span>
 </span><span id="PermutedOxfordIIITPet.__init__-69"><a href="#PermutedOxfordIIITPet.__init__-69"><span class="linenos">69</span></a><span class="sd">            1. &#39;all&#39;: permute all pixels.</span>
 </span><span id="PermutedOxfordIIITPet.__init__-70"><a href="#PermutedOxfordIIITPet.__init__-70"><span class="linenos">70</span></a><span class="sd">            2. &#39;by_channel&#39;: permute channel by channel separately. All channels are applied the same permutation order.</span>
 </span><span id="PermutedOxfordIIITPet.__init__-71"><a href="#PermutedOxfordIIITPet.__init__-71"><span class="linenos">71</span></a><span class="sd">            3. &#39;first_channel_only&#39;: permute only the first channel.</span>
@@ -509,7 +509,7 @@
 
 <ul>
 <li><strong>root</strong> (<code>str</code>): the root directory where the original Oxford-IIIT Pet data 'OxfordIIITPet/' live.</li>
-<li><strong>target_type</strong> (<code>str</code>): the target type, should be one of the following:
+<li><strong>target_type</strong> (<code>str</code>): the target type; one of:
 <ol>
 <li>'category': Label for one of the 37 pet categories.</li>
 <li>'binary-category': Binary label for cat or dog.</li>
@@ -528,7 +528,7 @@ If it is a dict, the keys are task IDs and the values are the number of channels
 If it is a dict, the keys are task IDs and the values are whether to include the <code>ToTensor()</code> transform for each task. If it is a single boolean value, it is applied to all tasks.</li>
 <li><strong>resize</strong> (<code>tuple[int, int]</code> | <code>None</code> or dict of them): the size to resize the images to. Default is <code>None</code>, which means no resize.
 If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is <code>None</code>, no resize is applied.</li>
-<li><strong>permutation_mode</strong> (<code>str</code>): the mode of permutation, should be one of the following:
+<li><strong>permutation_mode</strong> (<code>str</code>): the mode of permutation; one of:
 <ol>
 <li>'all': permute all pixels.</li>
 <li>'by_channel': permute channel by channel separately. All channels are applied the same permutation order.</li>

@@ -11,7 +11,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from clarena.backbones import CLBackbone
+from clarena.backbones import Backbone
 from clarena.heads import HeadsMTL
 from clarena.mtl_algorithms import MTLAlgorithm
 
@@ -27,16 +27,22 @@ class JointLearning(MTLAlgorithm):
 
     def __init__(
         self,
-        backbone: CLBackbone,
+        backbone: Backbone,
         heads: HeadsMTL,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the JointLearning algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
-        - **backbone** (`CLBackbone`): backbone network.
+        - **backbone** (`Backbone`): backbone network.
         - **heads** (`HeadsMTL`): output heads.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
         """
-        super().__init__(backbone=backbone, heads=heads)
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
 
     def training_step(self, batch: Any) -> dict[str, Tensor]:
         r"""Training step.
@@ -51,7 +57,7 @@ class JointLearning(MTLAlgorithm):
         logits, activations = self.forward(x, stage="train", task_ids=task_ids)
 
         # the data are from different tasks, so we need to calculate the loss and accuracy for each task separately
-
+        preds = torch.zeros_like(y)
         loss_cls = 0.0
         acc = 0.0
 
@@ -66,8 +72,12 @@ class JointLearning(MTLAlgorithm):
             loss_cls_t = self.criterion(logits_t, y_t)
             loss_cls = loss_cls + loss_cls_t
 
+            # predicted labels of this task
+            preds_t = logits_t.argmax(dim=1)
+            preds[idx] = preds_t
+
             # accuracy of this task
-            acc_task = (logits_t.argmax(dim=1) == y_t).float().mean()
+            acc_task = (preds_t == y_t).float().mean()
             acc = acc + acc_task
 
         loss_cls = loss_cls / len(torch.unique(task_ids))  # average loss over tasks
@@ -77,6 +87,7 @@ class JointLearning(MTLAlgorithm):
         loss = loss_cls
 
         return {
+            "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,  # return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
@@ -90,7 +101,7 @@ class JointLearning(MTLAlgorithm):
 
         **Args:**
         - **batch** (`Any`): a batch of validation data.
-        - **dataloader_idx** (`int`): the task ID of seen tasks to be tested. A default value of 0 is given otherwise the LightningModule will raise a `RuntimeError`.
+        - **dataloader_idx** (`int`): the task ID of seen tasks to be validated. A default value of 0 is given otherwise the LightningModule will raise a `RuntimeError`.
 
         **Returns:**
         - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and accuracy from this validation step. Keys (`str`) are the metrics names, and values (`Tensor`) are the metrics.
@@ -104,10 +115,12 @@ class JointLearning(MTLAlgorithm):
             x, stage="validation", task_ids=val_task_id
         )  # use the corresponding head to get the logits
         loss_cls = self.criterion(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        preds = logits.argmax(dim=1)
+        acc = (preds == y).float().mean()
 
         # return metrics for lightning loggers callback to handle at `on_validation_batch_end()`
         return {
+            "preds": preds,
             "loss_cls": loss_cls,
             "acc": acc,
         }
@@ -133,10 +146,12 @@ class JointLearning(MTLAlgorithm):
             x, stage="test", task_ids=test_task_id
         )  # use the corresponding head to get the logits
         loss_cls = self.criterion(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        preds = logits.argmax(dim=1)
+        acc = (preds == y).float().mean()
 
         # return metrics for lightning loggers callback to handle at `on_test_batch_end()`
         return {
+            "preds": preds,
             "loss_cls": loss_cls,
             "acc": acc,
         }

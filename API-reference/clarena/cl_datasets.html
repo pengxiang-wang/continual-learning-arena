@@ -614,12 +614,12 @@
 </span><span id="CLDataset-155"><a href="#CLDataset-155"><span class="linenos">155</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span>
 </span><span id="CLDataset-156"><a href="#CLDataset-156"><span class="linenos">156</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`.&quot;&quot;&quot;</span>
 </span><span id="CLDataset-157"><a href="#CLDataset-157"><span class="linenos">157</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span id="CLDataset-158"><a href="#CLDataset-158"><span class="linenos">158</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed in the experiment.&quot;&quot;&quot;</span>
+</span><span id="CLDataset-158"><a href="#CLDataset-158"><span class="linenos">158</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed.&quot;&quot;&quot;</span>
 </span><span id="CLDataset-159"><a href="#CLDataset-159"><span class="linenos">159</span></a>
 </span><span id="CLDataset-160"><a href="#CLDataset-160"><span class="linenos">160</span></a>        <span class="n">CLDataset</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="CLDataset-161"><a href="#CLDataset-161"><span class="linenos">161</span></a>
 </span><span id="CLDataset-162"><a href="#CLDataset-162"><span class="linenos">162</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLDataset-163"><a href="#CLDataset-163"><span class="linenos">163</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="CLDataset-163"><a href="#CLDataset-163"><span class="linenos">163</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="CLDataset-164"><a href="#CLDataset-164"><span class="linenos">164</span></a>        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span>
 </span><span id="CLDataset-165"><a href="#CLDataset-165"><span class="linenos">165</span></a>            <span class="s2">&quot;root&quot;</span><span class="p">,</span>
 </span><span id="CLDataset-166"><a href="#CLDataset-166"><span class="linenos">166</span></a>            <span class="s2">&quot;batch_size&quot;</span><span class="p">,</span>
@@ -657,7 +657,7 @@
 </span><span id="CLDataset-198"><a href="#CLDataset-198"><span class="linenos">198</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up the dataset for different stages. This method is called at the beginning of each task.</span>
 </span><span id="CLDataset-199"><a href="#CLDataset-199"><span class="linenos">199</span></a>
 </span><span id="CLDataset-200"><a href="#CLDataset-200"><span class="linenos">200</span></a><span class="sd">        **Args:**</span>
-</span><span id="CLDataset-201"><a href="#CLDataset-201"><span class="linenos">201</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
+</span><span id="CLDataset-201"><a href="#CLDataset-201"><span class="linenos">201</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment; one of:</span>
 </span><span id="CLDataset-202"><a href="#CLDataset-202"><span class="linenos">202</span></a><span class="sd">            - &#39;fit&#39;: training and validation datasets of the current task `self.task_id` should be assigned to `self.dataset_train_t` and `self.dataset_val_t`.</span>
 </span><span id="CLDataset-203"><a href="#CLDataset-203"><span class="linenos">203</span></a><span class="sd">            - &#39;test&#39;: a dict of test datasets of all seen tasks should be assigned to `self.dataset_test`.</span>
 </span><span id="CLDataset-204"><a href="#CLDataset-204"><span class="linenos">204</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -996,7 +996,7 @@
 </span><span id="CLDataset.__init__-155"><a href="#CLDataset.__init__-155"><span class="linenos">155</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">:</span> <span class="nb">int</span>
 </span><span id="CLDataset.__init__-156"><a href="#CLDataset.__init__-156"><span class="linenos">156</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task ID counter indicating which task is being processed. Self updated during the task loop. Valid from 1 to `cl_dataset.num_tasks`.&quot;&quot;&quot;</span>
 </span><span id="CLDataset.__init__-157"><a href="#CLDataset.__init__-157"><span class="linenos">157</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">processed_task_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span id="CLDataset.__init__-158"><a href="#CLDataset.__init__-158"><span class="linenos">158</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed in the experiment.&quot;&quot;&quot;</span>
+</span><span id="CLDataset.__init__-158"><a href="#CLDataset.__init__-158"><span class="linenos">158</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Task IDs that have been processed.&quot;&quot;&quot;</span>
 </span><span id="CLDataset.__init__-159"><a href="#CLDataset.__init__-159"><span class="linenos">159</span></a>
 </span><span id="CLDataset.__init__-160"><a href="#CLDataset.__init__-160"><span class="linenos">160</span></a>        <span class="n">CLDataset</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span></pre></div>
@@ -1321,7 +1321,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
     </div>
     <a class="headerlink" href="#CLDataset.processed_task_ids"></a>
     
-            <div class="docstring"><p>Task IDs that have been processed in the experiment.</p>
+            <div class="docstring"><p>Task IDs that have been processed.</p>
 </div>
 
 
@@ -1338,7 +1338,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
     </div>
     <a class="headerlink" href="#CLDataset.sanity_check"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="CLDataset.sanity_check-162"><a href="#CLDataset.sanity_check-162"><span class="linenos">162</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLDataset.sanity_check-163"><a href="#CLDataset.sanity_check-163"><span class="linenos">163</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="CLDataset.sanity_check-163"><a href="#CLDataset.sanity_check-163"><span class="linenos">163</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="CLDataset.sanity_check-164"><a href="#CLDataset.sanity_check-164"><span class="linenos">164</span></a>        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span>
 </span><span id="CLDataset.sanity_check-165"><a href="#CLDataset.sanity_check-165"><span class="linenos">165</span></a>            <span class="s2">&quot;root&quot;</span><span class="p">,</span>
 </span><span id="CLDataset.sanity_check-166"><a href="#CLDataset.sanity_check-166"><span class="linenos">166</span></a>            <span class="s2">&quot;batch_size&quot;</span><span class="p">,</span>
@@ -1357,7 +1357,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span></pre></div>
 
 
-            <div class="docstring"><p>Check the sanity of the arguments.</p>
+            <div class="docstring"><p>Sanity check.</p>
 </div>
 
 
@@ -1448,7 +1448,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span><span id="CLDataset.setup-198"><a href="#CLDataset.setup-198"><span class="linenos">198</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set up the dataset for different stages. This method is called at the beginning of each task.</span>
 </span><span id="CLDataset.setup-199"><a href="#CLDataset.setup-199"><span class="linenos">199</span></a>
 </span><span id="CLDataset.setup-200"><a href="#CLDataset.setup-200"><span class="linenos">200</span></a><span class="sd">        **Args:**</span>
-</span><span id="CLDataset.setup-201"><a href="#CLDataset.setup-201"><span class="linenos">201</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment. Should be one of the following:</span>
+</span><span id="CLDataset.setup-201"><a href="#CLDataset.setup-201"><span class="linenos">201</span></a><span class="sd">        - **stage** (`str`): the stage of the experiment; one of:</span>
 </span><span id="CLDataset.setup-202"><a href="#CLDataset.setup-202"><span class="linenos">202</span></a><span class="sd">            - &#39;fit&#39;: training and validation datasets of the current task `self.task_id` should be assigned to `self.dataset_train_t` and `self.dataset_val_t`.</span>
 </span><span id="CLDataset.setup-203"><a href="#CLDataset.setup-203"><span class="linenos">203</span></a><span class="sd">            - &#39;test&#39;: a dict of test datasets of all seen tasks should be assigned to `self.dataset_test`.</span>
 </span><span id="CLDataset.setup-204"><a href="#CLDataset.setup-204"><span class="linenos">204</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -1494,7 +1494,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 <p><strong>Args:</strong></p>
 
 <ul>
-<li><strong>stage</strong> (<code>str</code>): the stage of the experiment. Should be one of the following:
+<li><strong>stage</strong> (<code>str</code>): the stage of the experiment; one of:
 <ul>
 <li>'fit': training and validation datasets of the current task <code>self.task_id</code> should be assigned to <code>self.dataset_train_t</code> and <code>self.dataset_val_t</code>.</li>
 <li>'test': a dict of test datasets of all seen tasks should be assigned to <code>self.dataset_test</code>.</li>
@@ -1932,7 +1932,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span><span id="CLPermutedDataset-444"><a href="#CLPermutedDataset-444"><span class="linenos">444</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.</span>
 </span><span id="CLPermutedDataset-445"><a href="#CLPermutedDataset-445"><span class="linenos">445</span></a><span class="sd">        - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.</span>
 </span><span id="CLPermutedDataset-446"><a href="#CLPermutedDataset-446"><span class="linenos">446</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.</span>
-</span><span id="CLPermutedDataset-447"><a href="#CLPermutedDataset-447"><span class="linenos">447</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:</span>
+</span><span id="CLPermutedDataset-447"><a href="#CLPermutedDataset-447"><span class="linenos">447</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation; one of:</span>
 </span><span id="CLPermutedDataset-448"><a href="#CLPermutedDataset-448"><span class="linenos">448</span></a><span class="sd">            1. &#39;all&#39;: permute all pixels.</span>
 </span><span id="CLPermutedDataset-449"><a href="#CLPermutedDataset-449"><span class="linenos">449</span></a><span class="sd">            2. &#39;by_channel&#39;: permute channel by channel separately. All channels are applied the same permutation order.</span>
 </span><span id="CLPermutedDataset-450"><a href="#CLPermutedDataset-450"><span class="linenos">450</span></a><span class="sd">            3. &#39;first_channel_only&#39;: permute only the first channel.</span>
@@ -1971,7 +1971,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span><span id="CLPermutedDataset-483"><a href="#CLPermutedDataset-483"><span class="linenos">483</span></a>        <span class="n">CLPermutedDataset</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="CLPermutedDataset-484"><a href="#CLPermutedDataset-484"><span class="linenos">484</span></a>
 </span><span id="CLPermutedDataset-485"><a href="#CLPermutedDataset-485"><span class="linenos">485</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLPermutedDataset-486"><a href="#CLPermutedDataset-486"><span class="linenos">486</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="CLPermutedDataset-486"><a href="#CLPermutedDataset-486"><span class="linenos">486</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="CLPermutedDataset-487"><a href="#CLPermutedDataset-487"><span class="linenos">487</span></a>
 </span><span id="CLPermutedDataset-488"><a href="#CLPermutedDataset-488"><span class="linenos">488</span></a>        <span class="c1"># check the permutation mode</span>
 </span><span id="CLPermutedDataset-489"><a href="#CLPermutedDataset-489"><span class="linenos">489</span></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">permutation_mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="s2">&quot;by_channel&quot;</span><span class="p">,</span> <span class="s2">&quot;first_channel_only&quot;</span><span class="p">]:</span>
@@ -2176,7 +2176,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span><span id="CLPermutedDataset.__init__-444"><a href="#CLPermutedDataset.__init__-444"><span class="linenos">444</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are whether to include the `ToTensor()` transform for each task. If it is a single boolean value, it is applied to all tasks.</span>
 </span><span id="CLPermutedDataset.__init__-445"><a href="#CLPermutedDataset.__init__-445"><span class="linenos">445</span></a><span class="sd">        - **resize** (`tuple[int, int]` | `None` or dict of them): the size to resize the images to. Default is `None`, which means no resize.</span>
 </span><span id="CLPermutedDataset.__init__-446"><a href="#CLPermutedDataset.__init__-446"><span class="linenos">446</span></a><span class="sd">        If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is `None`, no resize is applied.</span>
-</span><span id="CLPermutedDataset.__init__-447"><a href="#CLPermutedDataset.__init__-447"><span class="linenos">447</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation, should be one of the following:</span>
+</span><span id="CLPermutedDataset.__init__-447"><a href="#CLPermutedDataset.__init__-447"><span class="linenos">447</span></a><span class="sd">        - **permutation_mode** (`str`): the mode of permutation; one of:</span>
 </span><span id="CLPermutedDataset.__init__-448"><a href="#CLPermutedDataset.__init__-448"><span class="linenos">448</span></a><span class="sd">            1. &#39;all&#39;: permute all pixels.</span>
 </span><span id="CLPermutedDataset.__init__-449"><a href="#CLPermutedDataset.__init__-449"><span class="linenos">449</span></a><span class="sd">            2. &#39;by_channel&#39;: permute channel by channel separately. All channels are applied the same permutation order.</span>
 </span><span id="CLPermutedDataset.__init__-450"><a href="#CLPermutedDataset.__init__-450"><span class="linenos">450</span></a><span class="sd">            3. &#39;first_channel_only&#39;: permute only the first channel.</span>
@@ -2235,7 +2235,7 @@ If it is a dict, the keys are task IDs and the values are the number of channels
 If it is a dict, the keys are task IDs and the values are whether to include the <code>ToTensor()</code> transform for each task. If it is a single boolean value, it is applied to all tasks.</li>
 <li><strong>resize</strong> (<code>tuple[int, int]</code> | <code>None</code> or dict of them): the size to resize the images to. Default is <code>None</code>, which means no resize.
 If it is a dict, the keys are task IDs and the values are the sizes to resize for each task. If it is a single tuple of two integers, it is applied to all tasks. If it is <code>None</code>, no resize is applied.</li>
-<li><strong>permutation_mode</strong> (<code>str</code>): the mode of permutation, should be one of the following:
+<li><strong>permutation_mode</strong> (<code>str</code>): the mode of permutation; one of:
 <ol>
 <li>'all': permute all pixels.</li>
 <li>'by_channel': permute channel by channel separately. All channels are applied the same permutation order.</li>
@@ -2337,7 +2337,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
     </div>
     <a class="headerlink" href="#CLPermutedDataset.sanity_check"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="CLPermutedDataset.sanity_check-485"><a href="#CLPermutedDataset.sanity_check-485"><span class="linenos">485</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLPermutedDataset.sanity_check-486"><a href="#CLPermutedDataset.sanity_check-486"><span class="linenos">486</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="CLPermutedDataset.sanity_check-486"><a href="#CLPermutedDataset.sanity_check-486"><span class="linenos">486</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="CLPermutedDataset.sanity_check-487"><a href="#CLPermutedDataset.sanity_check-487"><span class="linenos">487</span></a>
 </span><span id="CLPermutedDataset.sanity_check-488"><a href="#CLPermutedDataset.sanity_check-488"><span class="linenos">488</span></a>        <span class="c1"># check the permutation mode</span>
 </span><span id="CLPermutedDataset.sanity_check-489"><a href="#CLPermutedDataset.sanity_check-489"><span class="linenos">489</span></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">permutation_mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="s2">&quot;by_channel&quot;</span><span class="p">,</span> <span class="s2">&quot;first_channel_only&quot;</span><span class="p">]:</span>
@@ -2354,7 +2354,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span></pre></div>
 
 
-            <div class="docstring"><p>Check the sanity of the arguments.</p>
+            <div class="docstring"><p>Sanity check.</p>
 </div>
 
 
@@ -2680,7 +2680,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span><span id="CLSplitDataset-702"><a href="#CLSplitDataset-702"><span class="linenos">702</span></a>        <span class="n">CLSplitDataset</span><span class="o">.</span><span class="n">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </span><span id="CLSplitDataset-703"><a href="#CLSplitDataset-703"><span class="linenos">703</span></a>
 </span><span id="CLSplitDataset-704"><a href="#CLSplitDataset-704"><span class="linenos">704</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLSplitDataset-705"><a href="#CLSplitDataset-705"><span class="linenos">705</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="CLSplitDataset-705"><a href="#CLSplitDataset-705"><span class="linenos">705</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="CLSplitDataset-706"><a href="#CLSplitDataset-706"><span class="linenos">706</span></a>
 </span><span id="CLSplitDataset-707"><a href="#CLSplitDataset-707"><span class="linenos">707</span></a>        <span class="c1"># check the class split</span>
 </span><span id="CLSplitDataset-708"><a href="#CLSplitDataset-708"><span class="linenos">708</span></a>        <span class="n">expected_keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_tasks</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
@@ -2899,7 +2899,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
     </div>
     <a class="headerlink" href="#CLSplitDataset.sanity_check"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="CLSplitDataset.sanity_check-704"><a href="#CLSplitDataset.sanity_check-704"><span class="linenos">704</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">sanity_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="CLSplitDataset.sanity_check-705"><a href="#CLSplitDataset.sanity_check-705"><span class="linenos">705</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Check the sanity of the arguments.&quot;&quot;&quot;</span>
+</span><span id="CLSplitDataset.sanity_check-705"><a href="#CLSplitDataset.sanity_check-705"><span class="linenos">705</span></a><span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sanity check.&quot;&quot;&quot;</span>
 </span><span id="CLSplitDataset.sanity_check-706"><a href="#CLSplitDataset.sanity_check-706"><span class="linenos">706</span></a>
 </span><span id="CLSplitDataset.sanity_check-707"><a href="#CLSplitDataset.sanity_check-707"><span class="linenos">707</span></a>        <span class="c1"># check the class split</span>
 </span><span id="CLSplitDataset.sanity_check-708"><a href="#CLSplitDataset.sanity_check-708"><span class="linenos">708</span></a>        <span class="n">expected_keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_tasks</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
@@ -2912,7 +2912,7 @@ If it is a dict, the keys are task IDs and the values are the sizes to resize fo
 </span></pre></div>
 
 
-            <div class="docstring"><p>Check the sanity of the arguments.</p>
+            <div class="docstring"><p>Sanity check.</p>
 </div>
 
 

@@ -6,6 +6,7 @@ __all__ = ["Independent"]
 
 import logging
 from copy import deepcopy
+from typing import Any
 
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -30,14 +31,21 @@ class Independent(Finetuning):
         self,
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the Independent algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+
         """
-        super().__init__(backbone=backbone, heads=heads)
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
 
         self.original_backbone_state_dict: dict = deepcopy(backbone.state_dict())
         r"""The original backbone network state dict is stored as the source of creating new independent backbone. """
@@ -50,7 +58,7 @@ class Independent(Finetuning):
         self.backbone.load_state_dict(self.original_backbone_state_dict)
 
     def on_train_end(self) -> None:
-        r"""Store the trained independent backbone for `self.task_id`."""
+        r"""The trained independent backbone for `self.task_id`."""
         self.backbones[self.task_id] = deepcopy(self.backbone)
 
     def test_step(
@@ -94,6 +102,7 @@ class UnlearnableIndependent(UnlearnableCLAlgorithm, Independent):
         self,
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL,
+        non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the Independent algorithm with the network. It has no additional hyperparameters.
 

@@ -11,6 +11,11 @@ __all__ = [
     "ResNet50",
     "ResNet101",
     "ResNet152",
+    "CLResNet18",
+    "CLResNet34",
+    "CLResNet50",
+    "CLResNet101",
+    "CLResNet152",
     "HATMaskResNetBlockSmall",
     "HATMaskResNetBlockLarge",
     "HATMaskResNetBase",
@@ -22,6 +27,8 @@ __all__ = [
 ]
 
 
+import logging
+
 import torchvision
 from torch import Tensor, nn
 
@@ -30,6 +37,9 @@ from clarena.backbones.constants import (
     HATMASKRESNET18_STATE_DICT_MAPPING,
     RESNET18_STATE_DICT_MAPPING,
 )
+
+# always get logger for built-in logging in each module
+pylogger = logging.getLogger(__name__)
 
 
 class ResNetBlockSmall(Backbone):
@@ -48,6 +58,7 @@ class ResNetBlockSmall(Backbone):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalization: bool = True,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the smaller building block.
 
@@ -58,18 +69,16 @@ class ResNetBlockSmall(Backbone):
         - **input_channels** (`int`): the number of channels of input of this building block.
         - **overall_stride** (`int`): the overall stride of this building block. This stride is performed at 2nd (last) convolutional layer where the 1st convolutional layer remain stride of 1.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
+        - **batch_normalization** (`bool`): whether to use batch normalization after convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(output_dim=None)
 
-        self.input_channels: int = input_channels
-        r"""Store the number of input channels of this building block. This is used to construct the identity downsample function if needed."""
-
         self.batch_normalization: bool = batch_normalization
-        r"""Store whether to use batch normalization after the fully-connected layers."""
+        r"""Whether to use batch normalization after convolutional layers."""
         self.activation: bool = activation_layer is not None
-        r"""Store whether to use activation function after the fully-connected layers."""
+        r"""Whether to use activation function after convolutional layers."""
 
         self.full_1st_layer_name = f"{outer_layer_name}/{block_idx}/conv1"
         r"""Format and store full name of the 1st weighted convolutional layer. """
@@ -79,7 +88,7 @@ class ResNetBlockSmall(Backbone):
         # construct the 1st weighted convolutional layer and attached layers (batchnorm, activation, etc)
         layer_input_channels = preceding_output_channels  # the input channels of the 1st convolutional layer, which receive the output channels of the preceding module
         layer_output_channels = (
-            self.input_channels  # the output channels of the 1st convolutional layer
+            input_channels  # the output channels of the 1st convolutional layer
         )
         self.conv1 = nn.Conv2d(
             in_channels=layer_input_channels,
@@ -149,7 +158,7 @@ class ResNetBlockSmall(Backbone):
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature maps.
-        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
         """
         activations = {}
 
@@ -201,6 +210,7 @@ class ResNetBlockLarge(Backbone):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalization: bool = True,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the larger building block.
 
@@ -211,21 +221,22 @@ class ResNetBlockLarge(Backbone):
         - **input_channels** (`int`): the number of channels of input of this building block.
         - **overall_stride** (`int`): the overall stride of this building block. This stride is performed at 2nd (middle) convolutional layer where 1st and 3rd convolutional layers remain stride of 1.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
+        - **batch_normalization** (`bool`): whether to use batch normalization after convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(output_dim=None)
 
         self.batch_normalization: bool = batch_normalization
-        r"""Store whether to use batch normalization after the fully-connected layers."""
+        r"""Whether to use batch normalization after convolutional layers."""
         self.activation: bool = activation_layer is not None
-        r"""Store whether to use activation function after the fully-connected layers."""
+        r"""Whether to use activation function after convolutional layers."""
 
         self.full_1st_layer_name = f"{outer_layer_name}/{block_idx}/conv1"
         r"""Format and store full name of the 1st weighted convolutional layer. """
-        self.full_2nd_layer_name = f"{outer_layer_name}_{block_idx}_conv2"
+        self.full_2nd_layer_name = f"{outer_layer_name}/{block_idx}/conv2"
         r"""Format and store full name of the 2nd weighted convolutional layer. """
-        self.full_3rd_layer_name = f"{outer_layer_name}_{block_idx}_conv3"
+        self.full_3rd_layer_name = f"{outer_layer_name}/{block_idx}/conv3"
         r"""Format and store full name of the 3rd weighted convolutional layer. """
 
         # construct the 1st weighted convolutional layer and attached layers (batchnorm, activation, etc)
@@ -284,10 +295,9 @@ class ResNetBlockLarge(Backbone):
         # construct the 3rd weighted convolutional layer and attached layers (batchnorm, activation, etc)
         layer_input_channels = (
             input_channels * 1
-        )  # the input channels of the 2nd convolutional layer, which is `input_channels * 1`, the same as the output channels of the 1st convolutional layer
+        )  # the input channels of the 3rd (final) convolutional layer, same as output of 2nd layer
         layer_output_channels = (
-            input_channels
-            * 4  # the output channels of the 2nd convolutional layer, which is 4 times expanded as the input channels
+            input_channels * 4  # the output channels of the 3rd layer (4x expansion)
         )
         self.conv3 = nn.Conv2d(
             in_channels=layer_input_channels,
@@ -331,7 +341,7 @@ class ResNetBlockLarge(Backbone):
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature maps.
-        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
         """
         activations = {}
 
@@ -393,6 +403,7 @@ class ResNetBase(Backbone):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalization: bool = True,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet backbone network.
 
@@ -404,15 +415,16 @@ class ResNetBase(Backbone):
         - **building_block_input_channels** (`tuple[int, int, int, int]`): the number of channels of input of each building block in the 2-5 convolutional layer correspondingly.
         - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
+        - **batch_normalization** (`bool`): whether to use batch normalization after convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(output_dim=output_dim)
 
         self.batch_normalization: bool = batch_normalization
-        r"""Store whether to use batch normalization after the fully-connected layers."""
+        r"""Whether to use batch normalization after convolutional layers."""
         self.activation: bool = activation_layer is not None
-        r"""Store whether to use activation function after the fully-connected layers."""
+        r"""Whether to use activation function after convolutional layers."""
 
         # construct the 1st weighted convolutional layer and attached layers (batchnorm, activation, etc)
         layer_input_channels = input_channels  # the input channels of the 1st convolutional layer, which receive the input of the entire network
@@ -526,7 +538,7 @@ class ResNetBase(Backbone):
             - For `ResNetBlockSmall`, it performs at the 2nd (last) layer.
             - For `ResNetBlockLarge`, it performs at the 2nd (middle) layer.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
+        - **batch_normalization** (`bool`): whether to use batch normalization after convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
 
         **Returns:**
@@ -548,7 +560,7 @@ class ResNetBase(Backbone):
                             if building_block_type == ResNetBlockSmall
                             else input_channels * 4
                         )
-                    ),  # if it's the 1st block in this multi-building-block layer, it should be the number of channels of the preceding output of this entire multi-building-block layer. Otherwise, it should be the number of channels from last building block where the number of channels is 4 times expanded as the input channels for `ResNetBlockLarge` than `ResNetBlockSmall`.
+                    ),  # if it's the 1st block in this multi-building-block layer, it should be the number of channels of the preceding output of this entire multi-building-block layer. Otherwise, it should be the number of channels from last building block where the number of channels is 4 times of the input channels for `ResNetBlockLarge` than `ResNetBlockSmall`.
                     input_channels=input_channels,
                     overall_stride=(
                         overall_stride if block_idx == 0 else 1
@@ -575,7 +587,7 @@ class ResNetBase(Backbone):
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
-        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
         """
         batch_size = input.size(0)
         activations = {}
@@ -625,6 +637,7 @@ class ResNet18(ResNetBase):
         batch_normalization: bool = True,
         bias: bool = False,
         pretrained_weights: str | None = None,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-18 backbone network.
 
@@ -632,9 +645,10 @@ class ResNet18(ResNetBase):
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
         - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
+        - **batch_normalization** (`bool`): whether to use batch normalization after convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
         - **pretrained_weights** (`str`): the name of pretrained weights to be loaded. See [TorchVision docs](https://pytorch.org/vision/main/models.html). If `None`, no pretrained weights are loaded. Default `None`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -676,6 +690,7 @@ class ResNet34(ResNetBase):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalization: bool = True,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-34 backbone network.
 
@@ -683,8 +698,9 @@ class ResNet34(ResNetBase):
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
         - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
+        - **batch_normalization** (`bool`): whether to use batch normalization after convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -712,6 +728,7 @@ class ResNet50(ResNetBase):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalization: bool = True,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-50 backbone network.
 
@@ -719,8 +736,9 @@ class ResNet50(ResNetBase):
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
         - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
+        - **batch_normalization** (`bool`): whether to use batch normalization after convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -748,6 +766,7 @@ class ResNet101(ResNetBase):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalization: bool = True,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-101 backbone network.
 
@@ -757,6 +776,7 @@ class ResNet101(ResNetBase):
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -784,6 +804,7 @@ class ResNet152(ResNetBase):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalization: bool = True,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-152 backbone network.
 
@@ -793,6 +814,7 @@ class ResNet152(ResNetBase):
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -821,6 +843,7 @@ class CLResNet18(CLBackbone, ResNet18):
         batch_normalization: bool = True,
         bias: bool = False,
         pretrained_weights: str | None = None,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-18 backbone network for continual learning.
 
@@ -831,6 +854,7 @@ class CLResNet18(CLBackbone, ResNet18):
         - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
         - **pretrained_weights** (`str`): the name of pretrained weights to be loaded. See [TorchVision docs](https://pytorch.org/vision/main/models.html). If `None`, no pretrained weights are loaded. Default `None`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -856,6 +880,7 @@ class CLResNet34(CLBackbone, ResNet34):
         batch_normalization: bool = True,
         bias: bool = False,
         pretrained_weights: str | None = None,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-34 backbone network for continual learning.
 
@@ -866,6 +891,7 @@ class CLResNet34(CLBackbone, ResNet34):
         - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
         - **pretrained_weights** (`str`): the name of pretrained weights to be loaded. See [TorchVision docs](https://pytorch.org/vision/main/models.html). If `None`, no pretrained weights are loaded. Default `None`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -891,6 +917,7 @@ class CLResNet50(CLBackbone, ResNet50):
         batch_normalization: bool = True,
         bias: bool = False,
         pretrained_weights: str | None = None,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-50 backbone network for continual learning.
 
@@ -901,6 +928,7 @@ class CLResNet50(CLBackbone, ResNet50):
         - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
         - **pretrained_weights** (`str`): the name of pretrained weights to be loaded. See [TorchVision docs](https://pytorch.org/vision/main/models.html). If `None`, no pretrained weights are loaded. Default `None`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -926,6 +954,7 @@ class CLResNet101(CLBackbone, ResNet101):
         batch_normalization: bool = True,
         bias: bool = False,
         pretrained_weights: str | None = None,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-101 backbone network for continual learning.
 
@@ -936,6 +965,7 @@ class CLResNet101(CLBackbone, ResNet101):
         - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
         - **pretrained_weights** (`str`): the name of pretrained weights to be loaded. See [TorchVision docs](https://pytorch.org/vision/main/models.html). If `None`, no pretrained weights are loaded. Default `None`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -961,6 +991,7 @@ class CLResNet152(CLBackbone, ResNet152):
         batch_normalization: bool = True,
         bias: bool = False,
         pretrained_weights: str | None = None,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-152 backbone network for continual learning.
 
@@ -971,6 +1002,7 @@ class CLResNet152(CLBackbone, ResNet152):
         - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
         - **pretrained_weights** (`str`): the name of pretrained weights to be loaded. See [TorchVision docs](https://pytorch.org/vision/main/models.html). If `None`, no pretrained weights are loaded. Default `None`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -987,7 +1019,7 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
 
     It consists of 2 weight convolutional layers, each followed by an activation function. See Table 1 or Figure 5 (left) in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html).
 
-    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.
+    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.
     """
 
     def __init__(
@@ -1001,6 +1033,7 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalization: str | None = None,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the smaller building block with task embedding.
 
@@ -1010,15 +1043,16 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
         - **preceding_output_channels** (`int`): the number of channels of preceding output of this particular building block.
         - **input_channels** (`int`): the number of channels of input of this building block.
         - **overall_stride** (`int`): the overall stride of this building block. This stride is performed at 2nd (last) convolutional layer where the 1st convolutional layer remain stride of 1.
-        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
-        - **batch_normalization** (`str` | `None`): the way to use batch normalization after the fully-connected layers, should be one of the following:
+        - **batch_normalization** (`str` | `None`): the way to use batch normalization after the fully-connected layers; one of:
             - `None`: no batch normalization layers.
             - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
             - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             output_dim=None,
@@ -1096,15 +1130,15 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
         num_batches: int | None = None,
         test_task_id: int | None = None,
     ) -> tuple[Tensor, dict[str, Tensor], dict[str, Tensor]]:
-        r"""The forward pass for data from task `task_id`. Task-specific mask for `task_id` are applied to the units which are channels in each weighted convolutional layer.
+        r"""The forward pass for data from task `self.task_id`. Task-specific mask for `self.task_id` are applied to the units which are channels in each weighted convolutional layer.
 
         **Args:**
         - **input** (`Tensor`): The input tensor from data.
-        - **stage** (`str`): the stage of the forward pass, should be one of the following:
+        - **stage** (`str`): the stage of the forward pass; one of:
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
-        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn't apply to testing stage. See chapter 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
+        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn't apply to testing stage. See chapter 2.4 "Hard Attention Training" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.
         - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.
         - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.
@@ -1112,7 +1146,7 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
         **Returns:**
         - **output_feature** (`Tensor`): the output feature maps.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
-        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
         activations = {}
 
@@ -1159,7 +1193,7 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
 
     It consists of 3 weight convolutional layers, each followed by an activation function. See Table 1 or Figure 5 (right) in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html).
 
-    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.
+    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.
     """
 
     def __init__(
@@ -1172,6 +1206,7 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the larger building block with task embedding.
 
@@ -1181,10 +1216,11 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         - **preceding_output_channels** (`int`): the number of channels of preceding output of this particular building block.
         - **input_channels** (`int`): the number of channels of input of this building block.
         - **overall_stride** (`int`): the overall stride of this building block. This stride is performed at 2nd (middle) convolutional layer where 1st and 3rd convolutional layers remain stride of 1.
-        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             output_dim=None,
@@ -1217,8 +1253,7 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
 
         # construct the task embedding over the 3rd weighted convolutional layer. It is channel-wise
         layer_output_channels = (
-            input_channels
-            * 4  # the output channels of the 2nd convolutional layer, which is 4 times expanded as the input channels
+            input_channels * 4  # the output channels of the 3rd convolutional layer
         )
         self.task_embedding_t[self.full_3rd_layer_name] = nn.Embedding(
             num_embeddings=1, embedding_dim=layer_output_channels
@@ -1233,15 +1268,15 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         num_batches: int | None = None,
         test_task_id: int | None = None,
     ) -> tuple[Tensor, dict[str, Tensor], dict[str, Tensor]]:
-        r"""The forward pass for data from task `task_id`. Task-specific mask for `task_id` are applied to the units which are channels in each weighted convolutional layer.
+        r"""The forward pass for data from task `self.task_id`. Task-specific mask for `self.task_id` are applied to the units which are channels in each weighted convolutional layer.
 
         **Args:**
         - **input** (`Tensor`): The input tensor from data.
-        - **stage** (`str`): the stage of the forward pass, should be one of the following:
+        - **stage** (`str`): the stage of the forward pass; one of:
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
-        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn't apply to testing stage. See chapter 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
+        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn't apply to testing stage. See chapter 2.4 "Hard Attention Training" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.
         - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.
         - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.
@@ -1249,7 +1284,7 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         **Returns:**
         - **output_feature** (`Tensor`): the output feature maps.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
-        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
         activations = {}
 
@@ -1291,7 +1326,7 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
             mask[self.full_3rd_layer_name].view(1, -1, 1, 1)
         )  # apply the mask to the 3rd convolutional layer after the shortcut connection. Broadcast the dimension of mask to match the input
         if self.activation:
-            x = self.activation3(x)  # activation after the shortcut connection
+            x = self.conv_activation3(x)  # activation after the shortcut connection
         activations[self.full_3rd_layer_name] = x  # store the hidden feature
 
         output_feature = x
@@ -1306,7 +1341,7 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
 
     ResNet is a convolutional network architecture, which has 1st convolutional parameter layer and a maxpooling layer, connecting to 4 convolutional layers which contains multiple convolutional parameter layer. Each layer of the 4 are constructed from basic building blocks which are either small (`ResNetBlockSmall`) or large (`ResNetBlockLarge`). Each building block contains several convolutional parameter layers. The building blocks are connected by a skip connection which is a direct connection from the input of the block to the output of the block, and this is why it's called residual (find "shortcut connections" in the paper for more details). After the 5th convolutional layer, there are average pooling layer and a fully connected layer which connects to the CL output heads.
 
-    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.
+    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.
     """
 
     def __init__(
@@ -1320,6 +1355,7 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the HAT masked ResNet backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
 
@@ -1330,10 +1366,11 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         - **building_block_preceding_output_channels** (`tuple[int, int, int, int]`): the number of channels of preceding output of each building block in the 2-5 convolutional layer correspondingly.
         - **building_block_input_channels** (`tuple[int, int, int, int]`): the number of channels of input of each building block in the 2-5 convolutional layer correspondingly.
         - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.
-        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         # init from both inherited classes
         super().__init__(
@@ -1448,15 +1485,15 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         num_batches: int | None = None,
         test_task_id: int | None = None,
     ) -> tuple[Tensor, dict[str, Tensor], dict[str, Tensor]]:
-        r"""The forward pass for data from task `task_id`. Task-specific mask for `task_id` are applied to the units which are channels in each weighted convolutional layer.
+        r"""The forward pass for data from task `self.task_id`. Task-specific mask for `self.task_id` are applied to the units which are channels in each weighted convolutional layer.
 
         **Args:**
         - **input** (`Tensor`): the input tensor from data.
-        - **stage** (`str`): the stage of the forward pass, should be one of the following:
+        - **stage** (`str`): the stage of the forward pass; one of:
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
-        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn't apply to testing stage. See chapter 2.4 "Hard Attention Training" in [HAT paper](http://proceedings.mlr.press/v80/serra18a).
+        - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn't apply to testing stage. See chapter 2.4 "Hard Attention Training" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.
         - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.
         - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.
@@ -1464,7 +1501,7 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed to the heads.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
-        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
         batch_size = input.size(0)
         activations = {}
@@ -1546,7 +1583,7 @@ class HATMaskResNet18(HATMaskResNetBase):
 
     ResNet-18 is a smaller architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 18 weight convolutional layers in total. See Table 1 in the paper for details.
 
-    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.
+    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.
     """
 
     def __init__(
@@ -1557,17 +1594,19 @@ class HATMaskResNet18(HATMaskResNetBase):
         activation_layer: nn.Module | None = nn.ReLU,
         bias: bool = False,
         pretrained_weights: str | None = None,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-18 backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
 
         **Args:**
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
         - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.
-        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
         - **pretrained_weights** (`str`): the name of pretrained weights to be loaded. See [TorchVision docs](https://pytorch.org/vision/main/models.html). If `None`, no pretrained weights are loaded. Default `None`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -1605,7 +1644,7 @@ class HATMaskResNet34(HATMaskResNetBase):
 
     ResNet-34 is a smaller architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 34 weight convolutional layers in total. See Table 1 in the paper for details.
 
-    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.
+    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.
     """
 
     def __init__(
@@ -1615,16 +1654,18 @@ class HATMaskResNet34(HATMaskResNetBase):
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-34 backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
 
         **Args:**
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
         - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.
-        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -1646,7 +1687,7 @@ class HATMaskResNet50(HATMaskResNetBase):
 
     ResNet-50 is a larger architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 50 weight convolutional layers in total. See Table 1 in the paper for details.
 
-    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.
+    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.
     """
 
     def __init__(
@@ -1656,16 +1697,18 @@ class HATMaskResNet50(HATMaskResNetBase):
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-50 backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
 
         **Args:**
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
         - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.
-        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -1687,7 +1730,7 @@ class HATMaskResNet101(HATMaskResNetBase):
 
     ResNet-101 is a larger architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 101 weight convolutional layers in total. See Table 1 in the paper for details.
 
-    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.
+    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.
     """
 
     def __init__(
@@ -1697,16 +1740,18 @@ class HATMaskResNet101(HATMaskResNetBase):
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-101 backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
 
         **Args:**
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
         - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.
-        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
@@ -1728,7 +1773,7 @@ class HATMaskResNet152(HATMaskResNetBase):
 
     ResNet-152 is the largest architecture proposed in the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html). It consists of 152 weight convolutional layers in total. See Table 1 in the paper for details.
 
-    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the unit-wise task embedding and gate function.
+    Mask is applied to the units which are output channels in each weighted convolutional layer. The mask is generated from the neuron-wise task embedding and gate function.
     """
 
     def __init__(
@@ -1738,16 +1783,18 @@ class HATMaskResNet152(HATMaskResNetBase):
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
         bias: bool = False,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the ResNet-152 backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
 
         **Args:**
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
         - **output_dim** (`int`): the output dimension after flattening at last which connects to CL output heads. Although this is not determined by us but the architecture built before the flattening layer, we still need to provide this to construct the heads.
-        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks, should be one of the following:
+        - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_channels=input_channels,
