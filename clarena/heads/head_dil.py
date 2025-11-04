@@ -1,6 +1,6 @@
-r"""The submodule in `heads` for STL head."""
+r"""The submodule in `heads` for DIL head."""
 
-__all__ = ["HeadSTL"]
+__all__ = ["HeadDIL"]
 
 import logging
 
@@ -10,11 +10,11 @@ from torch import Tensor, nn
 pylogger = logging.getLogger(__name__)
 
 
-class HeadSTL(nn.Module):
-    r"""The output head for Single-Task Learning (STL)."""
+class HeadDIL(nn.Module):
+    r"""The output head for Domain-Incremental Learning (DIL)."""
 
     def __init__(self, input_dim: int) -> None:
-        r"""Initializes STL head object.
+        r"""Initializes DIL head object.
 
         **Args:**
         - **input_dim** (`int`): the input dimension of the head. Must be equal to the `output_dim` of the connected backbone.
@@ -22,7 +22,7 @@ class HeadSTL(nn.Module):
         super().__init__()
 
         self.head: nn.Linear = None
-        r"""STL output head. """
+        r"""DIL output head. """
 
         self.input_dim: int = input_dim
         r"""Store the input dimension of the head. Used when creating new head."""
@@ -35,11 +35,12 @@ class HeadSTL(nn.Module):
         """
         self.head = nn.Linear(self.input_dim, num_classes)
 
-    def forward(self, feature: Tensor) -> Tensor:
-        r"""The forward pass for data.
+    def forward(self, feature: Tensor, task_id: int | None = None) -> Tensor:
+        r"""The forward pass for data. The information of which `task_id` the data are from is not provided.
 
         **Args:**
         - **feature** (`Tensor`): the feature tensor from the backbone network.
+        - **task_id** (`int` or `None`): the task ID where the data are from. In DIL, it is just a placeholder for API consistence with the TIL heads but never used. Best practices are not to provide this argument and leave it as the default value.
 
         **Returns:**
         - **logits** (`Tensor`): the output logits tensor.

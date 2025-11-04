@@ -5,6 +5,7 @@ The submodule in `cl_algorithms` for [HAT (Hard Attention to the Task) algorithm
 __all__ = ["HAT"]
 
 import logging
+from copy import deepcopy
 from typing import Any
 
 import torch
@@ -14,7 +15,7 @@ from torch.utils.data import DataLoader
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import CLAlgorithm
 from clarena.cl_algorithms.regularizers import HATMaskSparsityReg
-from clarena.heads import HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 from clarena.utils.metrics import HATNetworkCapacityMetric
 
 # always get logger for built-in logging in each module
@@ -167,6 +168,7 @@ class HAT(CLAlgorithm):
                 )  # the cumulative mask $\mathrm{M}^{<t}$ is initialized as a zeros mask ($t = 1$). See Eq. (2) in Sec. 3 in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9), or Eq. (5) in Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
 
                 # self.neuron_first_task[layer_name] = [None] * num_units
+        self.state_dict_task_start = deepcopy(self.backbone.state_dict())
 
     def clip_grad_by_adjustment(
         self,
@@ -381,10 +383,14 @@ class HAT(CLAlgorithm):
         # update parameters with the modified gradients
         opt.step()
 
+        # predicted labels
+        preds = logits.argmax(dim=1)
+
         # accuracy of the batch
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        acc = (preds == y).float().mean()
 
         return {
+            "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "loss_reg": loss_reg,
@@ -416,6 +422,41 @@ class HAT(CLAlgorithm):
             for layer_name in self.backbone.weighted_layer_names
         }
 
+        current_state_dict = self.backbone.state_dict()
+        parameters_task_t_update = {}
+
+        # Iterate over each layer in the current model's state
+        for layer_name, current_param_tensor in current_state_dict.items():
+            # Ensure the layer exists in the original state dict
+            if layer_name in self.state_dict_task_start:
+                # # Start with the current parameters and subtract the original parameters
+                # # This gives the total update from task 0 to the current task t.
+                # total_update_so_far = (
+                #     current_param_tensor - self.original_backbone_state_dict[layer_name]
+                # )
+
+                # # Now, subtract the updates from all previously completed tasks
+                # # to isolate the update for the current task.
+                # update_from_previous_tasks = torch.zeros_like(total_update_so_far)
+                # for task_id, prev_update_dict in self.parameters_task_update.items():
+                #     if layer_name in prev_update_dict:
+                #         update_from_previous_tasks += prev_update_dict[layer_name]
+
+                # # The update for the current task is the total update minus previous updates
+                # update_for_current_task = (
+                #     total_update_so_far - update_from_previous_tasks
+                # )
+                # parameters_task_t_update[layer_name] = (
+                #     update_for_current_task.cpu()
+                # )  # use .cpu() to optimize GPU memory
+                parameters_task_t_update[layer_name] = (
+                    current_param_tensor - self.state_dict_task_start[layer_name]
+                ).cpu()  # use .cpu() to optimize GPU memory
+
+        # Store the isolated parameters update for the current task
+
+        print("parameters_task_t_update", parameters_task_t_update)
+
     def validation_step(self, batch: Any) -> dict[str, Tensor]:
         r"""Validation step for current task `self.task_id`.
 
@@ -428,9 +469,11 @@ class HAT(CLAlgorithm):
         x, y = batch
         logits, _, _ = self.forward(x, stage="validation", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        preds = logits.argmax(dim=1)
+        acc = (preds == y).float().mean()
 
         return {
+            "preds": preds,
             "loss_cls": loss_cls,
             "acc": acc,  # Return metrics for lightning loggers callback to handle at `on_validation_batch_end()`
         }
@@ -456,9 +499,11 @@ class HAT(CLAlgorithm):
             task_id=test_task_id,
         )  # use the corresponding head and mask to test (instead of the current task `self.task_id`)
         loss_cls = self.criterion(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        preds = logits.argmax(dim=1)
+        acc = (preds == y).float().mean()
 
         return {
+            "preds": preds,
             "loss_cls": loss_cls,
             "acc": acc,  # Return metrics for lightning loggers callback to handle at `on_test_batch_end()`
         }

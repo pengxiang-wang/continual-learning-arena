@@ -106,7 +106,7 @@ __all__ = [
     "permuted_stanfordcars",
     "permuted_sun397",
     "permuted_usps",
-    "permuted_semeion",
+    "permuted_SEMEION",
     "permuted_tinyimagenet",
     "permuted_cub2002011",
     "permuted_gtsrb",

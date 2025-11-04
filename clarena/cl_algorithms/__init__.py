@@ -28,11 +28,13 @@ from .random import Random
 
 from .lwf import LwF
 from .ewc import EWC
+from .der import DER
 from .cbp import CBP
 
 from .hat import HAT
 from .adahat import AdaHAT
 from .fgadahat import FGAdaHAT
+from .amnesiac_hat import AmnesiacHAT
 from .wsn import WSN
 
 # from .nispa import NISPA
@@ -48,10 +50,12 @@ __all__ = [
     "random",
     "lwf",
     "ewc",
+    "der",
     "cbp",
     "hat",
     "adahat",
     "fgadahat",
+    "amnesiac_hat",
     "wsn",
     # "nispa",
 ]

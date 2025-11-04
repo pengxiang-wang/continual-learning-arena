@@ -35,7 +35,7 @@ class SaveModels(Callback):
         self.save_after_each_task = save_after_each_task
         r"""Whether to save the model after each task in continual learning / unlearning."""
 
-    def on_fit_end(
+    def on_test_end(
         self, trainer: Trainer, pl_module: CLAlgorithm | MTLAlgorithm | STLAlgorithm
     ) -> None:
         r"""Save the model at the end of each training task."""

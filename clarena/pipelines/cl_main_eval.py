@@ -34,7 +34,7 @@ class CLMainEvaluation:
         # required config fields
         self.main_model_path: str = cfg.main_model_path
         r"""The file path of the model to evaluate."""
-        self.cl_paradigm: str = cfg.cl_paradigm
+        self.cl_paradigm: str = cfg.clmlp
         r"""The continual learning paradigm."""
         self.eval_tasks: list[int] = (
             cfg.eval_tasks
@@ -80,9 +80,9 @@ class CLMainEvaluation:
                 )
 
         # check cl_paradigm
-        if self.cfg.cl_paradigm not in ["TIL", "CIL"]:
+        if self.cfg.cl_paradigm not in ["TIL", "CIL", "DIL"]:
             raise ValueError(
-                f"Field `cl_paradigm` should be either 'TIL' or 'CIL' but got {self.cfg.cl_paradigm}!"
+                f"Field `cl_paradigm` should be either 'TIL', 'CIL' or 'DIL' but got {self.cfg.cl_paradigm}!"
             )
 
         # check eval_tasks

@@ -12,7 +12,7 @@ from torch import Tensor
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning
-from clarena.heads import HeadsCIL, HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 from clarena.utils.transforms import min_max_normalize
 
 # always get logger for built-in logging in each module
@@ -30,7 +30,7 @@ class CBP(Finetuning):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
         replacement_rate: float,
         maturity_threshold: int,
         utility_decay_rate: float,
@@ -40,7 +40,7 @@ class CBP(Finetuning):
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
         - **replacement_rate** (`float`): the replacement rate of units. It is the precentage of units to be reinitialized during training.
         - **maturity_threshold** (`int`): the maturity threshold of units. It is the number of training steps before a unit can be reinitialized.
         - **utility_decay_rate** (`float`): the utility decay rate of units. It is the rate at which the utility of a unit decays over time.

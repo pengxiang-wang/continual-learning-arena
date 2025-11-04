@@ -4,7 +4,7 @@ r"""
 
 This submodule provides the **output heads** in CLArena.
 
-There are two types of continual learning / unlearning heads in CLArena: `HeadsTIL` and `HeadsCIL`, corresponding to two CL paradigms respectively: Task-Incremental Learning (TIL) and Class-Incremental Learning (CIL). For Multi-Task Learning (MTL), we have `HeadsMTL` which is a collection of independent heads for each task.
+There are two types of continual learning / unlearning heads in CLArena: `HeadsTIL`, `HeadsCIL` and `HeadDIL`, corresponding to three CL paradigms respectively: Task-Incremental Learning (TIL), Class-Incremental Learning (CIL) and  Domain-Incremental Learning (DIL). For Multi-Task Learning (MTL), we have `HeadsMTL` which is a collection of independent heads for each task.
 
 Please note that this is an API documantation. Please refer to the main documentation pages for more information about the heads.
 
@@ -14,8 +14,11 @@ Please note that this is an API documantation. Please refer to the main document
 """
 
 from .heads_cil import HeadsCIL
+from .head_dil import HeadDIL
 from .heads_til import HeadsTIL
+
 from .heads_mtl import HeadsMTL
+
 from .head_stl import HeadSTL
 
-__all__ = ["HeadsTIL", "HeadsCIL", "HeadsMTL", "HeadSTL"]
+__all__ = ["HeadsTIL", "HeadsCIL", "HeadDIL", "HeadsMTL", "HeadSTL"]

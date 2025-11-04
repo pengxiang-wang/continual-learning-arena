@@ -72,4 +72,3 @@ class HeadsTIL(nn.Module):
         logits = head_t(feature)
 
         return logits
-        return logits

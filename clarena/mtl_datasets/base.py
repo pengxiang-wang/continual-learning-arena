@@ -14,6 +14,7 @@ from abc import abstractmethod
 from typing import Any, Callable
 
 from lightning import LightningDataModule
+from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 from torchvision import transforms
 
@@ -67,8 +68,8 @@ class MTLDataset(LightningDataModule):
         super().__init__()
 
         self.root: dict[int, str] = (
-            root
-            if isinstance(root, dict)
+            OmegaConf.to_container(root)
+            if isinstance(root, DictConfig)
             else {t: root for t in range(1, num_tasks + 1)}
         )
         r"""The dict of root directories of the original data files for each task."""
@@ -82,29 +83,28 @@ class MTLDataset(LightningDataModule):
         r"""The number of workers for dataloaders."""
 
         self.custom_transforms: dict[int, Callable | transforms.Compose | None] = (
-            custom_transforms
+            OmegaConf.to_container(custom_transforms)
             if isinstance(custom_transforms, dict)
             else {t: custom_transforms for t in range(1, num_tasks + 1)}
         )
         r"""The dict of custom transforms for each task."""
         self.repeat_channels: dict[int, int | None] = (
-            repeat_channels
+            OmegaConf.to_container(repeat_channels)
             if isinstance(repeat_channels, dict)
             else {t: repeat_channels for t in range(1, num_tasks + 1)}
         )
         r"""The dict of number of channels to repeat for each task."""
         self.to_tensor: dict[int, bool] = (
-            to_tensor
+            OmegaConf.to_container(to_tensor)
             if isinstance(to_tensor, dict)
             else {t: to_tensor for t in range(1, num_tasks + 1)}
         )
         r"""The dict of to_tensor flag for each task. """
         self.resize: dict[int, tuple[int, int] | None] = (
-            [ast.literal_eval(rs) if rs else None for rs in resize]
-            if isinstance(resize, dict)
+            {t: tuple(rs) if rs else None for t, rs in resize.items()}
+            if isinstance(resize, DictConfig)
             else {
-                t: (ast.literal_eval(resize) if resize else None)
-                for t in range(1, num_tasks + 1)
+                t: (tuple(resize) if resize else None) for t in range(1, num_tasks + 1)
             }
         )
         r"""The dict of sizes to resize to for each task."""
@@ -370,7 +370,7 @@ class MTLDataset(LightningDataModule):
                 batch_size=self.batch_size,
                 shuffle=True,  # shuffle train batch to prevent overfitting
                 num_workers=self.num_workers,
-                drop_last=True, # to avoid batchnorm error (when batch_size is 1)
+                drop_last=True,  # to avoid batchnorm error (when batch_size is 1)
             )
 
     def val_dataloader(self) -> DataLoader:
@@ -463,7 +463,8 @@ class MTLCombinedDataset(MTLDataset):
         )
 
         self.original_dataset_python_classes: dict[int, Dataset] = {
-            t: str_to_class(dataset_class_path) for t, dataset_class_path in datasets
+            t: str_to_class(dataset_class_path)
+            for t, dataset_class_path in datasets.items()
         }
         r"""The dict of dataset classes for each task."""
 

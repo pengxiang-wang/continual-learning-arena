@@ -14,7 +14,7 @@ from torch import Tensor
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning
 from clarena.cl_algorithms.regularizers import DistillationReg
-from clarena.heads import HeadsCIL, HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ class LwF(Finetuning):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
         distillation_reg_factor: float,
         distillation_reg_temperature: float,
         non_algorithmic_hparams: dict[str, Any] = {},
@@ -40,7 +40,7 @@ class LwF(Finetuning):
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
         - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor. It controls the strength of preventing forgetting.
         - **distillation_reg_temperature** (`float`): hyperparameter, the temperature in the distillation regularization. It controls the softness of the labels that the student model (here is the current model) learns from the teacher models (here are the previous models), thereby controlling the strength of the distillation. It controls the strength of preventing forgetting.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
@@ -67,7 +67,7 @@ class LwF(Finetuning):
             temperature=distillation_reg_temperature,
             distance="cross_entropy",
         )
-        r"""Initialize and store the distillation regulariser."""
+        r"""Initialize and store the distillation regularizer."""
 
         # save additional algorithmic hyperparameters
         self.save_hyperparameters(
@@ -135,10 +135,14 @@ class LwF(Finetuning):
         # total loss
         loss = loss_cls + loss_reg
 
+        # predicted labels
+        preds = logits.argmax(dim=1)
+
         # accuracy of the batch
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        acc = (preds == y).float().mean()
 
         return {
+            "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "loss_reg": loss_reg,

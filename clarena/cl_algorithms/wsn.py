@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 
 from clarena.backbones import WSNMaskBackbone
 from clarena.cl_algorithms import CLAlgorithm
-from clarena.heads import HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)

@@ -7,12 +7,12 @@ __all__ = ["Random"]
 import logging
 from typing import Any
 
-from torch import Tensor
 import torch
+from torch import Tensor
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning
-from clarena.heads import HeadsCIL, HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -30,18 +30,22 @@ class Random(Finetuning):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
         non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the Random algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
 
         """
-        super().__init__(backbone=backbone, heads=heads, non_algorithmic_hparams=non_algorithmic_hparams)
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
 
         # set manual optimization
         self.automatic_optimization = False
@@ -66,7 +70,9 @@ class Random(Finetuning):
                 p.requires_grad = False
             self.eval()
             self._frozen_applied = True
-            pylogger.info("Random: parameters frozen and module set to eval; no training will occur.")
+            pylogger.info(
+                "Random: parameters frozen and module set to eval; no training will occur."
+            )
 
         # run forward and metrics without autograd
         with torch.inference_mode():
@@ -76,11 +82,10 @@ class Random(Finetuning):
             acc = (logits.argmax(dim=1) == y).float().mean()
 
         # note: no optimizer step, by design of Random algorithm.
-        
+
         return {
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,
             "activations": activations,
         }
-

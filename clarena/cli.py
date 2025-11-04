@@ -2,9 +2,12 @@ r"""Entrance for run all `clarena` commands."""
 
 import logging
 import os
+import random
 from datetime import datetime
 
 import hydra
+import numpy as np
+import torch
 from omegaconf import DictConfig
 
 from clarena.pipelines import (
@@ -20,13 +23,25 @@ from clarena.pipelines import (
 )
 from clarena.utils.cfg import preprocess_config
 
+seed = 42
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+torch.use_deterministic_algorithms(True)
+
+
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 @hydra.main(
     config_path=os.path.join(
-        os.getcwd(), "example_configs"
+        os.getcwd(), "configs"
     ),  # construct absolute path so that it can be run from anywhere
     config_name="entrance.yaml",
     version_base="1.3",

@@ -13,7 +13,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from clarena.backbones import CLBackbone
-from clarena.heads import HeadsCIL, HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -25,13 +25,13 @@ class CLAlgorithm(LightningModule):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
         non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
         """
         super().__init__()
@@ -40,7 +40,7 @@ class CLAlgorithm(LightningModule):
         # components
         self.backbone: CLBackbone = backbone
         r"""The backbone network."""
-        self.heads: HeadsTIL | HeadsCIL = heads
+        self.heads: HeadsTIL | HeadsCIL | HeadsCIL = heads
         r"""The output heads."""
         self.optimizer_t: Optimizer
         r"""Optimizer (partially initialized) for the current task `self.task_id`. Will be equipped with parameters in `configure_optimizers()`."""
@@ -87,7 +87,10 @@ class CLAlgorithm(LightningModule):
         self.task_id = task_id
         self.processed_task_ids.append(task_id)
         self.backbone.setup_task_id(task_id=task_id)
-        self.heads.setup_task_id(task_id, num_classes)
+        if isinstance(self.heads, HeadsTIL) or isinstance(self.heads, HeadsCIL):
+            self.heads.setup_task_id(task_id, num_classes)
+        elif isinstance(self.heads, HeadDIL) and task_id == 1:
+            self.heads.setup_task(num_classes)
         self.optimizer_t = optimizer
         self.lr_scheduler_t = lr_scheduler
 
@@ -207,13 +210,13 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
         non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
         """
         super().__init__(

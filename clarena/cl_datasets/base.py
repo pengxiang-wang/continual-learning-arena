@@ -9,13 +9,13 @@ __all__ = [
     "CLCombinedDataset",
 ]
 
-import ast
 import logging
 from abc import abstractmethod
 from typing import Any, Callable
 
 import torch
 from lightning import LightningDataModule
+from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
@@ -70,8 +70,8 @@ class CLDataset(LightningDataModule):
         super().__init__()
 
         self.root: dict[int, str] = (
-            root
-            if isinstance(root, dict)
+            OmegaConf.to_container(root)
+            if isinstance(root, DictConfig)
             else {t: root for t in range(1, num_tasks + 1)}
         )
         r"""The dict of root directories of the original data files for each task."""
@@ -80,41 +80,40 @@ class CLDataset(LightningDataModule):
         self.cl_paradigm: str
         r"""The continual learning paradigm."""
         self.batch_size: dict[int, int] = (
-            batch_size
-            if isinstance(batch_size, dict)
+            OmegaConf.to_container(batch_size)
+            if isinstance(batch_size, DictConfig)
             else {t: batch_size for t in range(1, num_tasks + 1)}
         )
         r"""The dict of batch sizes for each task."""
         self.num_workers: dict[int, int] = (
-            num_workers
-            if isinstance(num_workers, dict)
+            OmegaConf.to_container(num_workers)
+            if isinstance(num_workers, DictConfig)
             else {t: num_workers for t in range(1, num_tasks + 1)}
         )
         r"""The dict of numbers of workers for each task."""
         self.custom_transforms: dict[int, Callable | transforms.Compose | None] = (
-            custom_transforms
-            if isinstance(custom_transforms, dict)
+            OmegaConf.to_container(custom_transforms)
+            if isinstance(custom_transforms, DictConfig)
             else {t: custom_transforms for t in range(1, num_tasks + 1)}
         )
         r"""The dict of custom transforms for each task."""
         self.repeat_channels: dict[int, int | None] = (
-            repeat_channels
-            if isinstance(repeat_channels, dict)
+            OmegaConf.to_container(repeat_channels)
+            if isinstance(repeat_channels, DictConfig)
             else {t: repeat_channels for t in range(1, num_tasks + 1)}
         )
         r"""The dict of number of channels to repeat for each task."""
         self.to_tensor: dict[int, bool] = (
-            to_tensor
-            if isinstance(to_tensor, dict)
+            OmegaConf.to_container(to_tensor)
+            if isinstance(to_tensor, DictConfig)
             else {t: to_tensor for t in range(1, num_tasks + 1)}
         )
         r"""The dict of to_tensor flag for each task. """
         self.resize: dict[int, tuple[int, int] | None] = (
-            [ast.literal_eval(rs) if rs else None for rs in resize]
-            if isinstance(resize, dict)
+            {t: tuple(rs) if rs else None for t, rs in resize.items()}
+            if isinstance(resize, DictConfig)
             else {
-                t: (ast.literal_eval(resize) if resize else None)
-                for t in range(1, num_tasks + 1)
+                t: (tuple(resize) if resize else None) for t in range(1, num_tasks + 1)
             }
         )
         r"""The dict of sizes to resize to for each task."""
@@ -378,7 +377,7 @@ class CLDataset(LightningDataModule):
             batch_size=self.batch_size_t,
             shuffle=True,  # shuffle train batch to prevent overfitting
             num_workers=self.num_workers_t,
-            drop_last=True, # to avoid batchnorm error (when batch_size is 1)
+            drop_last=True,  # to avoid batchnorm error (when batch_size is 1)
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -527,7 +526,7 @@ class CLPermutedDataset(CLDataset):
 
         **Returns:**
         - **cl_class_map** (`dict[str | int, int]`): the CL class map of the task. Keys are the original class labels and values are the integer class label for continual learning.
-            - If `self.cl_paradigm` is 'TIL', the mapped class labels of a task should be continuous integers from 0 to the number of classes.
+            - If `self.cl_paradigm` is 'TIL' or 'DIL', the mapped class labels of a task should be continuous integers from 0 to the number of classes.
             - If `self.cl_paradigm` is 'CIL', the mapped class labels of a task should be continuous integers from the number of classes of previous tasks to the number of classes of the current task.
         """
 
@@ -538,7 +537,7 @@ class CLPermutedDataset(CLDataset):
             self.original_dataset_constants.CLASS_MAP
         )  # the same with the original dataset
 
-        if self.cl_paradigm == "TIL":
+        if self.cl_paradigm == "TIL" or "DIL":
             return {class_map_t[i]: i for i in range(num_classes_t)}
         if self.cl_paradigm == "CIL":
             return {
@@ -716,7 +715,7 @@ class CLSplitDataset(CLDataset):
         )
         r"""The original dataset constants class. """
 
-        self.class_split: dict[int, list[int]] = class_split
+        self.class_split: dict[int, list[int]] = OmegaConf.to_container(class_split)
         r"""The dict of class splits for each task."""
 
         CLSplitDataset.sanity_check(self)
@@ -844,7 +843,8 @@ class CLCombinedDataset(CLDataset):
         )
 
         self.original_dataset_python_classes: dict[int, Dataset] = {
-            t: str_to_class(dataset_class_path) for t, dataset_class_path in datasets
+            t: str_to_class(dataset_class_path)
+            for t, dataset_class_path in datasets.items()
         }
         r"""The dict of dataset classes for each task."""
         self.original_dataset_python_class_t: Dataset

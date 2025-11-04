@@ -95,9 +95,9 @@ class CULFullEvaluation:
                 )
 
         # check cl_paradigm
-        if self.cfg.cl_paradigm not in ["TIL", "CIL"]:
+        if self.cfg.cl_paradigm not in ["TIL", "CIL", "DIL"]:
             raise ValueError(
-                f"Field cl_paradigm should be either 'TIL' or 'CIL' but got {self.cfg.cl_paradigm}!"
+                f"Field cl_paradigm should be either 'TIL', 'CIL' or 'DIL' but got {self.cfg.cl_paradigm}!"
             )
 
         # warn if any reference experiment result is not provided
@@ -130,6 +130,7 @@ class CULFullEvaluation:
         )
 
         main_model = torch.load(self.main_model_path)
+        print("XSDSDSDSDSDD", main_model.backbone_valid_task_ids)
         refretrain_model = torch.load(self.refretrain_model_path)
         reforiginal_model = torch.load(self.reforiginal_model_path)
 

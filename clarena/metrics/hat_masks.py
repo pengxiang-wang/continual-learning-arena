@@ -36,6 +36,7 @@ class HATMasks(MetricCallback):
         save_dir: str,
         test_masks_dir_name: str | None = None,
         test_cumulative_masks_dir_name: str | None = None,
+        test_masks_grouped_dir_name: str | None = None,
         training_masks_dir_name: str | None = None,
         plot_training_mask_every_n_steps: int | None = None,
     ) -> None:
@@ -44,6 +45,7 @@ class HATMasks(MetricCallback):
         - **save_dir** (`str`): the directory to save the mask figures. Better inside the output folder.
         - **test_masks_dir_name** (`str` | `None`): the relative path to `save_dir` to save the test mask figures. If `None`, no file will be saved.
         - **test_cumulative_masks_dir_name** (`str` | `None`): the directory to save the test cumulative mask figures. If `None`, no file will be saved.
+        - **test_masks_grouped_dir_name** (`str` | `None`): the directory to save the test mask grouped figures. If `None`, no file will be saved.
         - **training_masks_dir_name** (`str` | `None`): the directory to save the training mask figures. If `None`, no file will be saved.
         - **plot_training_mask_every_n_steps** (`int` | `None`): the frequency of plotting training mask figures in terms of number of batches during training. Only applies when `training_masks_dir_name` is not `None`.
         """
@@ -58,11 +60,20 @@ class HATMasks(MetricCallback):
                 self.save_dir, test_cumulative_masks_dir_name
             )
             r"""The directory to save the test cumulative mask figures."""
+            os.makedirs(self.test_cumulative_masks_dir, exist_ok=True)
+        if test_masks_grouped_dir_name is not None:
+            self.test_masks_grouped_dir: str = os.path.join(
+                self.save_dir, test_masks_grouped_dir_name
+            )
+            r"""The directory to save the test mask grouped figures."""
+            os.makedirs(self.test_masks_grouped_dir, exist_ok=True)
+
         if training_masks_dir_name is not None:
             self.training_masks_dir: str = os.path.join(
                 self.save_dir, training_masks_dir_name
             )
             r"""The directory to save the training mask figures."""
+            os.makedirs(self.training_masks_dir, exist_ok=True)
 
         # other settings
         self.plot_training_mask_every_n_steps: int = plot_training_mask_every_n_steps
@@ -136,6 +147,15 @@ class HATMasks(MetricCallback):
                 task_id=self.task_id,
             )
 
+        # summative mask
+        if hasattr(self, "test_masks_grouped_dir"):
+            masks = pl_module.backbone.masks
+            self.plot_hat_mask_grouped(
+                masks=masks,
+                plot_dir=self.test_masks_grouped_dir,
+                task_id=self.task_id,
+            )
+
     def plot_hat_mask(
         self,
         mask: dict[str, Tensor],
@@ -174,5 +194,17 @@ class HATMasks(MetricCallback):
             plot_path = os.path.join(plot_dir, plot_name)
             fig.savefig(plot_path)
             plt.close(fig)
-            plt.close(fig)
-            plt.close(fig)
+
+    def plot_hat_mask_grouped(
+        self,
+        masks: dict[int, dict[str, Tensor]],
+        plot_dir: str,
+        task_id: int,
+    ) -> None:
+        """Plot masks in a grouped way in [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a)) algorithm.
+
+        **Args:**
+        - **masks** (`dict[str, Tensor]`): the hard attention (whose values are 0 or 1) masks. Keys are task IDs and values are the corresponding mask. Each mask is a dict where keys are layer names and values are the binary mask tensor for the layer. The mask tensor has size (number of units, ).
+        - **plot_dir** (`str`): the directory to save plot. Better same as the output directory of the experiment.
+        - **task_id** (`int`): the task ID till which the masks to be plotted. This is to form the plot name.
+        """

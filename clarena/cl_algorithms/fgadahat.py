@@ -25,7 +25,7 @@ from torch import Tensor
 
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import AdaHAT
-from clarena.heads import HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 from clarena.utils.metrics import HATNetworkCapacityMetric
 from clarena.utils.transforms import min_max_normalize
 

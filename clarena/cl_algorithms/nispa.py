@@ -15,7 +15,7 @@
 
 # from clarena.backbones import NISPAMaskBackbone
 # from clarena.cl_algorithms import CLAlgorithm
-# from clarena.heads import HeadsTIL
+# from clarena.heads import HeadsCIL, HeadsTIL, HeadDIL
 
 # # built-in logger
 # pylogger = logging.getLogger(__name__)

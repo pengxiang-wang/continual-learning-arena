@@ -141,21 +141,20 @@ class CULDistributionDistance(MetricCallback):
 
         # calculate the distribution distance between the main and reference model outputs
         if self.distribution_distance_type == "euclidean":
-            distance = torch.torch.norm(
+            distance = torch.norm(
                 agg_out_main - agg_out_ref, p=2, dim=-1
             ).mean()  # Euclidean distance
 
         elif self.distribution_distance_type == "cosine":
             distance = (
-                1
-                - torch.nn.functional.cosine_similarity(
-                    agg_out_main, agg_out_ref, dim=-1
-                )
+                torch.nn.functional.cosine_similarity(agg_out_main, agg_out_ref, dim=-1)
             ).mean()  # cosine distance
         elif self.distribution_distance_type == "manhattan":
             distance = torch.norm(
                 agg_out_main - agg_out_ref, p=1, dim=-1
             ).mean()  # Manhattan distance
+        elif self.distribution_distance_type == "cka":
+            distance = 1 - linear_CKA(agg_out_main, agg_out_ref)
         else:
             distance = None
 
@@ -186,10 +185,10 @@ class CULDistributionDistance(MetricCallback):
         distance_metric: dict[int, MeanMetricBatch],
         csv_path: str,
     ) -> None:
-        r"""Update the unlearning test distance metrics of unlearning tasks to CSV file.
+        r"""Update the unlearning distribution distance metrics of unlearning tasks to CSV file.
 
         **Args:**
-        - **distance_metric** (`dict[int, MeanMetricBatch]`): the distance metric of unlearned tasks. Accumulated and calculated from the unlearning test batches.
+        - **distance_metric** (`dict[int, MeanMetricBatch]`): the distribution distance metric of unlearned tasks. Accumulated and calculated from the unlearning test batches.
         - **csv_path** (`str`): save the test metric to path. E.g. './outputs/expr_name/1970-01-01_00-00-00/results/unlearning_test_after_task_X/distance.csv'.
         """
 
@@ -305,3 +304,23 @@ class CULDistributionDistance(MetricCallback):
         fig.savefig(plot_path)
         plt.close(fig)
         plt.close(fig)
+
+
+def linear_CKA(X, Y):
+    """
+    计算两个表征矩阵的 CKA 相似度
+    Args:
+        X: [n, d1] torch.Tensor
+        Y: [n, d2] torch.Tensor
+    Returns:
+        cka: float (相似度，范围 [0,1])
+    """
+    # 居中 (center)
+    X = X - X.mean(0, keepdim=True)
+    Y = Y - Y.mean(0, keepdim=True)
+
+    # Gram 矩阵内积
+    dot_product = torch.norm(X.T @ Y, p="fro") ** 2
+    normalization = torch.norm(X.T @ X, p="fro") * torch.norm(Y.T @ Y, p="fro")
+
+    return dot_product / normalization

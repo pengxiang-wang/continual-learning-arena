@@ -18,7 +18,7 @@ from torch.optim.lr_scheduler import LRScheduler
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import CLAlgorithm
 from clarena.cl_datasets import CLDataset
-from clarena.heads import HeadsCIL, HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 from clarena.utils.cfg import select_hyperparameters_from_config
 
 # always get logger for built-in logging in each module
@@ -118,9 +118,9 @@ class CLMainExperiment:
                 )
 
         # check cl_paradigm
-        if self.cfg.cl_paradigm not in ["TIL", "CIL"]:
+        if self.cfg.cl_paradigm not in ["TIL", "CIL", "DIL"]:
             raise ValueError(
-                f"Field `cl_paradigm` should be either 'TIL' or 'CIL' but got {self.cfg.cl_paradigm}!"
+                f"Field `cl_paradigm` should be either 'TIL', 'CIL' or 'DIL' but got {self.cfg.cl_paradigm}!"
             )
 
         # get dataset number of tasks
@@ -210,7 +210,7 @@ class CLMainExperiment:
         r"""Instantiate the CL output heads object.
 
         **Args:**
-        - **cl_paradigm** (`str`): the CL paradigm, either 'TIL' or 'CIL'. 'TIL' uses `HeadsTIL`, while 'CIL' uses `HeadsCIL`.
+        - **cl_paradigm** (`str`): the CL paradigm, either 'TIL', 'CIL' or 'DIL'. 'TIL' uses `HeadsTIL`, 'CIL' uses `HeadsCIL`, and 'DIL' uses `HeadDIL`.
         - **input_dim** (`int`): the input dimension of the heads. Must be equal to the `output_dim` of the connected backbone.
         """
         pylogger.debug(
@@ -218,18 +218,20 @@ class CLMainExperiment:
             cl_paradigm,
             cl_paradigm,
         )
-        self.heads = (
-            HeadsTIL(input_dim=input_dim)
-            if cl_paradigm == "TIL"
-            else HeadsCIL(input_dim=input_dim)
-        )
+        if cl_paradigm == "TIL":
+            self.heads = HeadsTIL(input_dim=input_dim)
+        elif cl_paradigm == "CIL":
+            self.heads = HeadsCIL(input_dim=input_dim)
+        elif cl_paradigm == "DIL":
+            self.heads = HeadDIL(input_dim=input_dim)
+
         pylogger.debug("%s heads instantiated!", cl_paradigm)
 
     def instantiate_cl_algorithm(
         self,
         cl_algorithm_cfg: DictConfig,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
         non_algorithmic_hparams: dict[str, Any],
     ) -> None:
         r"""Instantiate the cl_algorithm object from `cl_algorithm_cfg`, `backbone`, `heads` and `non_algorithmic_hparams`."""

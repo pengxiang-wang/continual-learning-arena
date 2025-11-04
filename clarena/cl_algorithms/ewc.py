@@ -14,7 +14,7 @@ from torch import Tensor, nn
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning
 from clarena.cl_algorithms.regularizers import ParameterChangeReg
-from clarena.heads import HeadsCIL, HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ class EWC(Finetuning):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
         parameter_change_reg_factor: float,
         when_calculate_fisher_information: str,
         non_algorithmic_hparams: dict[str, Any] = {},
@@ -40,7 +40,7 @@ class EWC(Finetuning):
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
         - **parameter_change_reg_factor** (`float`): the parameter change regularization factor. It controls the strength of preventing forgetting.
         - **when_calculate_fisher_information** (`str`): when to calculate the fisher information. It should be one of the following:
             1. 'train_end': calculate the fisher information at the end of training of the task.
@@ -74,7 +74,7 @@ class EWC(Finetuning):
         self.parameter_change_reg = ParameterChangeReg(
             factor=parameter_change_reg_factor,
         )
-        r"""Initialize and store the parameter change regulariser."""
+        r"""Initialize and store the parameter change regularizer."""
 
         self.when_calculate_fisher_information: str = when_calculate_fisher_information
         r"""When to calculate the fisher information."""
@@ -141,7 +141,7 @@ class EWC(Finetuning):
                 target_model=self.backbone,
                 ref_model=self.previous_task_backbones[previous_task_id],
                 weights=self.parameter_importance[previous_task_id],
-            )  # the factor 1/2 in equation (3) in the [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114) is included here instead of the parameter change regulariser.
+            )  # the factor 1/2 in equation (3) in the [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114) is included here instead of the parameter change regularizer.
 
         # do not average over tasks to avoid linear increase of the regularization loss. EWC paper doesn't mention this!
 

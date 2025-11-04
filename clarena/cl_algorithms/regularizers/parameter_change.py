@@ -19,7 +19,7 @@ class ParameterChangeReg(nn.Module):
     It promotes the target set of parameters $\theta = {\theta_i}_i$ not changing too much from another set of parameters $\theta^\star = {\theta^\star_i}_i$. The parameter distance here is $L^2$ distance. The regularization can be parameter-wise weighted, i.e. $w_i$ in the formula.
 
     It is used in:
-    - [L2 Regularisation algorithm](https://www.pnas.org/doi/10.1073/pnas.1611835114): as a L2 regularizer for the current task parameters to prevent them from changing too much from the previous task parameters.
+    - [L2 Regularization algorithm](https://www.pnas.org/doi/10.1073/pnas.1611835114): as a L2 regularizer for the current task parameters to prevent them from changing too much from the previous task parameters.
     - [EWC (Elastic Weight Consolidation) algorithm](https://www.pnas.org/doi/10.1073/pnas.1611835114): as a weighted L2 regularizer for the current task parameters to prevent them from changing too much from the previous task parameters. The regularization weights are parameter importance measure calculated from fisher information. See equation 3 in the [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114).
     """
 

@@ -34,12 +34,13 @@ class DistillationReg(nn.Module):
         - **factor** (`float`): the regularization factor.
         - **temperature** (`float`): the temperature of the distillation, should be a positive float.
         - **distance** (`str`): the type of distance function used in the distillation; one of:
-            1. "lwf_cross_entropy": the modified cross entropy loss from LwF. See equation (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
+            1. "cross_entropy": the modified cross entropy loss from LwF. See equation (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
+            2. "MSE": squared sum loss used in DER. See equation (5) in the [DER paper](https://arxiv.org/abs/2004.07211).
         """
         super().__init__()
 
         self.factor = factor
-        """The regularisation factor for distillation."""
+        """The regularization factor for distillation."""
         self.temperature = temperature
         """The temperature of the distillation. """
         self.distance = distance
@@ -50,14 +51,14 @@ class DistillationReg(nn.Module):
         student_logits: nn.Module,
         teacher_logits: nn.Module,
     ) -> Tensor:
-        r"""Calculate the regularisation loss.
+        r"""Calculate the regularization loss.
 
         **Args:**
         - **student_logits** (`Tensor`): the output logits of target (student) model to learn the knowledge from distillation. In LwF, it's the model of current training task.
         - **teacher_logits** (`Tensor`): the output logits of reference (teacher) model that knowledge is distilled. In LwF, it's the model of one of the previous tasks.
 
         **Returns:**
-        - **reg** (`Tensor`): the distillation regularisation value.
+        - **reg** (`Tensor`): the distillation regularization value.
         """
 
         if self.distance == "cross_entropy":
@@ -89,3 +90,7 @@ class DistillationReg(nn.Module):
             )  # simply add a small value to avoid log(0)
 
             return self.factor * -(teacher_probs * student_probs.log()).sum(1).mean()
+
+        elif self.distance == "MSE":
+
+            return self.factor * F.mse_loss(input=student_logits, target=teacher_logits)

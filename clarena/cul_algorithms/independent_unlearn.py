@@ -5,6 +5,9 @@ The submoduule in `cul_algorithms` for the vanilla unlearning algorithm for inde
 __all__ = ["IndependentUnlearn"]
 
 import logging
+from copy import deepcopy
+
+from torch import Tensor
 
 from clarena.cl_algorithms import Independent
 from clarena.cul_algorithms import CULAlgorithm
@@ -25,7 +28,20 @@ class IndependentUnlearn(CULAlgorithm):
 
     def unlearn(self) -> None:
         r"""Unlearn the requested unlearning tasks after training `self.task_id`."""
+
+        print("unlearn_f")
+
+        print(self.unlearning_task_ids)
+
         for unlearning_task_id in self.unlearning_task_ids:
+
             self.model.backbones[unlearning_task_id].load_state_dict(
-                self.model.original_backbone_state_dict
+                self.model.original_backbone.state_dict()
             )
+            self.model.heads.get_head(unlearning_task_id).reset_parameters()
+
+            print("unlearn", self.model.backbone_valid_task_ids)
+
+            self.model.backbone_valid_task_ids.remove(unlearning_task_id)
+
+            print("unlearn", self.model.backbone_valid_task_ids)

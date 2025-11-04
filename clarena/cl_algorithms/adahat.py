@@ -12,7 +12,7 @@ from torch import Tensor
 
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import HAT
-from clarena.heads import HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 from clarena.utils.metrics import HATNetworkCapacityMetric
 
 # always get logger for built-in logging in each module
@@ -218,7 +218,7 @@ class AdaHAT(HAT):
         super().on_train_end()
 
         mask_t = self.backbone.masks[
-            f"{self.task_id}"
+            self.task_id
         ]  # get stored mask for the current task again
 
         # update the summative mask for previous tasks. See Eq. (7) in Sec. 3.1 of the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9)

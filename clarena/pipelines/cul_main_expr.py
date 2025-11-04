@@ -182,6 +182,9 @@ class CULMainExperiment(CLMainExperiment):
             # unlearn
             self.cul_algorithm.unlearn()
 
+            # for unlearning_task_id in self.cul_algorithm.unlearning_task_ids:
+            #     self.processed_task_ids.remove(unlearning_task_id)
+
             self.cul_algorithm.setup_test_task_id()
 
             # evaluation after training and validation

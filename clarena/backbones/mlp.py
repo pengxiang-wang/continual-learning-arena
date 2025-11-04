@@ -237,6 +237,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
         - **bias** (`bool`): Whether to use bias in the linear layer. Default `True`.
         - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.        - **kwargs**: Reserved for multiple inheritance.
         """
+
         super().__init__(
             output_dim=output_dim,
             gate=gate,
@@ -244,7 +245,10 @@ class HATMaskMLP(HATMaskBackbone, MLP):
             hidden_dims=hidden_dims,
             activation_layer=activation_layer,
             batch_normalization=(
-                True if batch_normalization == "shared" or "independent" else False
+                True
+                if batch_normalization == "shared"
+                or batch_normalization == "independent"
+                else False
             ),
             bias=bias,
             dropout=dropout,

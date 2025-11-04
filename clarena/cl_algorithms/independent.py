@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning, UnlearnableCLAlgorithm
-from clarena.heads import HeadsCIL, HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -30,14 +30,14 @@ class Independent(Finetuning):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
         non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the Independent algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
 
         """
@@ -47,19 +47,27 @@ class Independent(Finetuning):
             non_algorithmic_hparams=non_algorithmic_hparams,
         )
 
-        self.original_backbone_state_dict: dict = deepcopy(backbone.state_dict())
+        self.original_backbone: dict = deepcopy(backbone)
         r"""The original backbone network state dict is stored as the source of creating new independent backbone. """
 
         self.backbones: dict[int, CLBackbone] = {}
-        r"""The list of independent backbones for each task. Keys are task IDs and values are the corresponding backbone. """
+        r"""The list of independent backbones for each task. Keys are task IDs and values are the corresponding backbones. """
 
-    def on_fit_start(self) -> None:
+        self.backbone_valid_task_ids: set[int] = set()
+        r"""The list of task IDs that have valid backbones."""
+
+    def on_train_start(self) -> None:
         r"""Initialize an independent backbone for `self.task_id`, duplicated from the original backbone."""
-        self.backbone.load_state_dict(self.original_backbone_state_dict)
+        self.backbone = deepcopy(
+            self.original_backbone
+        )  # must deepcopy the backbone completely! Do not use load_state_dict
 
     def on_train_end(self) -> None:
         r"""The trained independent backbone for `self.task_id`."""
         self.backbones[self.task_id] = deepcopy(self.backbone)
+        print("XXXXXXXX", self.backbone_valid_task_ids)
+        self.backbone_valid_task_ids.add(self.task_id)
+        print("YYYY", self.backbone_valid_task_ids)
 
     def test_step(
         self, batch: DataLoader, batch_idx: int, dataloader_idx: int = 0
@@ -101,13 +109,39 @@ class UnlearnableIndependent(UnlearnableCLAlgorithm, Independent):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
         non_algorithmic_hparams: dict[str, Any] = {},
     ) -> None:
         r"""Initialize the Independent algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL`): output heads.
+        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
         """
-        super().__init__(backbone=backbone, heads=heads)
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+        )
+
+    def aggregated_backbone_output(self, input: Tensor) -> Tensor:
+        r"""Get the aggregated backbone output for the input data. All parts of backbones should be aggregated together.
+
+        This output feature is used for measuring unlearning metrics, such as Distribution Distance (DD). An aggregated output involving every part of the backbone is needed to ensure the fairness of the metric.
+
+        **Args:**
+        - **input** (`Tensor`): the input tensor from data.
+
+        **Returns:**
+        - **output** (`Tensor`): the aggregated backbone output tensor.
+        """
+        feature = 0
+
+        print("agg", self.backbone_valid_task_ids)
+
+        for t in self.backbone_valid_task_ids:
+            feature_t = self.backbones[t](input, stage="test", task_id=t)[0]
+            feature += feature_t
+        feature = feature / len(self.backbone_valid_task_ids)
+
+        return feature
