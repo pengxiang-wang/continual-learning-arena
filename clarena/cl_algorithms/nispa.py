@@ -35,6 +35,7 @@
 #         accuracy_fall_threshold: float,
 #         k: float,
 #         non_algorithmic_hparams: dict[str, Any] = {},
+#         **kwargs,
 #     ) -> None:
 #         super().__init__(
 #             backbone=backbone,

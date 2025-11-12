@@ -33,6 +33,7 @@ class DER(Finetuning):
         distillation_reg_factor: float,
         augmentation_transforms: Callable | transforms.Compose | None = None,
         non_algorithmic_hparams: dict[str, Any] = {},
+        **kwargs,
     ) -> None:
         r"""Initialize the DER algorithm with the network.
 
@@ -43,11 +44,13 @@ class DER(Finetuning):
         - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor. It controls the strength of preventing forgetting.
         - **augmentation_transforms** (`transform` or `transforms.Compose` or `None`): the transforms to apply for augmentation after replay sampling. Not to confuse with the data transforms applied to the input of training data. Can be a single transform, composed transforms, or no transform.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             backbone=backbone,
             heads=heads,
             non_algorithmic_hparams=non_algorithmic_hparams,
+            **kwargs,
         )
 
         self.memory_buffer: Buffer = Buffer(size=buffer_size)
@@ -116,7 +119,7 @@ class DER(Finetuning):
 
                 teacher_logits_replay = logits_replay
 
-            loss_reg += self.distillation_reg(
+            loss_reg = self.distillation_reg(
                 student_logits=student_logits_replay,
                 teacher_logits=teacher_logits_replay,
             )
@@ -228,11 +231,17 @@ class Buffer:
 
         # print(f"Task labels percentage: {Counter(self.task_labels.tolist())}")
 
-    def get_data(self, size: int) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    def get_data(
+        self,
+        size: int,
+        included_tasks: list[int] | None = None,
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Sample a batch from buffer.
 
         **Args:**
         - **size** (`int`): the size of the batch to sample.
+        - **included_tasks** (`list[int]` | None): the list of task IDs to include in sampling.
+        If `None`, samples from all tasks.
 
         **Returns:**
         - **examples** (`Tensor`): sampled examples from the buffer.
@@ -242,6 +251,7 @@ class Buffer:
         """
         available = self.labels.size(0)
         if available == 0:
+            # empty buffer
             return (
                 torch.empty((0,)),
                 torch.empty((0,)),
@@ -249,16 +259,34 @@ class Buffer:
                 torch.empty((0,)),
             )
 
-        size = min(size, available)
-        indices = torch.randint(0, available, (size,))
+        # filter to only included tasks (if specified)
+        if included_tasks:
+            included = torch.tensor(included_tasks, device=self.task_labels.device)
+            mask = torch.isin(self.task_labels, included)
+            valid_indices = torch.nonzero(mask, as_tuple=True)[0]
+        else:
+            valid_indices = torch.arange(available, device=self.task_labels.device)
 
-        # print(f"Get data: Task labels percentage: {Counter(self.task_labels[indices].tolist())}")
+        # handle case where no valid samples remain
+        if valid_indices.numel() == 0:
+            return (
+                torch.empty((0,)),
+                torch.empty((0,)),
+                torch.empty((0,)),
+                torch.empty((0,)),
+            )
+
+        # limit batch size to available samples
+        size = min(size, valid_indices.numel())
+
+        # sample indices randomly
+        chosen = valid_indices[torch.randint(0, valid_indices.numel(), (size,))]
 
         return (
-            self.examples[indices],
-            self.labels[indices],
-            self.logits[indices],
-            self.task_labels[indices],
+            self.examples[chosen],
+            self.labels[chosen],
+            self.logits[chosen],
+            self.task_labels[chosen],
         )
 
     def is_empty(self) -> bool:
@@ -268,3 +296,15 @@ class Buffer:
         - **is_empty** (`bool`): `True` if the buffer is empty, `False` otherwise.
         """
         return len(self.labels) == 0
+
+    def delete_task(self, task_id: int) -> None:
+        r"""Delete all data in the buffer belonging to a specific task.
+
+        **Args:**
+        - **task_id** (`int`): the task ID to delete from the buffer.
+        """
+        mask = self.task_labels != task_id
+        self.examples = self.examples[mask]
+        self.labels = self.labels[mask]
+        self.logits = self.logits[mask]
+        self.task_labels = self.task_labels[mask]

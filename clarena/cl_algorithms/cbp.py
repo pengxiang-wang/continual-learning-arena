@@ -35,6 +35,7 @@ class CBP(Finetuning):
         maturity_threshold: int,
         utility_decay_rate: float,
         non_algorithmic_hparams: dict[str, Any] = {},
+        **kwargs,
     ) -> None:
         r"""Initialize the Finetuning algorithm with the network. It has no additional hyperparameters.
 
@@ -45,12 +46,14 @@ class CBP(Finetuning):
         - **maturity_threshold** (`int`): the maturity threshold of units. It is the number of training steps before a unit can be reinitialized.
         - **utility_decay_rate** (`float`): the utility decay rate of units. It is the rate at which the utility of a unit decays over time.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **kwargs**: Reserved for multiple inheritance.
 
         """
         super().__init__(
             backbone=backbone,
             heads=heads,
             non_algorithmic_hparams=non_algorithmic_hparams,
+            **kwargs,
         )
 
         self.replacement_rate: float = replacement_rate

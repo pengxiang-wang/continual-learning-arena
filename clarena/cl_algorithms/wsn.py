@@ -32,6 +32,7 @@ class WSN(CLAlgorithm):
         mask_percentage: float,
         parameter_score_init_mode: str = "default",
         non_algorithmic_hparams: dict[str, Any] = {},
+        **kwargs,
     ) -> None:
         r"""Initialize the WSN algorithm with the network.
 
@@ -44,12 +45,14 @@ class WSN(CLAlgorithm):
             2. 'N01': standard normal distribution $N(0, 1)$.
             3. 'U01': uniform distribution $U(0, 1)$.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **kwargs**: Reserved for multiple inheritance.
 
         """
         super().__init__(
             backbone=backbone,
             heads=heads,
             non_algorithmic_hparams=non_algorithmic_hparams,
+            **kwargs,
         )
 
         self.mask_percentage: float = mask_percentage

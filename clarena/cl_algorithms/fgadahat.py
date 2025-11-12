@@ -65,6 +65,7 @@ class FGAdaHAT(AdaHAT):
         importance_summing_strategy_exponential_rate: float | None = None,
         importance_summing_strategy_log_base: float | None = None,
         non_algorithmic_hparams: dict[str, Any] = {},
+        **kwargs,
     ) -> None:
         r"""Initialize the FG-AdaHAT algorithm with the network.
 
@@ -136,6 +137,7 @@ class FGAdaHAT(AdaHAT):
         - **importance_summing_strategy_exponential_rate** (`float` | `None`): exponential rate for the importance summing strategy (used when `importance_summing_strategy` is 'exponential_decrease'). Must be > 1.
         - **importance_summing_strategy_log_base** (`float` | `None`): base for the logarithm in the importance summing strategy (used when `importance_summing_strategy` is 'log_decrease'). Must be > 1.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **kwargs**: Reserved for multiple inheritance.
 
         """
         super().__init__(
@@ -150,6 +152,7 @@ class FGAdaHAT(AdaHAT):
             task_embedding_init_mode=task_embedding_init_mode,
             epsilon=base_mask_sparsity_reg,  # the epsilon is now the base mask sparsity regularization factor
             non_algorithmic_hparams=non_algorithmic_hparams,
+            **kwargs,
         )
 
         # save additional algorithmic hyperparameters

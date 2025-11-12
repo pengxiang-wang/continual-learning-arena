@@ -40,6 +40,7 @@ class HAT(CLAlgorithm):
         task_embedding_init_mode: str = "N01",
         alpha: float | None = None,
         non_algorithmic_hparams: dict[str, Any] = {},
+        **kwargs,
     ) -> None:
         r"""Initialize the HAT algorithm with the network.
 
@@ -65,12 +66,14 @@ class HAT(CLAlgorithm):
             5. 'last': inherit the task embedding from the last task.
         - **alpha** (`float` | `None`): the `alpha` in the 'HAT-const-alpha' mode. Applies only when `adjustment_mode` is 'hat_const_alpha'.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **kwargs**: Reserved for multiple inheritance.
 
         """
         super().__init__(
             backbone=backbone,
             heads=heads,
             non_algorithmic_hparams=non_algorithmic_hparams,
+            **kwargs,
         )
 
         # save additional algorithmic hyperparameters
@@ -166,9 +169,6 @@ class HAT(CLAlgorithm):
                 ).to(
                     self.device
                 )  # the cumulative mask $\mathrm{M}^{<t}$ is initialized as a zeros mask ($t = 1$). See Eq. (2) in Sec. 3 in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9), or Eq. (5) in Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
-
-                # self.neuron_first_task[layer_name] = [None] * num_units
-        self.state_dict_task_start = deepcopy(self.backbone.state_dict())
 
     def clip_grad_by_adjustment(
         self,
@@ -422,40 +422,6 @@ class HAT(CLAlgorithm):
             for layer_name in self.backbone.weighted_layer_names
         }
 
-        current_state_dict = self.backbone.state_dict()
-        parameters_task_t_update = {}
-
-        # Iterate over each layer in the current model's state
-        for layer_name, current_param_tensor in current_state_dict.items():
-            # Ensure the layer exists in the original state dict
-            if layer_name in self.state_dict_task_start:
-                # # Start with the current parameters and subtract the original parameters
-                # # This gives the total update from task 0 to the current task t.
-                # total_update_so_far = (
-                #     current_param_tensor - self.original_backbone_state_dict[layer_name]
-                # )
-
-                # # Now, subtract the updates from all previously completed tasks
-                # # to isolate the update for the current task.
-                # update_from_previous_tasks = torch.zeros_like(total_update_so_far)
-                # for task_id, prev_update_dict in self.parameters_task_update.items():
-                #     if layer_name in prev_update_dict:
-                #         update_from_previous_tasks += prev_update_dict[layer_name]
-
-                # # The update for the current task is the total update minus previous updates
-                # update_for_current_task = (
-                #     total_update_so_far - update_from_previous_tasks
-                # )
-                # parameters_task_t_update[layer_name] = (
-                #     update_for_current_task.cpu()
-                # )  # use .cpu() to optimize GPU memory
-                parameters_task_t_update[layer_name] = (
-                    current_param_tensor - self.state_dict_task_start[layer_name]
-                ).cpu()  # use .cpu() to optimize GPU memory
-
-        # Store the isolated parameters update for the current task
-
-        print("parameters_task_t_update", parameters_task_t_update)
 
     def validation_step(self, batch: Any) -> dict[str, Tensor]:
         r"""Validation step for current task `self.task_id`.

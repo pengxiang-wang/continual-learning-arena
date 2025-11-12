@@ -12,7 +12,7 @@ from torch import Tensor
 
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import HAT
-from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
+from clarena.heads import HeadsTIL
 from clarena.utils.metrics import HATNetworkCapacityMetric
 
 # always get logger for built-in logging in each module
@@ -40,6 +40,7 @@ class AdaHAT(HAT):
         task_embedding_init_mode: str = "N01",
         epsilon: float = 0.1,
         non_algorithmic_hparams: dict[str, Any] = {},
+        **kwargs,
     ) -> None:
         r"""Initialize the AdaHAT algorithm with the network.
 
@@ -65,6 +66,7 @@ class AdaHAT(HAT):
             5. 'last': inherit the task embedding from the last task.
         - **epsilon** (`float`): the value added to network sparsity to avoid division by zero (appearing in Eq. (9) of the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9)).
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             backbone=backbone,
@@ -77,6 +79,7 @@ class AdaHAT(HAT):
             task_embedding_init_mode=task_embedding_init_mode,
             alpha=None,
             non_algorithmic_hparams=non_algorithmic_hparams,
+            **kwargs,
         )
 
         self.adjustment_intensity: float = adjustment_intensity

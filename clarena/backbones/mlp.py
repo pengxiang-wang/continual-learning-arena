@@ -172,7 +172,8 @@ class CLMLP(CLBackbone, MLP):
         - **activation_layer** (`nn.Module` | `None`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **batch_normalization** (`bool`): whether to use batch normalization after the fully-connected layers. Default `False`.
         - **bias** (`bool`): whether to use bias in the linear layer. Default `True`.
-        - **dropout** (`float` | `None`): the probability for the dropout layer, if `None` this layer won't be used. Default `None`.        - **kwargs**: Reserved for multiple inheritance.
+        - **dropout** (`float` | `None`): the probability for the dropout layer, if `None` this layer won't be used. Default `None`.
+        - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
             input_dim=input_dim,

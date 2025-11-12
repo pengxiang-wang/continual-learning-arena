@@ -5,9 +5,7 @@ The submoduule in `cul_algorithms` for the vanilla unlearning algorithm for inde
 __all__ = ["IndependentUnlearn"]
 
 import logging
-from copy import deepcopy
 
-from torch import Tensor
 
 from clarena.cl_algorithms import Independent
 from clarena.cul_algorithms import CULAlgorithm

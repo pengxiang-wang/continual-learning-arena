@@ -35,6 +35,7 @@ class EWC(Finetuning):
         parameter_change_reg_factor: float,
         when_calculate_fisher_information: str,
         non_algorithmic_hparams: dict[str, Any] = {},
+        **kwargs,
     ) -> None:
         r"""Initialize the HAT algorithm with the network.
 
@@ -46,12 +47,14 @@ class EWC(Finetuning):
             1. 'train_end': calculate the fisher information at the end of training of the task.
             2. 'train': accumulate the fisher information in the training step of the task.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **kwargs**: Reserved for multiple inheritance.
 
         """
         super().__init__(
             backbone=backbone,
             heads=heads,
             non_algorithmic_hparams=non_algorithmic_hparams,
+            **kwargs,
         )
 
         # save additional algorithmic hyperparameters
