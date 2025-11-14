@@ -73,7 +73,7 @@ class ResNetBlockSmall(Backbone):
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
         - **kwargs**: Reserved for multiple inheritance.
         """
-        super().__init__(output_dim=None)
+        super().__init__(output_dim=None, **kwargs)
 
         self.batch_normalization: bool = batch_normalization
         r"""Whether to use batch normalization after convolutional layers."""
@@ -225,7 +225,7 @@ class ResNetBlockLarge(Backbone):
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
         - **kwargs**: Reserved for multiple inheritance.
         """
-        super().__init__(output_dim=None)
+        super().__init__(output_dim=None, **kwargs)
 
         self.batch_normalization: bool = batch_normalization
         r"""Whether to use batch normalization after convolutional layers."""
@@ -419,7 +419,7 @@ class ResNetBase(Backbone):
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
         - **kwargs**: Reserved for multiple inheritance.
         """
-        super().__init__(output_dim=output_dim)
+        super().__init__(output_dim=output_dim, **kwargs)
 
         self.batch_normalization: bool = batch_normalization
         r"""Whether to use batch normalization after convolutional layers."""
@@ -660,6 +660,7 @@ class ResNet18(ResNetBase):
             activation_layer=activation_layer,
             batch_normalization=batch_normalization,
             bias=bias,
+            **kwargs,
         )
 
         if pretrained_weights is not None:
@@ -712,6 +713,7 @@ class ResNet34(ResNetBase):
             activation_layer=activation_layer,
             batch_normalization=batch_normalization,
             bias=bias,
+            **kwargs,
         )
 
 
@@ -750,6 +752,7 @@ class ResNet50(ResNetBase):
             activation_layer=activation_layer,
             batch_normalization=batch_normalization,
             bias=bias,
+            **kwargs,
         )
 
 
@@ -788,6 +791,7 @@ class ResNet101(ResNetBase):
             activation_layer=activation_layer,
             batch_normalization=batch_normalization,
             bias=bias,
+            **kwargs,
         )
 
 
@@ -826,6 +830,7 @@ class ResNet152(ResNetBase):
             activation_layer=activation_layer,
             batch_normalization=batch_normalization,
             bias=bias,
+            **kwargs,
         )
 
 
@@ -863,7 +868,23 @@ class CLResNet18(CLBackbone, ResNet18):
             batch_normalization=batch_normalization,
             bias=bias,
             pretrained_weights=pretrained_weights,
+            **kwargs,
         )
+
+    def forward(
+        self, input: Tensor, stage: str = None, task_id: int | None = None
+    ) -> tuple[Tensor, dict[str, Tensor]]:
+        r"""The forward pass for data. It is the same for all tasks.
+
+        **Args:**
+        - **input** (`Tensor`): the input tensor from data.
+
+        **Returns:**
+        - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
+        """
+        return ResNet18.forward(self, input, stage)  # call the ResNet18 forward method
 
 
 class CLResNet34(CLBackbone, ResNet34):
@@ -900,7 +921,23 @@ class CLResNet34(CLBackbone, ResNet34):
             batch_normalization=batch_normalization,
             bias=bias,
             pretrained_weights=pretrained_weights,
+            **kwargs,
         )
+
+    def forward(
+        self, input: Tensor, stage: str = None, task_id: int | None = None
+    ) -> tuple[Tensor, dict[str, Tensor]]:
+        r"""The forward pass for data. It is the same for all tasks.
+
+        **Args:**
+        - **input** (`Tensor`): the input tensor from data.
+
+        **Returns:**
+        - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
+        """
+        return ResNet34.forward(self, input, stage)  # call the ResNet34 forward method
 
 
 class CLResNet50(CLBackbone, ResNet50):
@@ -937,7 +974,23 @@ class CLResNet50(CLBackbone, ResNet50):
             batch_normalization=batch_normalization,
             bias=bias,
             pretrained_weights=pretrained_weights,
+            **kwargs,
         )
+
+    def forward(
+        self, input: Tensor, stage: str = None, task_id: int | None = None
+    ) -> tuple[Tensor, dict[str, Tensor]]:
+        r"""The forward pass for data. It is the same for all tasks.
+
+        **Args:**
+        - **input** (`Tensor`): the input tensor from data.
+
+        **Returns:**
+        - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
+        """
+        return ResNet50.forward(self, input, stage)  # call the ResNet50 forward method
 
 
 class CLResNet101(CLBackbone, ResNet101):
@@ -974,7 +1027,26 @@ class CLResNet101(CLBackbone, ResNet101):
             batch_normalization=batch_normalization,
             bias=bias,
             pretrained_weights=pretrained_weights,
+            **kwargs,
         )
+
+    def forward(
+        self, input: Tensor, stage: str = None, task_id: int | None = None
+    ) -> tuple[Tensor, dict[str, Tensor]]:
+        r"""The forward pass for data. It is the same for all tasks.
+
+        **Args:**
+        - **input** (`Tensor`): the input tensor from data.
+
+        **Returns:**
+        - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
+
+        """
+        return ResNet101.forward(
+            self, input, stage
+        )  # call the ResNet101 forward method
 
 
 class CLResNet152(CLBackbone, ResNet152):
@@ -1011,7 +1083,25 @@ class CLResNet152(CLBackbone, ResNet152):
             batch_normalization=batch_normalization,
             bias=bias,
             pretrained_weights=pretrained_weights,
+            **kwargs,
         )
+
+    def forward(
+        self, input: Tensor, stage: str = None, task_id: int | None = None
+    ) -> tuple[Tensor, dict[str, Tensor]]:
+        r"""The forward pass for data. It is the same for all tasks.
+
+        **Args:**
+        - **input** (`Tensor`): the input tensor from data.
+
+        **Returns:**
+        - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
+        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
+        """
+        return ResNet152.forward(
+            self, input, stage
+        )  # call the ResNet152 forward method
 
 
 class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
@@ -1067,6 +1157,7 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
                 True if batch_normalization == "shared" else False
             ),  # we construct batch normalization layers separately in HATMaskBackbone
             bias=bias,
+            **kwargs,
         )
 
         # construct the task embedding over the 1st weighted convolutional layer. It is channel-wise
@@ -1233,6 +1324,7 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
             activation_layer=activation_layer,
             batch_normalization=False,
             bias=bias,
+            **kwargs,
         )
 
         # construct the task embedding over the 1st weighted convolutional layer. It is channel-wise
@@ -1374,16 +1466,17 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         """
         # init from both inherited classes
         super().__init__(
-            gate=gate,
             input_channels=input_channels,
             building_block_type=building_block_type,
             building_block_nums=building_block_nums,
             building_block_preceding_output_channels=building_block_preceding_output_channels,
             building_block_input_channels=building_block_input_channels,
             output_dim=output_dim,
+            gate=gate,
             activation_layer=activation_layer,
             batch_normalization=False,  # batch normalization is incompatible with HAT mechanism
             bias=bias,
+            **kwargs,
         )
 
         self.update_multiple_blocks_task_embedding()
@@ -1618,6 +1711,7 @@ class HATMaskResNet18(HATMaskResNetBase):
             gate=gate,
             activation_layer=activation_layer,
             bias=bias,
+            **kwargs,
         )
 
         if pretrained_weights is not None:
@@ -1677,6 +1771,7 @@ class HATMaskResNet34(HATMaskResNetBase):
             gate=gate,
             activation_layer=activation_layer,
             bias=bias,
+            **kwargs,
         )
 
 
@@ -1720,6 +1815,7 @@ class HATMaskResNet50(HATMaskResNetBase):
             gate=gate,
             activation_layer=activation_layer,
             bias=bias,
+            **kwargs,
         )
 
 
@@ -1763,6 +1859,7 @@ class HATMaskResNet101(HATMaskResNetBase):
             gate=gate,
             activation_layer=activation_layer,
             bias=bias,
+            **kwargs,
         )
 
 
@@ -1806,4 +1903,5 @@ class HATMaskResNet152(HATMaskResNetBase):
             gate=gate,
             activation_layer=activation_layer,
             bias=bias,
+            **kwargs,
         )

@@ -74,7 +74,7 @@ class AmnesiacHATUnlearn(CULAlgorithm):
             # take element-wise maximum across all unlearning tasks to build a single mask
             unlearning_mask[layer_name] = torch.max(mask_tensors, dim=0).values
 
-        for s in range(1000):
+        for s in range(10):
 
             # get replay data for fixing from memory buffer
             x_replay, _, logits_replay, task_labels_replay = (
@@ -150,6 +150,6 @@ class AmnesiacHATUnlearn(CULAlgorithm):
         self.model.construct_parameters_from_updates()
 
         # fixing with replay must be done after parameter reconstruction
-        # self.fixing_with_replay(self.unlearning_task_ids)
+        self.fixing_with_replay(self.unlearning_task_ids)
 
         pylogger.info("Unlearning process finished.")

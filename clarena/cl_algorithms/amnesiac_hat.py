@@ -5,14 +5,19 @@ The submodule in `cl_algorithms` for [AmnesiacHAT (Amnesiac Hard Attention to th
 __all__ = ["AmnesiacHAT"]
 
 import logging
+import math
 from copy import deepcopy
 from typing import Any, Callable
 
 import torch
+import torch.nn.functional as F
 from torch import Tensor
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 from torchvision.transforms import transforms
 
 from clarena.backbones import HATMaskBackbone
+from clarena.backbones.base import CLBackbone
 from clarena.cl_algorithms import DER, AdaHAT, UnlearnableCLAlgorithm
 from clarena.heads import HeadsTIL
 
@@ -96,7 +101,10 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         )
 
         # save additional hyperparameters
-        self.save_hyperparameters("adjustment_intensity", "epsilon")
+        self.save_hyperparameters(
+            "adjustment_intensity",
+            "epsilon",
+        )
 
         self.original_backbone_state_dict: dict[str, Tensor] = deepcopy(
             backbone.state_dict()
@@ -189,6 +197,50 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         loss_reg, network_sparsity = self.mark_sparsity_reg(
             mask, self.cumulative_mask_for_previous_tasks
         )
+
+        previous_task_ids = [
+            tid for tid in self.processed_task_ids if tid != self.task_id
+        ]
+
+        # Replay distillation regularization loss.
+        if not self.memory_buffer.is_empty() and previous_task_ids != []:
+
+            # sample from memory buffer with the same batch size as current batch
+            x_replay, _, logits_replay, task_labels_replay = (
+                self.memory_buffer.get_data(
+                    size=batch_size,
+                    included_tasks=previous_task_ids,
+                )
+            )
+
+            # apply augmentation transforms if any
+            if self.augmentation_transforms:
+                x_replay = self.augmentation_transforms(x_replay)
+
+            # get the student logits for this batch using the current model
+
+            student_feature_replay = torch.cat(
+                [
+                    self.backbone(
+                        x_replay[i].unsqueeze(0), stage="test", test_task_id=tid.item()
+                    )[0]
+                    for i, tid in enumerate(task_labels_replay)
+                ]
+            )
+            student_logits_replay = torch.cat(
+                [
+                    self.heads(student_feature_replay[i].unsqueeze(0), task_id=tid)
+                    for i, tid in enumerate(task_labels_replay)
+                ]
+            )
+            with torch.no_grad():  # stop updating the previous heads
+
+                teacher_logits_replay = logits_replay
+
+            loss_reg += self.distillation_reg(
+                student_logits=student_logits_replay,
+                teacher_logits=teacher_logits_replay,
+            )
 
         # total loss. See Eq. (4) in Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
         loss = loss_cls + loss_reg

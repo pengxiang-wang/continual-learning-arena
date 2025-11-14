@@ -197,6 +197,7 @@ class CLMLP(CLBackbone, MLP):
         **Returns:**
         - **output_feature** (`Tensor`): The output feature tensor to be passed into heads. This is the main target of backpropagation.
         - **activations** (`dict[str, Tensor]`): The hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name; value (`Tensor`) is the hidden feature tensor. This is used for continual learning algorithms that need hidden features for various purposes.
+        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
         """
         return MLP.forward(self, input, stage)  # call the MLP forward method
 
@@ -221,6 +222,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
         batch_normalization: str | None = None,
         bias: bool = True,
         dropout: float | None = None,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the HAT-masked MLP backbone network with task embeddings. Note that batch normalization is incompatible with the HAT mechanism.
 
@@ -236,7 +238,8 @@ class HATMaskMLP(HATMaskBackbone, MLP):
             - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
             - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): Whether to use bias in the linear layer. Default `True`.
-        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.        - **kwargs**: Reserved for multiple inheritance.
+        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.       
+        - **kwargs**: Reserved for multiple inheritance.
         """
 
         super().__init__(
@@ -253,6 +256,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
             ),
             bias=bias,
             dropout=dropout,
+            **kwargs,
         )
 
         # construct the task embedding for each weighted layer
@@ -396,6 +400,7 @@ class WSNMaskMLP(MLP, WSNMaskBackbone):
         activation_layer: nn.Module | None = nn.ReLU,
         bias: bool = True,
         dropout: float | None = None,
+        **kwargs,
     ) -> None:
         r"""Construct and initialize the WSN-masked MLP backbone network with task embeddings.
 
@@ -405,7 +410,8 @@ class WSNMaskMLP(MLP, WSNMaskBackbone):
         - **output_dim** (`int`): The output dimension that connects to CL output heads.
         - **activation_layer** (`nn.Module` | `None`): Activation function of each layer (if not `None`). If `None`, this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): Whether to use bias in the linear layer. Default `True`.
-        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.        - **kwargs**: Reserved for multiple inheritance.
+        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.       
+        - **kwargs**: Reserved for multiple inheritance.
         """
         # init from both inherited classes
         super().__init__(
@@ -416,6 +422,7 @@ class WSNMaskMLP(MLP, WSNMaskBackbone):
             batch_normalization=False,
             bias=bias,
             dropout=dropout,
+            **kwargs,
         )
 
         # construct the parameter score for each weighted layer

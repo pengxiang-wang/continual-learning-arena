@@ -183,7 +183,7 @@ class Buffer:
         logits: Tensor,
         task_labels: Tensor,
     ) -> None:
-        """Add new batch of data, using reservoir sampling + incremental tensor concatenation.
+        """Add new batch of data, using der + incremental tensor concatenation.
 
         **Args:**
         - **examples** (`Tensor`): a batch of examples to add to the buffer.
