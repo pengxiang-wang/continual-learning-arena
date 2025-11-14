@@ -106,6 +106,9 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             "epsilon",
         )
 
+        self.backup_backbone: CLBackbone = deepcopy(backbone)
+        r"""A backup of the backbone network parallelly trained with the main backbone. Used for fixing holes caused by unlearning."""
+
         self.original_backbone_state_dict: dict[str, Tensor] = deepcopy(
             backbone.state_dict()
         )
