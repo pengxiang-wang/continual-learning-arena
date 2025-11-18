@@ -154,7 +154,8 @@ class HAT(CLAlgorithm):
 
         self.backbone.initialize_task_embedding(mode=self.task_embedding_init_mode)
 
-        self.backbone.initialize_independent_bn()
+        if self.backbone.batch_normalization is not None:
+            self.backbone.initialize_independent_bn()
 
         # initialize the cumulative mask for the first task at the beginning of the first task. This should not be called in `__init__()` because `self.device` is not available at that time.
         if self.task_id == 1:
@@ -421,7 +422,6 @@ class HAT(CLAlgorithm):
             )
             for layer_name in self.backbone.weighted_layer_names
         }
-
 
     def validation_step(self, batch: Any) -> dict[str, Tensor]:
         r"""Validation step for current task `self.task_id`.

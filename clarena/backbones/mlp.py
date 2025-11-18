@@ -238,7 +238,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
             - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
             - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): Whether to use bias in the linear layer. Default `True`.
-        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.       
+        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.
         - **kwargs**: Reserved for multiple inheritance.
         """
 
@@ -382,6 +382,23 @@ class HATMaskMLP(HATMaskBackbone, MLP):
         return output_feature, mask, activations
 
 
+# class AmnesiacHATMLP(HATMaskBackbone, MLP):
+
+#     def __init__(
+#         self,
+#         input_dim: int,
+#         hidden_dims: list[int],
+#         output_dim: int,
+#         gate: str,
+#         activation_layer: nn.Module | None = nn.ReLU,
+#         batch_normalization: str | None = None,
+#         bias: bool = True,
+#         dropout: float | None = None,
+#         **kwargs,
+#     ) -> None:
+#         pass
+
+
 class WSNMaskMLP(MLP, WSNMaskBackbone):
     r"""[WSN (Winning Subnetworks, 2022)](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf) masked multi-layer perceptron (MLP).
 
@@ -410,7 +427,7 @@ class WSNMaskMLP(MLP, WSNMaskBackbone):
         - **output_dim** (`int`): The output dimension that connects to CL output heads.
         - **activation_layer** (`nn.Module` | `None`): Activation function of each layer (if not `None`). If `None`, this layer won't be used. Default `nn.ReLU`.
         - **bias** (`bool`): Whether to use bias in the linear layer. Default `True`.
-        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.       
+        - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.
         - **kwargs**: Reserved for multiple inheritance.
         """
         # init from both inherited classes

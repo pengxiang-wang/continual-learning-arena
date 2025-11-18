@@ -107,7 +107,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         )
 
         self.backup_backbone: CLBackbone = deepcopy(backbone)
-        r"""A backup of the backbone network parallelly trained with the main backbone. Used for fixing holes caused by unlearning."""
+        r"""A backup of the backbone network parallelly trained with the main backbone. Used for compensating holes caused by unlearning."""
 
         self.original_backbone_state_dict: dict[str, Tensor] = deepcopy(
             backbone.state_dict()
@@ -167,6 +167,47 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         r"""Store the current state dict at the start of training."""
         super().on_train_start()
         self.state_dict_task_start = deepcopy(self.backbone.state_dict())
+
+    def forward(
+        self,
+        input: torch.Tensor,
+        stage: str,
+        task_id: int | None = None,
+        batch_idx: int | None = None,
+        num_batches: int | None = None,
+    ) -> tuple[Tensor, dict[str, Tensor]]:
+        r"""The forward pass for data from task `task_id`. Note that it is nothing to do with `forward()` method in `nn.Module`.
+
+        **Args:**
+        - **input** (`Tensor`): The input tensor from data.
+        - **stage** (`str`): the stage of the forward pass; one of:
+            1. 'train': training stage.
+            2. 'validation': validation stage.
+            3. 'test': testing stage.
+        - **task_id** (`int`| `None`): the task ID where the data are from. If the stage is 'train' or 'validation', it should be the current task `self.task_id`. If stage is 'test', it could be from any seen task. In TIL, the task IDs of test data are provided thus this argument can be used. HAT algorithm works only for TIL.
+        - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.
+        - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.
+
+        **Returns:**
+        - **logits** (`Tensor`): the output logits tensor.
+        - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        """
+        feature, mask, activations = self.backbone(
+            input,
+            stage=stage,
+            s_max=self.s_max if stage == "train" or stage == "validation" else None,
+            batch_idx=batch_idx if stage == "train" else None,
+            num_batches=num_batches if stage == "train" else None,
+            test_task_id=task_id if stage == "test" else None,
+        )
+        logits = self.heads(feature, task_id)
+
+        return (
+            logits
+            if self.if_forward_func_return_logits_only
+            else (logits, mask, activations)
+        )
 
     def training_step(self, batch: Any, batch_idx: int) -> dict[str, Tensor]:
         r"""Training step for current task `self.task_id`.

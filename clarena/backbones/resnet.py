@@ -58,6 +58,7 @@ class ResNetBlockSmall(Backbone):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalization: bool = True,
         bias: bool = False,
+        output_dim: int | None = None,
         **kwargs,
     ) -> None:
         r"""Construct and initialize the smaller building block.
@@ -71,6 +72,7 @@ class ResNetBlockSmall(Backbone):
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **batch_normalization** (`bool`): whether to use batch normalization after convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
+        - **output_dim** (`int` | `None`): placeholder to be compatible with Backbone API. Not used in building blocks.
         - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(output_dim=None, **kwargs)
@@ -210,6 +212,7 @@ class ResNetBlockLarge(Backbone):
         activation_layer: nn.Module | None = nn.ReLU,
         batch_normalization: bool = True,
         bias: bool = False,
+        output_dim: int | None = None,
         **kwargs,
     ) -> None:
         r"""Construct and initialize the larger building block.
@@ -223,6 +226,7 @@ class ResNetBlockLarge(Backbone):
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
         - **batch_normalization** (`bool`): whether to use batch normalization after convolutional layers. Default `True`, same as what the [original ResNet paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html) does.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
+        - **output_dim** (`int` | `None`): placeholder to be compatible with Backbone API. Not used in building blocks.
         - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(output_dim=None, **kwargs)
@@ -1154,8 +1158,11 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
             overall_stride=overall_stride,
             activation_layer=activation_layer,
             batch_normalization=(
-                True if batch_normalization == "shared" else False
-            ),  # we construct batch normalization layers separately in HATMaskBackbone
+                True
+                if batch_normalization == "shared"
+                or batch_normalization == "independent"
+                else False
+            ),
             bias=bias,
             **kwargs,
         )
@@ -1296,6 +1303,7 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         overall_stride: int,
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
+        batch_normalization: str | None = None,
         bias: bool = False,
         **kwargs,
     ) -> None:
@@ -1310,6 +1318,10 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+            - `None`: no batch normalization layers.
+            - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
+            - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
         - **kwargs**: Reserved for multiple inheritance.
         """
@@ -1322,7 +1334,12 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
             input_channels=input_channels,
             overall_stride=overall_stride,
             activation_layer=activation_layer,
-            batch_normalization=False,
+            batch_normalization=(
+                True
+                if batch_normalization == "shared"
+                or batch_normalization == "independent"
+                else False
+            ),
             bias=bias,
             **kwargs,
         )
@@ -1446,6 +1463,7 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         output_dim: int,
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
+        batch_normalization: str | None = None,
         bias: bool = False,
         **kwargs,
     ) -> None:
@@ -1461,9 +1479,16 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+            - `None`: no batch normalization layers.
+            - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
+            - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`, because batch normalization are doing the similar thing with bias.
         - **kwargs**: Reserved for multiple inheritance.
         """
+        # store gate before super().__init__ wires up nn.Module to avoid accessing self.gate early
+        self.gate = gate
+
         # init from both inherited classes
         super().__init__(
             input_channels=input_channels,
@@ -1474,7 +1499,12 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
             output_dim=output_dim,
             gate=gate,
             activation_layer=activation_layer,
-            batch_normalization=False,  # batch normalization is incompatible with HAT mechanism
+            batch_normalization=(
+                True
+                if batch_normalization == "shared"
+                or batch_normalization == "independent"
+                else False
+            ),
             bias=bias,
             **kwargs,
         )
@@ -1568,6 +1598,9 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
             self.task_embedding_t.update(block.task_embedding_t)
         for block in self.conv5x:
             self.task_embedding_t.update(block.task_embedding_t)
+
+    def initialize_independent_bn(self) -> None:
+        r"""Initialize the independent batch normalization layer for the current task. This is called when a new task is created. Applies only when `batch_normalization` is 'independent'."""
 
     def forward(
         self,
@@ -1685,6 +1718,7 @@ class HATMaskResNet18(HATMaskResNetBase):
         output_dim: int,
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
+        batch_normalization: str | None = None,
         bias: bool = False,
         pretrained_weights: str | None = None,
         **kwargs,
@@ -1697,6 +1731,10 @@ class HATMaskResNet18(HATMaskResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+            - `None`: no batch normalization layers.
+            - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
+            - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
         - **pretrained_weights** (`str`): the name of pretrained weights to be loaded. See [TorchVision docs](https://pytorch.org/vision/main/models.html). If `None`, no pretrained weights are loaded. Default `None`.
         - **kwargs**: Reserved for multiple inheritance.
@@ -1710,6 +1748,7 @@ class HATMaskResNet18(HATMaskResNetBase):
             output_dim=output_dim,
             gate=gate,
             activation_layer=activation_layer,
+            batch_normalization=batch_normalization,
             bias=bias,
             **kwargs,
         )
@@ -1747,6 +1786,7 @@ class HATMaskResNet34(HATMaskResNetBase):
         output_dim: int,
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
+        batch_normalization: str | None = None,
         bias: bool = False,
         **kwargs,
     ) -> None:
@@ -1758,6 +1798,10 @@ class HATMaskResNet34(HATMaskResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+            - `None`: no batch normalization layers.
+            - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
+            - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
         - **kwargs**: Reserved for multiple inheritance.
         """
@@ -1770,6 +1814,7 @@ class HATMaskResNet34(HATMaskResNetBase):
             output_dim=output_dim,
             gate=gate,
             activation_layer=activation_layer,
+            batch_normalization=batch_normalization,
             bias=bias,
             **kwargs,
         )
@@ -1791,6 +1836,7 @@ class HATMaskResNet50(HATMaskResNetBase):
         output_dim: int,
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
+        batch_normalization: str | None = None,
         bias: bool = False,
         **kwargs,
     ) -> None:
@@ -1802,6 +1848,10 @@ class HATMaskResNet50(HATMaskResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+            - `None`: no batch normalization layers.
+            - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
+            - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
         - **kwargs**: Reserved for multiple inheritance.
         """
@@ -1814,6 +1864,7 @@ class HATMaskResNet50(HATMaskResNetBase):
             output_dim=output_dim,
             gate=gate,
             activation_layer=activation_layer,
+            batch_normalization=batch_normalization,
             bias=bias,
             **kwargs,
         )
@@ -1835,6 +1886,7 @@ class HATMaskResNet101(HATMaskResNetBase):
         output_dim: int,
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
+        batch_normalization: str | None = None,
         bias: bool = False,
         **kwargs,
     ) -> None:
@@ -1846,6 +1898,10 @@ class HATMaskResNet101(HATMaskResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+            - `None`: no batch normalization layers.
+            - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
+            - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
         - **kwargs**: Reserved for multiple inheritance.
         """
@@ -1858,6 +1914,7 @@ class HATMaskResNet101(HATMaskResNetBase):
             output_dim=output_dim,
             gate=gate,
             activation_layer=activation_layer,
+            batch_normalization=batch_normalization,
             bias=bias,
             **kwargs,
         )
@@ -1879,6 +1936,7 @@ class HATMaskResNet152(HATMaskResNetBase):
         output_dim: int,
         gate: str,
         activation_layer: nn.Module | None = nn.ReLU,
+        batch_normalization: str | None = None,
         bias: bool = False,
         **kwargs,
     ) -> None:
@@ -1890,6 +1948,10 @@ class HATMaskResNet152(HATMaskResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+            - `None`: no batch normalization layers.
+            - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
+            - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
         - **kwargs**: Reserved for multiple inheritance.
         """
@@ -1902,6 +1964,7 @@ class HATMaskResNet152(HATMaskResNetBase):
             output_dim=output_dim,
             gate=gate,
             activation_layer=activation_layer,
+            batch_normalization=batch_normalization,
             bias=bias,
             **kwargs,
         )
