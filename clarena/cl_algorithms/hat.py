@@ -413,7 +413,8 @@ class HAT(CLAlgorithm):
         mask_t = self.backbone.store_mask()
 
         # store the batch normalization if necessary
-        self.backbone.store_bn()
+        if self.backbone.batch_normalization is not None:
+            self.backbone.store_bn()
 
         # update the cumulative mask. See the first Eq. in Sec 2.3 "Network Training" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
         self.cumulative_mask_for_previous_tasks = {

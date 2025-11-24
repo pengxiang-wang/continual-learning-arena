@@ -6,6 +6,7 @@ __all__ = [
     "Backbone",
     "CLBackbone",
     "HATMaskBackbone",
+    "AmnesiacHATBackbone",
     "WSNMaskBackbone",
 ]
 
@@ -325,7 +326,10 @@ class HATMaskBackbone(CLBackbone):
     def store_mask(self) -> None:
         r"""Store the mask for the current task `self.task_id`."""
         mask_t = self.te_to_binary_mask()
-        self.masks[self.task_id] = mask_t
+
+        for subhatmodule in self.modules():
+            if isinstance(subhatmodule, HATMaskBackbone):  # for all sub HAT modules
+                subhatmodule.masks[self.task_id] = mask_t
 
         return mask_t
 
@@ -443,6 +447,24 @@ class HATMaskBackbone(CLBackbone):
         - **mask** (`dict[str, Tensor]`): The mask for the current task. Keys (`str`) are layer names and values (`Tensor`) are the mask tensors. The mask tensor has size (number of units, ).
         - **activations** (`dict[str, Tensor]`): The hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for continual learning algorithms that need hidden features. Although the HAT algorithm does not need this, it is still provided for API consistency for other HAT-based algorithms that inherit this `forward()` method of the `HAT` class.
         """
+
+
+class AmnesiacHATBackbone(HATMaskBackbone):
+    r"""The backbone network for AmnesiacHAT on top of HAT. AmnesiacHAT introduces a parallel backup backbone in case of effects caused by unlearning."""
+
+    def __init__(self, output_dim: int | None, gate: str, **kwargs) -> None:
+        r"""
+        **Args:**
+        - **output_dim** (`int`): The output dimension that connects to CL output heads. The `input_dim` of output heads is expected to be the same as this `output_dim`. In some cases, this class is used as a block in the backbone network that doesn't have an output dimension. In this case, it can be `None`.
+        - **gate** (`str`): The type of gate function turning the real value task embeddings into attention masks; one of:
+            - `sigmoid`: the sigmoid function.
+            - `tanh`: the hyperbolic tangent function.
+        - **kwargs**: Reserved for multiple inheritance.
+        """
+        super().__init__(output_dim=output_dim, gate=gate, **kwargs)
+
+        self.backup_backbone: Backbone
+        r"""The backup backbone network. It has the same architecture as the main backbone network."""
 
 
 class WSNMaskBackbone(CLBackbone):

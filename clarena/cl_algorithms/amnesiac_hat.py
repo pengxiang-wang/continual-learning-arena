@@ -16,8 +16,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torchvision.transforms import transforms
 
-from clarena.backbones import HATMaskBackbone
-from clarena.backbones.base import CLBackbone
+from clarena.backbones import AmnesiacHATBackbone
 from clarena.cl_algorithms import DER, AdaHAT, UnlearnableCLAlgorithm
 from clarena.heads import HeadsTIL
 
@@ -37,7 +36,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
 
     def __init__(
         self,
-        backbone: HATMaskBackbone,
+        backbone: AmnesiacHATBackbone,
         heads: HeadsTIL,
         buffer_size: int,
         distillation_reg_factor: float,
@@ -56,7 +55,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         r"""Initialize the AmnesiacHAT algorithm with the network.
 
         **Args:**
-        - **backbone** (`HATMaskBackbone`): must be a backbone network with HAT mask mechanism.
+        - **backbone** (`AmnesiacHATBackbone`): must be a backbone network with AmnesiacHAT mechanism.
         - **heads** (`HeadsTIL`): output heads. AmnesiacHAT algorithm only supports TIL (Task-Incremental Learning).
         - **adjustment_mode** (`str`): the strategy of adjustment i.e. the mode of gradient clipping; one of:
             1. 'adahat': set the gradients of parameters linking to masked units to a soft adjustment rate in the original AdaHAT approach. This is the way that AdaHAT does, which allowes the part of network for previous tasks to be updated slightly. See equation (8) and (9) chapter 3.1 in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
@@ -105,9 +104,6 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             "adjustment_intensity",
             "epsilon",
         )
-
-        self.backup_backbone: CLBackbone = deepcopy(backbone)
-        r"""A backup of the backbone network parallelly trained with the main backbone. Used for compensating holes caused by unlearning."""
 
         self.original_backbone_state_dict: dict[str, Tensor] = deepcopy(
             backbone.state_dict()
@@ -193,21 +189,52 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
         - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
-        feature, mask, activations = self.backbone(
-            input,
-            stage=stage,
-            s_max=self.s_max if stage == "train" or stage == "validation" else None,
-            batch_idx=batch_idx if stage == "train" else None,
-            num_batches=num_batches if stage == "train" else None,
-            test_task_id=task_id if stage == "test" else None,
-        )
-        logits = self.heads(feature, task_id)
 
-        return (
-            logits
-            if self.if_forward_func_return_logits_only
-            else (logits, mask, activations)
-        )
+        if stage == "train":
+            feature, backup_feature, mask, activations = self.backbone(
+                input,
+                stage=stage,
+                s_max=self.s_max,
+                batch_idx=batch_idx,
+                num_batches=num_batches,
+                cumulative_mask=self.cumulative_mask_for_previous_tasks,
+                test_task_id=None,
+            )
+        elif stage == "validation":
+            feature, mask, activations = self.backbone(
+                input,
+                stage=stage,
+                s_max=self.s_max,
+                batch_idx=None,
+                num_batches=None,
+                test_task_id=None,
+            )
+        elif stage == "test":
+            feature, mask, activations = self.backbone(
+                input,
+                stage=stage,
+                s_max=None,
+                batch_idx=None,
+                num_batches=None,
+                test_task_id=task_id,
+            )
+        else:  # should not happen
+            raise ValueError(f"Invalid stage '{stage}' for forward pass.")
+
+        logits = self.heads(feature, task_id)
+        if stage == "train":
+            backup_logits = self.heads(backup_feature, task_id)
+            return (
+                (logits, backup_logits)
+                if self.if_forward_func_return_logits_only
+                else (logits, backup_logits, mask, activations)
+            )
+        else:
+            return (
+                logits
+                if self.if_forward_func_return_logits_only
+                else (logits, mask, activations)
+            )
 
     def training_step(self, batch: Any, batch_idx: int) -> dict[str, Tensor]:
         r"""Training step for current task `self.task_id`.
@@ -228,7 +255,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
 
         # classification loss
         num_batches = self.trainer.num_training_batches
-        logits, mask, activations = self.forward(
+        logits, backup_logits, mask, activations = self.forward(
             x,
             stage="train",
             batch_idx=batch_idx,
@@ -236,6 +263,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             task_id=self.task_id,
         )
         loss_cls = self.criterion(logits, y)
+        backup_loss_cls = self.criterion(backup_logits, y)
 
         # regularization loss. See Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
         loss_reg, network_sparsity = self.mark_sparsity_reg(
@@ -287,7 +315,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             )
 
         # total loss. See Eq. (4) in Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
-        loss = loss_cls + loss_reg
+        loss = loss_cls + backup_loss_cls + loss_reg
 
         # backward step (manually)
         self.manual_backward(loss)  # calculate the gradients

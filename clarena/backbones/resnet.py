@@ -1602,6 +1602,9 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
     def initialize_independent_bn(self) -> None:
         r"""Initialize the independent batch normalization layer for the current task. This is called when a new task is created. Applies only when `batch_normalization` is 'independent'."""
 
+    def store_bn(self) -> None:
+        r"""Store the batch normalization layer for the current task `self.task_id`. Applies only when `batch_normalization` is 'independent'."""
+
     def forward(
         self,
         input: Tensor,
