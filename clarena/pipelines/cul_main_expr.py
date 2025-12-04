@@ -7,7 +7,7 @@ __all__ = ["CULMainExperiment"]
 import logging
 
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig
 
 from clarena.cul_algorithms import CULAlgorithm
 from clarena.pipelines import CLMainExperiment
@@ -39,6 +39,16 @@ class CULMainExperiment(CLMainExperiment):
         self.unlearned_task_ids: set[int] = set()
         r"""The list of task IDs that have been unlearned in the experiment. Updated in the tasks loop when unlearning requests are made."""
 
+        self.unlearnable_ages: dict[int, int | None] | int | None = (
+            cfg.unlearnable_age
+            if isinstance(cfg.unlearnable_age, DictConfig)
+            else {
+                task_id: cfg.unlearnable_age
+                for task_id in range(1, cfg.train_tasks + 1)
+            }
+        )
+        r"""The dict of task unlearnable ages. Keys are task IDs and values are the unlearnable age of the corresponding task. A task cannot be unlearned when its age (i.e., the number of tasks learned after it) exceeds this value. If `None`, the task is unlearnable at any time."""
+
         self.permanent_mark: dict[int, bool] = (
             cfg.permanent_mark
             if cfg.get("permanent_mark")
@@ -57,6 +67,7 @@ class CULMainExperiment(CLMainExperiment):
             "train_tasks",
             "eval_after_tasks",
             "unlearning_requests",
+            "unlearnable_age",
             "global_seed",
             "cl_dataset",
             "cl_algorithm",
@@ -105,6 +116,27 @@ class CULMainExperiment(CLMainExperiment):
             "<%s> (clarena.cul_algorithms.CULAlgorithm) instantiated!",
             cul_algorithm_cfg.get("_target_"),
         )
+
+    def unlearnable_task_ids(self, task_id: int) -> list[int]:
+        r"""Get the list of unlearnable task IDs at the current `self.task_id`.
+
+        **Args:**
+        - **task_id** (`int`): the target task ID to check unlearnable task IDs.
+
+        **Returns:**
+        - **unlearnable_task_ids** (`list[int]`): the list of unlearnable task IDs at the current `self.task_id`.
+        """
+        unlearnable_task_ids = []
+        print("process_task", self.processed_task_ids)
+        for tid in self.processed_task_ids:
+            print("unlearnable_ages", self.unlearnable_ages)
+            unlearnable_age = self.unlearnable_ages[tid]
+            if unlearnable_age is None or (task_id - tid) <= unlearnable_age:
+
+                unlearnable_task_ids.append(tid)
+
+        print("unlearnable_task_ids", unlearnable_task_ids)
+        return unlearnable_task_ids
 
     def run(self) -> None:
         r"""The main method to run the continual unlearning main experiment."""
@@ -166,10 +198,12 @@ class CULMainExperiment(CLMainExperiment):
                 num_classes=len(self.cl_dataset.get_cl_class_map(self.task_id)),
                 optimizer=self.optimizer_t,
                 lr_scheduler=self.lr_scheduler_t,
+                unlearnable_task_ids=self.unlearnable_task_ids(self.task_id),
             )
             self.cul_algorithm.setup_task_id(
                 task_id=self.task_id,
                 unlearning_requests=self.unlearning_requests,
+                unlearnable_task_ids=self.unlearnable_task_ids(self.task_id),
                 if_permanent=self.permanent_mark[self.task_id],
             )
 

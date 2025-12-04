@@ -35,13 +35,16 @@ class CULAlgorithm:
         r"""The list of task IDs that are requested to be unlearned after training `self.task_id`."""
         self.unlearned_task_ids: set[int] = set()
         r"""The list of task IDs that have been unlearned in the experiment. """
+        self.unlearnable_task_ids: list[int] = []
+        r"""The list of task IDs that are unlearnable at the current `self.task_id`."""
         self.if_permanent_t: bool
-        r"""Whether the task is permanent or not. If `True`, the task will not be unlearned i.e. not shown in future unlearning requests."""
+        r"""Whether the current task `self.task_id` is permanent or not. If `True`, the task will not be unlearned i.e. not shown in future unlearning requests."""
 
     def setup_task_id(
         self,
         task_id: int,
         unlearning_requests: dict[int, list[int]],
+        unlearnable_task_ids: list[int],
         if_permanent: bool,
     ) -> None:
         r"""Set up which task the CUL experiment is on. This must be done before `unlearn()` method is called.
@@ -49,9 +52,11 @@ class CULAlgorithm:
         **Args:**
         - **task_id** (`int`): the target task ID to be set up.
         - **unlearning_requests** (`dict[int, list[int]]`): the entire unlearning requests. Keys are IDs of the tasks that request unlearning after their learning, and values are the list of the previous tasks to be unlearned.
+        - **unlearnable_task_ids** (`list[int]`): the list of unlearnable task IDs at the current `self.task_id`.
         - **if_permanent** (`bool`): whether the task is permanent or not. If `True`, the task will not be unlearned i.e. not shown in future unlearning requests.
         """
         self.task_id = task_id
+        self.processed_task_ids.append(task_id)
 
         unlearning_task_ids = (
             unlearning_requests[task_id] if task_id in unlearning_requests else []
@@ -59,7 +64,11 @@ class CULAlgorithm:
         self.unlearning_task_ids = unlearning_task_ids
         self.model.unlearning_task_ids = unlearning_task_ids
 
+        self.unlearnable_task_ids = unlearnable_task_ids
+        self.model.unlearnable_task_ids = unlearnable_task_ids
+
         self.if_permanent_t = if_permanent
+        self.model.if_permanent_t = if_permanent
 
     def setup_test_task_id(self) -> None:
         r"""Set up before testing `self.task_id`. This must be done after `unlearn()` method is called."""

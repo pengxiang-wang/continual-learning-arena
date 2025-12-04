@@ -5,6 +5,7 @@ The submoduule in `cul_algorithms` for AmnesiacHAT unlearning algorithm.
 __all__ = ["AmnesiacHATUnlearn"]
 
 import logging
+from copy import deepcopy
 
 import torch
 
@@ -37,7 +38,7 @@ class AmnesiacHATUnlearn(CULAlgorithm):
         - **unlearning_task_id** (`list[int]`): the ID of the unlearning task to delete the update.
         """
 
-        for unlearning_task_id in self.unlearning_task_ids:
+        for unlearning_task_id in unlearning_task_ids:
             if unlearning_task_id not in self.model.parameters_task_update:
                 pylogger.warning(
                     "Attempted to delete update for task %d, but it was not found.",
@@ -54,6 +55,56 @@ class AmnesiacHATUnlearn(CULAlgorithm):
         pylogger.info(
             "Deleted parameter update for unlearning task %s.", unlearning_task_ids
         )
+
+    def compensate_by_backup(self, unlearning_task_ids: list[int]) -> None:
+        r"""Compensate the model before unlearning using the backup model.
+
+        **Args:**
+        - **unlearning_task_id** (`list[int]`): the ID of the unlearning task to delete the update.
+        """
+
+        unlearning_task_id = unlearning_task_ids[
+            0
+        ]  # only one unlearning task is supported for now
+
+        for affected_task_id in self.model.affected_tasks_upon_unlearning():
+
+            print(affected_task_id, unlearning_task_id)
+
+            print(self.model.backbone.backup_state_dicts.keys())
+            backup_state_dict = self.model.backbone.backup_state_dicts[
+                (unlearning_task_id, affected_task_id)
+            ]
+            compensate_mask = self.model.backbone.masks_intersection(
+                [
+                    self.model.backbone.masks[affected_task_id],
+                    self.model.backbone.masks[unlearning_task_id],
+                ]
+            )
+
+            for layer_name in self.model.backbone.weighted_layer_names:
+                layer = self.model.backbone.get_layer_by_name(layer_name)
+
+                weight_mask, bias_mask = (
+                    self.model.backbone.get_layer_measure_parameter_wise(
+                        neuron_wise_measure=compensate_mask,
+                        layer_name=layer_name,
+                        aggregation_mode="min",
+                    )
+                )
+
+                layer.weight.data = torch.where(
+                    weight_mask.bool(),
+                    backup_state_dict[layer_name.replace("/", ".") + ".weight"],
+                    layer.weight.data,
+                )
+                if layer.bias is not None:
+
+                    layer.bias.data = torch.where(
+                        bias_mask.bool(),
+                        backup_state_dict[layer_name.replace("/", ".") + ".bias"],
+                        layer.bias.data,
+                    )
 
     def fixing_with_replay(self, unlearning_task_ids: list[int]) -> None:
         r"""Fixing the model with replay after unlearning.
@@ -74,7 +125,7 @@ class AmnesiacHATUnlearn(CULAlgorithm):
             # take element-wise maximum across all unlearning tasks to build a single mask
             unlearning_mask[layer_name] = torch.max(mask_tensors, dim=0).values
 
-        for s in range(10):
+        for s in range(5):
 
             # get replay data for fixing from memory buffer
             x_replay, _, logits_replay, task_labels_replay = (
@@ -149,7 +200,9 @@ class AmnesiacHATUnlearn(CULAlgorithm):
         # after all compensations and deletions are done, reconstruct the model parameters once
         self.model.construct_parameters_from_updates()
 
+        self.compensate_by_backup(self.unlearning_task_ids)
+
         # fixing with replay must be done after parameter reconstruction
-        self.fixing_with_replay(self.unlearning_task_ids)
+        # self.fixing_with_replay(self.unlearning_task_ids)
 
         pylogger.info("Unlearning process finished.")

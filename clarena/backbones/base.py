@@ -16,6 +16,7 @@ from typing import Callable
 
 import torch
 from torch import Tensor, nn
+from torch.nn import ModuleDict
 from typing_extensions import override
 
 # always get logger for built-in logging in each module
@@ -323,6 +324,26 @@ class HATMaskBackbone(CLBackbone):
 
         return mask_t
 
+    def masks_intersection(self, masks: list[dict[str, Tensor]]) -> dict[str, Tensor]:
+        r"""Get the intersection of multiple masks.
+
+        **Args:**
+        - **masks** (`list[dict[str, Tensor]]`): A list of masks. Each mask is a dict
+        where keys are layer names and values are mask tensors.
+
+        **Returns:**
+        - **intersection_mask** (`dict[str, Tensor]`): The intersection mask.
+        """
+
+        intersection_mask = {}
+        for layer_name in masks[0].keys():
+            layer_mask_tensors = torch.stack(
+                [mask[layer_name] for mask in masks], dim=0
+            )
+            intersection_mask[layer_name] = torch.min(layer_mask_tensors, dim=0).values
+
+        return intersection_mask
+
     def store_mask(self) -> None:
         r"""Store the mask for the current task `self.task_id`."""
         mask_t = self.te_to_binary_mask()
@@ -463,8 +484,16 @@ class AmnesiacHATBackbone(HATMaskBackbone):
         """
         super().__init__(output_dim=output_dim, gate=gate, **kwargs)
 
-        self.backup_backbone: Backbone
-        r"""The backup backbone network. It has the same architecture as the main backbone network."""
+        self.backup_backbones: ModuleDict = {}
+        r"""The backup backbone networks. Keys are task IDs (in string format coz they have to) that the backbone is backed up in case of which is unlearned, and values are the corresponding backbone networks that the backup is trained on. They all have the same architecture as the main backbone network.
+        
+        Please note that we use `ModuleDict` rather than `dict` to ensure `LightningModule` can track these model parameters for training. DO NOT change this to `dict`."""
+
+        self.unlearnable_task_ids: list[int]
+        r"""The task IDs that are unlearnable and thus need to have backup backbones at current task `self.task_id`."""
+
+        self.backup_state_dicts: dict[tuple[int, int], dict[str, Tensor]] = {}
+        r"""The backup state dict for each task. Keys are tuples (backup task IDs, the task ID that the backup is for) and values are the corresponding state dicts."""
 
 
 class WSNMaskBackbone(CLBackbone):

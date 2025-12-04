@@ -236,10 +236,42 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
         self.unlearned_task_ids: set[int] = set()
         r"""The list of task IDs that have been unlearned in the experiment."""
 
+        self.unlearnable_task_ids: list[int]
+        r"""The list of task IDs that are unlearnable at the current `self.task_id`."""
+
         UnlearnableCLAlgorithm.sanity_check(self)
 
     def sanity_check(self) -> None:
         r"""Sanity check."""
+
+    def setup_task_id(
+        self,
+        task_id: int,
+        num_classes: int,
+        optimizer: Optimizer,
+        lr_scheduler: LRScheduler | None,
+        unlearnable_task_ids: list[int],
+    ) -> None:
+        r"""Set up which task the CL experiment is on. This must be done before `forward()` method is called.
+
+        **Args:**
+        - **task_id** (`int`): the target task ID.
+        - **num_classes** (`int`): the number of classes in the task.
+        - **optimizer** (`Optimizer`): the optimizer object (partially initialized) for the task.
+        - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.
+        - **unlearnable_task_ids** (`list[int]`): the list of unlearnable task IDs at the current `task_id`.
+        """
+        super().setup_task_id(
+            task_id=task_id,
+            num_classes=num_classes,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+        )
+
+        self.unlearnable_task_ids = unlearnable_task_ids
+        self.backbone.initialize_backup_backbone(
+            unlearnable_task_ids=unlearnable_task_ids
+        )
 
     def aggregated_backbone_output(self, input: Tensor) -> Tensor:
         r"""Get the aggregated backbone output for the input data. All parts of backbones should be aggregated together.

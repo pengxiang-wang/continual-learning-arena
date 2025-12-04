@@ -5,7 +5,6 @@ The submodule in `cl_algorithms` for [AmnesiacHAT (Amnesiac Hard Attention to th
 __all__ = ["AmnesiacHAT"]
 
 import logging
-import math
 from copy import deepcopy
 from typing import Any, Callable
 
@@ -164,6 +163,11 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         super().on_train_start()
         self.state_dict_task_start = deepcopy(self.backbone.state_dict())
 
+        for backup_backbone in self.backbone.backup_backbones.values():
+            backup_backbone.load_state_dict(
+                self.original_backbone_state_dict, strict=False
+            )
+
     def forward(
         self,
         input: torch.Tensor,
@@ -197,7 +201,6 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
                 s_max=self.s_max,
                 batch_idx=batch_idx,
                 num_batches=num_batches,
-                cumulative_mask=self.cumulative_mask_for_previous_tasks,
                 test_task_id=None,
             )
         elif stage == "validation":
@@ -223,7 +226,12 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
 
         logits = self.heads(feature, task_id)
         if stage == "train":
-            backup_logits = self.heads(backup_feature, task_id)
+            backup_logits = {
+                unlearnable_task_id: self.heads(
+                    backup_feature[unlearnable_task_id], task_id
+                )
+                for unlearnable_task_id in self.unlearnable_task_ids
+            }
             return (
                 (logits, backup_logits)
                 if self.if_forward_func_return_logits_only
@@ -263,7 +271,18 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             task_id=self.task_id,
         )
         loss_cls = self.criterion(logits, y)
-        backup_loss_cls = self.criterion(backup_logits, y)
+
+        backup_loss_cls = {
+            unlearnable_task_id: self.criterion(backup_logits[unlearnable_task_id], y)
+            for unlearnable_task_id in self.unlearnable_task_ids
+        }
+        unlearnale_task_num = len(self.unlearnable_task_ids)
+
+        backup_loss_cls_total = (
+            sum(backup_loss_cls.values()) / unlearnale_task_num
+            if unlearnale_task_num > 0
+            else 0.0
+        )
 
         # regularization loss. See Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
         loss_reg, network_sparsity = self.mark_sparsity_reg(
@@ -315,7 +334,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             )
 
         # total loss. See Eq. (4) in Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
-        loss = loss_cls + backup_loss_cls + loss_reg
+        loss = loss_cls + backup_loss_cls_total + loss_reg
 
         # backward step (manually)
         self.manual_backward(loss)  # calculate the gradients
@@ -327,6 +346,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
                 network_sparsity=network_sparsity,  # passed for compatibility with AdaHAT, which inherits this method
             )
         )
+
         # compensate the gradients of task embedding. See Sec. 2.5 "Embedding Gradient Compensation" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
         self.compensate_task_embedding_gradients(
             batch_idx=batch_idx,
@@ -366,17 +386,52 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         r"""Store the parameters update of a task at the end of its training."""
         super().on_train_end()
 
+        # override cumulative mask to exclude unlearned tasks
+        kept_masks = [
+            mask
+            for tid, mask in self.backbone.masks.items()
+            if tid not in self.unlearned_task_ids
+        ]
+        self.cumulative_mask_for_previous_tasks = (
+            {
+                layer_name: torch.stack([m[layer_name] for m in kept_masks], dim=0)
+                .max(dim=0)
+                .values
+                for layer_name in self.backbone.weighted_layer_names
+            }
+            if kept_masks
+            else {
+                layer_name: torch.zeros(
+                    self.backbone.get_layer_by_name(layer_name).weight.shape[0]
+                )
+                for layer_name in self.backbone.weighted_layer_names
+            }
+        )
+
         current_state_dict = self.backbone.state_dict()
         parameters_task_t_update = {}
 
         # compute the parameters update for the current task
         for layer_name, current_param_tensor in current_state_dict.items():
+            if layer_name.startswith("backup_backbones."):
+                continue
             parameters_task_t_update[layer_name] = (
                 current_param_tensor - self.state_dict_task_start[layer_name]
             )
 
         # store the parameters update for the current task
         self.parameters_task_update[self.task_id] = parameters_task_t_update
+
+        # save backup backbone state dict for unlearning
+        for unlearnable_task_id in self.unlearnable_task_ids:
+            self.backbone.backup_state_dicts[(unlearnable_task_id, self.task_id)] = (
+                deepcopy(
+                    self.backbone.backup_backbones[
+                        f"{unlearnable_task_id}"
+                    ].state_dict()
+                )
+            )
+        pylogger.info(f"Backup backbone state dicts saved for unlearning tasks.")
 
     def construct_parameters_from_updates(self):
         r"""Construct the parameters of the model from parameters task updates."""
@@ -385,4 +440,4 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             for layer_name, param_tensor in param_update.items():
                 updated_state_dict[layer_name] += param_tensor
 
-        self.backbone.load_state_dict(updated_state_dict)
+        self.backbone.load_state_dict(updated_state_dict, strict=False)
