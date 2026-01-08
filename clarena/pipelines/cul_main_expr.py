@@ -127,15 +127,12 @@ class CULMainExperiment(CLMainExperiment):
         - **unlearnable_task_ids** (`list[int]`): the list of unlearnable task IDs at the current `self.task_id`.
         """
         unlearnable_task_ids = []
-        print("process_task", self.processed_task_ids)
         for tid in self.processed_task_ids:
-            print("unlearnable_ages", self.unlearnable_ages)
             unlearnable_age = self.unlearnable_ages[tid]
             if unlearnable_age is None or (task_id - tid) <= unlearnable_age:
 
                 unlearnable_task_ids.append(tid)
 
-        print("unlearnable_task_ids", unlearnable_task_ids)
         return unlearnable_task_ids
 
     def run(self) -> None:
@@ -146,7 +143,9 @@ class CULMainExperiment(CLMainExperiment):
         # global components
         self.instantiate_cl_dataset(cl_dataset_cfg=self.cfg.cl_dataset)
         self.cl_dataset.set_cl_paradigm(cl_paradigm=self.cl_paradigm)
-        self.instantiate_backbone(backbone_cfg=self.cfg.backbone)
+        self.instantiate_backbone(
+            backbone_cfg=self.cfg.backbone, disable_unlearning=False
+        )
         self.instantiate_heads(
             cl_paradigm=self.cl_paradigm, input_dim=self.cfg.backbone.output_dim
         )
@@ -157,6 +156,7 @@ class CULMainExperiment(CLMainExperiment):
             non_algorithmic_hparams=select_hyperparameters_from_config(
                 cfg=self.cfg, type=self.cfg.pipeline
             ),
+            disable_unlearning=False,
         )  # cl_algorithm should be instantiated after backbone and heads
         self.instantiate_cul_algorithm(
             self.cfg.cul_algorithm

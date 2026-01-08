@@ -194,13 +194,17 @@ class CLMainExperiment:
             cl_dataset_cfg.get("_target_"),
         )
 
-    def instantiate_backbone(self, backbone_cfg: DictConfig) -> None:
+    def instantiate_backbone(
+        self, backbone_cfg: DictConfig, disable_unlearning: bool
+    ) -> None:
         r"""Instantiate the CL backbone network object from `backbone_cfg`."""
         pylogger.debug(
             "Instantiating backbone network <%s> (clarena.backbones.CLBackbone)...",
             backbone_cfg.get("_target_"),
         )
-        self.backbone = hydra.utils.instantiate(backbone_cfg)
+        self.backbone = hydra.utils.instantiate(
+            backbone_cfg, disable_unlearning=disable_unlearning
+        )
         pylogger.debug(
             "Backbone network <%s> (clarena.backbones.CLBackbone) instantiated!",
             backbone_cfg.get("_target_"),
@@ -233,6 +237,7 @@ class CLMainExperiment:
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL | HeadDIL,
         non_algorithmic_hparams: dict[str, Any],
+        disable_unlearning: bool,
     ) -> None:
         r"""Instantiate the cl_algorithm object from `cl_algorithm_cfg`, `backbone`, `heads` and `non_algorithmic_hparams`."""
         pylogger.debug(
@@ -245,6 +250,7 @@ class CLMainExperiment:
             backbone=backbone,
             heads=heads,
             non_algorithmic_hparams=non_algorithmic_hparams,
+            disable_unlearning=disable_unlearning,
         )
         pylogger.debug(
             "<%s> (clarena.cl_algorithms.CLAlgorithm) instantiated!",
@@ -383,7 +389,9 @@ class CLMainExperiment:
         # global components
         self.instantiate_cl_dataset(cl_dataset_cfg=self.cfg.cl_dataset)
         self.cl_dataset.set_cl_paradigm(cl_paradigm=self.cl_paradigm)
-        self.instantiate_backbone(backbone_cfg=self.cfg.backbone)
+        self.instantiate_backbone(
+            backbone_cfg=self.cfg.backbone, disable_unlearning=True
+        )
         self.instantiate_heads(
             cl_paradigm=self.cl_paradigm, input_dim=self.cfg.backbone.output_dim
         )
@@ -394,6 +402,7 @@ class CLMainExperiment:
             non_algorithmic_hparams=select_hyperparameters_from_config(
                 cfg=self.cfg, type=self.cfg.pipeline
             ),
+            disable_unlearning=True,
         )  # cl_algorithm should be instantiated after backbone and heads
         self.instantiate_lightning_loggers(
             lightning_loggers_cfg=self.cfg.lightning_loggers

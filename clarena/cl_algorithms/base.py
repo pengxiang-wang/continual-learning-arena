@@ -214,6 +214,7 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL | HeadDIL,
         non_algorithmic_hparams: dict[str, Any] = {},
+        disable_unlearning: bool = False,
         **kwargs,
     ) -> None:
         r"""
@@ -221,6 +222,7 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **disable_unlearning** (`bool`): whether to disable unlearning. This is used in reference experiments following continual learning pipeline. Default is `False`.
         - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
@@ -229,6 +231,12 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
             non_algorithmic_hparams=non_algorithmic_hparams,
             **kwargs,
         )
+
+        self.disable_unlearning: bool = disable_unlearning
+        r"""Whether to disable unlearning. This is used in reference experiments following continual learning pipeline."""
+
+        if self.disable_unlearning:
+            return
 
         self.unlearning_task_ids: list[int]
         r"""The list of task IDs that are requested to be unlearned after training `self.task_id`."""
@@ -250,7 +258,7 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
         num_classes: int,
         optimizer: Optimizer,
         lr_scheduler: LRScheduler | None,
-        unlearnable_task_ids: list[int],
+        unlearnable_task_ids: list[int] | None = None,
     ) -> None:
         r"""Set up which task the CL experiment is on. This must be done before `forward()` method is called.
 
@@ -259,7 +267,7 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
         - **num_classes** (`int`): the number of classes in the task.
         - **optimizer** (`Optimizer`): the optimizer object (partially initialized) for the task.
         - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.
-        - **unlearnable_task_ids** (`list[int]`): the list of unlearnable task IDs at the current `task_id`.
+        - **unlearnable_task_ids** (`list[int]` | `None`): the list of unlearnable task IDs at the current `task_id`. When running as reference experiments which follow continual learning pipeline, this field is left `None`.
         """
         super().setup_task_id(
             task_id=task_id,
@@ -268,10 +276,11 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
             lr_scheduler=lr_scheduler,
         )
 
+        if self.disable_unlearning:
+            return
+
         self.unlearnable_task_ids = unlearnable_task_ids
-        self.backbone.initialize_backup_backbone(
-            unlearnable_task_ids=unlearnable_task_ids
-        )
+
 
     def aggregated_backbone_output(self, input: Tensor) -> Tensor:
         r"""Get the aggregated backbone output for the input data. All parts of backbones should be aggregated together.
@@ -287,7 +296,7 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
         feature = 0
 
         for i in self.processed_task_ids:
-            feature_i = self.backbone(input, stage="train", task_id=i)[0]
+            feature_i = self.backbone(input, stage="unlearning_test")[0]
             feature += feature_i
         feature = feature / len(self.processed_task_ids)
 

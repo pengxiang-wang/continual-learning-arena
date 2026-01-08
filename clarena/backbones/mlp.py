@@ -401,6 +401,7 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
         batch_normalization: str | None = None,
         bias: bool = True,
         dropout: float | None = None,
+        disable_unlearning: bool = False,
         **kwargs,
     ) -> None:
         r"""Construct and initialize the AmnesiacHAT MLP backbone network.
@@ -418,6 +419,7 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
             - `independent`: use independent batch normalization layers for each task.
         - **bias** (`bool`): Whether to use bias in the linear layer. Default `True`.
         - **dropout** (`float` | `None`): The probability for the dropout layer. If `None`, this layer won't be used. Default `None`.
+        - **disable_unlearning** (`bool`): whether to disable unlearning. This is used in reference experiments following continual learning pipeline. Default is `False`.
         - **kwargs**: Reserved for multiple inheritance.
         """
 
@@ -432,6 +434,12 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
             dropout=dropout,
             **kwargs,
         )
+
+        self.disable_unlearning: bool = disable_unlearning
+        r"""Whether to disable unlearning. This is used in reference experiments following continual learning pipeline."""
+
+        if disable_unlearning:
+            return
 
         # save these arguments for backup backbone initialization
         self.input_dim: int = input_dim
@@ -497,6 +505,7 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
+            4. 'unlearning_test': unlearning testing stage.
         - **s_max** (`float`): The maximum scaling factor in the gate function. Doesn't apply to the testing stage. See Sec. 2.4 in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **batch_idx** (`int` | `None`): The current batch index. Applies only to the training stage. For other stages, it is `None`.
         - **num_batches** (`int` | `None`): The total number of batches. Applies only to the training stage. For other stages, it is `None`.
@@ -522,7 +531,7 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
             fc_bn = self.get_bn(stage=stage, test_task_id=test_task_id)
 
         x = input.view(batch_size, -1)  # flatten before going through MLP
-        if stage == "train":
+        if stage == "train" and not self.disable_unlearning:
             x_backup = {}
             for unlearnable_task_id in self.unlearnable_task_ids:
                 x_backup[unlearnable_task_id] = input.view(
@@ -533,7 +542,7 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
 
             # fully-connected layer first
             x = self.fc[layer_idx](x)
-            if stage == "train" and self.task_id > 1:
+            if stage == "train" and not self.disable_unlearning and self.task_id > 1:
                 # backup_backbone = self.backup_backbones[1]
                 # x_backup = self.masks[1][layer_name] * backup_backbone.fc[layer_idx](
                 #     x_backup
@@ -555,7 +564,11 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
             if self.batch_normalization:
                 # batch normalization second
                 x = fc_bn[layer_idx](x)
-                if stage == "train" and self.task_id > 1:
+                if (
+                    stage == "train"
+                    and not self.disable_unlearning
+                    and self.task_id > 1
+                ):
                     # x_backup = fc_bn[layer_idx](x_backup)
 
                     for unlearnable_task_id in self.unlearnable_task_ids:
@@ -566,7 +579,7 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
 
             # apply the mask to the parameters second
             x = x * mask[f"fc/{layer_idx}"]
-            if stage == "train" and self.task_id > 1:
+            if stage == "train" and not self.disable_unlearning and self.task_id > 1:
                 # x_backup = x_backup * mask[f"fc/{layer_idx}"]
                 for unlearnable_task_id in self.unlearnable_task_ids:
                     x_backup[unlearnable_task_id] = (
@@ -576,7 +589,11 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
             # activation function third
             if self.activation:
                 x = self.fc_activation[layer_idx](x)
-                if stage == "train" and self.task_id > 1:
+                if (
+                    stage == "train"
+                    and not self.disable_unlearning
+                    and self.task_id > 1
+                ):
                     # x_backup = self.fc_activation[layer_idx](x_backup)
                     for unlearnable_task_id in self.unlearnable_task_ids:
                         x_backup[unlearnable_task_id] = self.fc_activation[layer_idx](
@@ -587,7 +604,11 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
             # dropout last
             if self.dropout:
                 x = self.fc_dropout[layer_idx](x)
-                if stage == "train" and self.task_id > 1:
+                if (
+                    stage == "train"
+                    and not self.disable_unlearning
+                    and self.task_id > 1
+                ):
                     # x_backup = self.fc_dropout[layer_idx](x_backup)
                     for unlearnable_task_id in self.unlearnable_task_ids:
                         x_backup[unlearnable_task_id] = self.fc_dropout[layer_idx](
@@ -596,7 +617,7 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
 
         output_feature = x
 
-        if stage == "train":
+        if stage == "train" and not self.disable_unlearning:
             output_backup_feature = x_backup
             return output_feature, output_backup_feature, mask, activations
         else:

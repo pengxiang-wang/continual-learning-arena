@@ -49,6 +49,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         epsilon: float = 0.1,
         augmentation_transforms: Callable | transforms.Compose | None = None,
         non_algorithmic_hparams: dict[str, Any] = {},
+        disable_unlearning: bool = False,
         **kwargs,
     ) -> None:
         r"""Initialize the AmnesiacHAT algorithm with the network.
@@ -78,6 +79,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor. It controls the strength of preventing forgetting.
         - **augmentation_transforms** (`transform` or `transforms.Compose` or `None`): the transforms to apply for augmentation after replay sampling. Not to confuse with the data transforms applied to the input of training data. Can be a single transform, composed transforms, or no transform.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **disable_unlearning** (`bool`): whether to disable unlearning. This is used in reference experiments following continual learning pipeline. Default is `False`.
         - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
@@ -95,6 +97,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             epsilon=epsilon,
             augmentation_transforms=augmentation_transforms,
             non_algorithmic_hparams=non_algorithmic_hparams,
+            disable_unlearning=disable_unlearning,
             **kwargs,
         )
 
@@ -103,6 +106,9 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             "adjustment_intensity",
             "epsilon",
         )
+
+        if disable_unlearning:
+            return
 
         self.original_backbone_state_dict: dict[str, Tensor] = deepcopy(
             backbone.state_dict()
@@ -114,6 +120,38 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
 
         self.state_dict_task_start: dict[str, Tensor]
         r"""Store the backbone state dict at the start of training each task. """
+
+    def setup_task_id(
+        self,
+        task_id: int,
+        num_classes: int,
+        optimizer: Optimizer,
+        lr_scheduler: LRScheduler | None,
+        unlearnable_task_ids: list[int] | None = None,
+    ) -> None:
+        r"""Set up which task the CL experiment is on. This must be done before `forward()` method is called.
+
+        **Args:**
+        - **task_id** (`int`): the target task ID.
+        - **num_classes** (`int`): the number of classes in the task.
+        - **optimizer** (`Optimizer`): the optimizer object (partially initialized) for the task.
+        - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.
+        - **unlearnable_task_ids** (`list[int]` | `None`): the list of unlearnable task IDs at the current `task_id`. When running as reference experiments which follow continual learning pipeline, this field is left `None`.
+        """
+        super().setup_task_id(
+            task_id=task_id,
+            num_classes=num_classes,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+            unlearnable_task_ids=unlearnable_task_ids,
+        )
+
+        if self.disable_unlearning:
+            return
+
+        self.backbone.initialize_backup_backbone(
+            unlearnable_task_ids=unlearnable_task_ids
+        )
 
     def clip_grad_by_unlearning_mask(
         self,
@@ -145,6 +183,57 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             if layer.bias is not None:
                 layer.bias.grad.data *= bias_mask
 
+    def clip_grad_by_adjustment_in_unlearning_fix(
+        self,
+        summative_mask_for_previous_tasks_in_unlearning_fix: dict[str, Tensor],
+    ) -> None:
+        r"""Clip the gradients by the adjustment rate in the unlearning fix phase. We currently adopted `adahat_no_reg` mode for unlearning fix.
+
+        Note that because the task embedding fully covers every layer in the backbone network, no parameters are left out of this system. This applies not only to parameters between layers with task embeddings, but also to those before the first layer. We design it separately in the code.
+
+        **Args:**
+        - **summative_mask_for_previous_tasks_in_unlearning_fix** (`dict[str, Tensor]`): the summative mask for previous tasks used in unlearning fix phase. Keys are layer names and values are the corresponding summative mask tensor for the layer.
+        """
+
+        # initialize network capacity metric
+        adjustment_rate_weight = {}
+        adjustment_rate_bias = {}
+
+        # calculate the adjustment rate for gradients of the parameters, both weights and biases (if they exist). See Eq. (9) in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9)
+        for layer_name in self.backbone.weighted_layer_names:
+
+            layer = self.backbone.get_layer_by_name(
+                layer_name
+            )  # get the layer by its name
+
+            # placeholder for the adjustment rate to avoid the error of using it before assignment
+            adjustment_rate_weight_layer = 1
+            adjustment_rate_bias_layer = 1
+
+            weight_importance, bias_importance = (
+                self.backbone.get_layer_measure_parameter_wise(
+                    neuron_wise_measure=summative_mask_for_previous_tasks_in_unlearning_fix,
+                    layer_name=layer_name,
+                    aggregation_mode="min",
+                )
+            )  # AdaHAT depends on parameter importance rather than parameter masks (as in HAT)
+
+            r_layer = self.adjustment_intensity / (self.epsilon + 0.0)
+            adjustment_rate_weight_layer = torch.div(
+                r_layer, (weight_importance + r_layer)
+            )
+            adjustment_rate_bias_layer = torch.div(r_layer, (bias_importance + r_layer))
+
+            # apply the adjustment rate to the gradients
+            layer.weight.grad.data *= adjustment_rate_weight_layer
+            if layer.bias is not None:
+                layer.bias.grad.data *= adjustment_rate_bias_layer
+
+            # store the adjustment rate for logging
+            adjustment_rate_weight[layer_name] = adjustment_rate_weight_layer
+            if layer.bias is not None:
+                adjustment_rate_bias[layer_name] = adjustment_rate_bias_layer
+
     def affected_tasks_upon_unlearning(self) -> list[int]:
         r"""Get the list of task IDs that are affected upon unlearning the requested tasks in `self.unlearning_task_ids`.
 
@@ -161,6 +250,10 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
     def on_train_start(self):
         r"""Store the current state dict at the start of training."""
         super().on_train_start()
+
+        if self.disable_unlearning:
+            return
+
         self.state_dict_task_start = deepcopy(self.backbone.state_dict())
 
         for backup_backbone in self.backbone.backup_backbones.values():
@@ -194,8 +287,17 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
 
-        if stage == "train":
+        if stage == "train" and not self.disable_unlearning:
             feature, backup_feature, mask, activations = self.backbone(
+                input,
+                stage=stage,
+                s_max=self.s_max,
+                batch_idx=batch_idx,
+                num_batches=num_batches,
+                test_task_id=None,
+            )
+        elif stage == "train" and self.disable_unlearning:
+            feature, mask, activations = self.backbone(
                 input,
                 stage=stage,
                 s_max=self.s_max,
@@ -225,7 +327,7 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             raise ValueError(f"Invalid stage '{stage}' for forward pass.")
 
         logits = self.heads(feature, task_id)
-        if stage == "train":
+        if stage == "train" and not self.disable_unlearning:
             backup_logits = {
                 unlearnable_task_id: self.heads(
                     backup_feature[unlearnable_task_id], task_id
@@ -263,78 +365,104 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
 
         # classification loss
         num_batches = self.trainer.num_training_batches
-        logits, backup_logits, mask, activations = self.forward(
-            x,
-            stage="train",
-            batch_idx=batch_idx,
-            num_batches=num_batches,
-            task_id=self.task_id,
-        )
+
+        if not self.disable_unlearning:
+            logits, backup_logits, mask, activations = self.forward(
+                x,
+                stage="train",
+                batch_idx=batch_idx,
+                num_batches=num_batches,
+                task_id=self.task_id,
+            )
+        else:
+            logits, mask, activations = self.forward(
+                x,
+                stage="train",
+                batch_idx=batch_idx,
+                num_batches=num_batches,
+                task_id=self.task_id,
+            )
+
         loss_cls = self.criterion(logits, y)
 
-        backup_loss_cls = {
-            unlearnable_task_id: self.criterion(backup_logits[unlearnable_task_id], y)
-            for unlearnable_task_id in self.unlearnable_task_ids
-        }
-        unlearnale_task_num = len(self.unlearnable_task_ids)
+        if not self.disable_unlearning:
 
-        backup_loss_cls_total = (
-            sum(backup_loss_cls.values()) / unlearnale_task_num
-            if unlearnale_task_num > 0
-            else 0.0
-        )
+            backup_loss_cls = {
+                unlearnable_task_id: self.criterion(
+                    backup_logits[unlearnable_task_id], y
+                )
+                for unlearnable_task_id in self.unlearnable_task_ids
+            }
+            unlearnale_task_num = len(self.unlearnable_task_ids)
+
+            backup_loss_cls_total = (
+                sum(backup_loss_cls.values()) / unlearnale_task_num
+                if unlearnale_task_num > 0
+                else 0.0
+            )
+
+        else:
+            backup_loss_cls_total = 0.0
 
         # regularization loss. See Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
         loss_reg, network_sparsity = self.mark_sparsity_reg(
             mask, self.cumulative_mask_for_previous_tasks
         )
 
-        previous_task_ids = [
-            tid for tid in self.processed_task_ids if tid != self.task_id
-        ]
+        if not self.disable_unlearning:
 
-        # Replay distillation regularization loss.
-        if not self.memory_buffer.is_empty() and previous_task_ids != []:
+            previous_task_ids = [
+                tid for tid in self.processed_task_ids if tid != self.task_id
+            ]
 
-            # sample from memory buffer with the same batch size as current batch
-            x_replay, _, logits_replay, task_labels_replay = (
-                self.memory_buffer.get_data(
-                    size=batch_size,
-                    included_tasks=previous_task_ids,
+            # Replay distillation regularization loss.
+            if not self.memory_buffer.is_empty() and previous_task_ids != []:
+
+                # sample from memory buffer with the same batch size as current batch
+                x_replay, _, logits_replay, task_labels_replay = (
+                    self.memory_buffer.get_data(
+                        size=batch_size,
+                        included_tasks=previous_task_ids,
+                    )
                 )
-            )
 
-            # apply augmentation transforms if any
-            if self.augmentation_transforms:
-                x_replay = self.augmentation_transforms(x_replay)
+                # apply augmentation transforms if any
+                if self.augmentation_transforms:
+                    x_replay = self.augmentation_transforms(x_replay)
 
-            # get the student logits for this batch using the current model
+                # get the student logits for this batch using the current model
 
-            student_feature_replay = torch.cat(
-                [
-                    self.backbone(
-                        x_replay[i].unsqueeze(0), stage="test", test_task_id=tid.item()
-                    )[0]
-                    for i, tid in enumerate(task_labels_replay)
-                ]
-            )
-            student_logits_replay = torch.cat(
-                [
-                    self.heads(student_feature_replay[i].unsqueeze(0), task_id=tid)
-                    for i, tid in enumerate(task_labels_replay)
-                ]
-            )
-            with torch.no_grad():  # stop updating the previous heads
+                student_feature_replay = torch.cat(
+                    [
+                        self.backbone(
+                            x_replay[i].unsqueeze(0),
+                            stage="test",
+                            test_task_id=tid.item(),
+                        )[0]
+                        for i, tid in enumerate(task_labels_replay)
+                    ]
+                )
+                student_logits_replay = torch.cat(
+                    [
+                        self.heads(student_feature_replay[i].unsqueeze(0), task_id=tid)
+                        for i, tid in enumerate(task_labels_replay)
+                    ]
+                )
+                with torch.no_grad():  # stop updating the previous heads
 
-                teacher_logits_replay = logits_replay
+                    teacher_logits_replay = logits_replay
 
-            loss_reg += self.distillation_reg(
-                student_logits=student_logits_replay,
-                teacher_logits=teacher_logits_replay,
-            )
+                loss_reg += self.distillation_reg(
+                    student_logits=student_logits_replay,
+                    teacher_logits=teacher_logits_replay,
+                )
 
         # total loss. See Eq. (4) in Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
-        loss = loss_cls + backup_loss_cls_total + loss_reg
+        loss = (
+            loss_cls + backup_loss_cls_total + loss_reg
+            if not self.disable_unlearning
+            else loss_cls + loss_reg
+        )
 
         # backward step (manually)
         self.manual_backward(loss)  # calculate the gradients
@@ -387,11 +515,16 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         super().on_train_end()
 
         # override cumulative mask to exclude unlearned tasks
-        kept_masks = [
-            mask
-            for tid, mask in self.backbone.masks.items()
-            if tid not in self.unlearned_task_ids
-        ]
+        kept_masks = (
+            [
+                mask
+                for tid, mask in self.backbone.masks.items()
+                if tid not in self.unlearned_task_ids
+            ]
+            if not self.disable_unlearning
+            else [mask for tid, mask in self.backbone.masks.items()]
+        )
+
         self.cumulative_mask_for_previous_tasks = (
             {
                 layer_name: torch.stack([m[layer_name] for m in kept_masks], dim=0)
@@ -407,6 +540,9 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
                 for layer_name in self.backbone.weighted_layer_names
             }
         )
+
+        if self.disable_unlearning:
+            return
 
         current_state_dict = self.backbone.state_dict()
         parameters_task_t_update = {}

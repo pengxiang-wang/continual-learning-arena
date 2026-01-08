@@ -9,6 +9,8 @@ from copy import deepcopy
 from typing import Any
 
 from torch import Tensor
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
 
 from clarena.backbones import CLBackbone
@@ -53,14 +55,42 @@ class Independent(Finetuning):
         self.original_backbone: dict = deepcopy(backbone)
         r"""The original backbone network state dict is stored as the source of creating new independent backbone. """
 
+        self.original_backbone_state_dict: dict = deepcopy(backbone.state_dict())
+
         self.backbones: dict[int, CLBackbone] = {}
         r"""The list of independent backbones for each task. Keys are task IDs and values are the corresponding backbones. """
 
         self.backbone_valid_task_ids: set[int] = set()
         r"""The list of task IDs that have valid backbones."""
 
-    def on_train_start(self) -> None:
-        r"""Initialize an independent backbone for `self.task_id`, duplicated from the original backbone."""
+    def setup_task_id(
+        self,
+        task_id: int,
+        num_classes: int,
+        optimizer: Optimizer,
+        lr_scheduler: LRScheduler | None,
+    ) -> None:
+        r"""Set up which task the CL experiment is on. This must be done before `forward()` method is called. In Independent, a new independent backbone is created for the new task from the original backbone.
+
+        **Args:**
+        - **task_id** (`int`): the target task ID.
+        - **num_classes** (`int`): the number of classes in the task.
+        - **optimizer** (`Optimizer`): the optimizer object (partially initialized) for the task.
+        - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.
+        """
+
+        # self.backbone = deepcopy(
+        #     self.original_backbone
+        # )  # must deepcopy the backbone completely! Do not use load_state_dict
+
+        super().setup_task_id(
+            task_id=task_id,
+            num_classes=num_classes,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+        )
+
+    def on_train_start(self):
         self.backbone = deepcopy(
             self.original_backbone
         )  # must deepcopy the backbone completely! Do not use load_state_dict
@@ -114,17 +144,21 @@ class UnlearnableIndependent(UnlearnableCLAlgorithm, Independent):
         backbone: CLBackbone,
         heads: HeadsTIL | HeadsCIL | HeadDIL,
         non_algorithmic_hparams: dict[str, Any] = {},
+        disable_unlearning: bool = False,
     ) -> None:
         r"""Initialize the Independent algorithm with the network. It has no additional hyperparameters.
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
+        - **disable_unlearning** (`bool`): whether to disable unlearning. This is used in reference experiments following continual learning pipeline. Default is `False`.
+
         """
         super().__init__(
             backbone=backbone,
             heads=heads,
             non_algorithmic_hparams=non_algorithmic_hparams,
+            disable_unlearning=disable_unlearning,
         )
 
     def aggregated_backbone_output(self, input: Tensor) -> Tensor:
@@ -140,10 +174,8 @@ class UnlearnableIndependent(UnlearnableCLAlgorithm, Independent):
         """
         feature = 0
 
-        print("agg", self.backbone_valid_task_ids)
-
         for t in self.backbone_valid_task_ids:
-            feature_t = self.backbones[t](input, stage="test", task_id=t)[0]
+            feature_t = self.backbones[t](input, stage="unlearning_test")[0]
             feature += feature_t
         feature = feature / len(self.backbone_valid_task_ids)
 

@@ -8,6 +8,7 @@ import logging
 from copy import deepcopy
 
 import torch
+from torch import Tensor
 
 from clarena.cl_algorithms.amnesiac_hat import AmnesiacHAT
 from clarena.cul_algorithms import CULAlgorithm
@@ -19,17 +20,44 @@ pylogger = logging.getLogger(__name__)
 class AmnesiacHATUnlearn(CULAlgorithm):
     r"""The base class of the AmnesiacHAT unlearning algorithm."""
 
-    def __init__(self, model: AmnesiacHAT, fix_batch_size: int) -> None:
+    def __init__(
+        self,
+        model: AmnesiacHAT,
+        if_backup_compensation: bool,
+        compensate_order: str | None,
+        if_replay_fixing: bool,
+        fix_batch_size: int | None,
+        fix_num_steps: int | None,
+        fix_strategy: str | None,
+    ) -> None:
         r"""Initialize the unlearning algorithm with the continual learning model.
 
         **Args:**
         - **model** (`AmnesiacHAT`): the continual learning model (`CLAlgorithm` object which already contains the backbone and heads). It must be an `AmnesiacHAT` algorithm.
+        - **if_backup_compensation** (`bool`): whether to perform compensation using the backup model before unlearning.
+        - **compensate_order** (`str`): the order to compensate the affected tasks upon unlearning. It can be either 'normal' (from oldest to newest) or 'reverse' (from newest to oldest).
+        - **if_replay_fixing** (`bool`): whether to perform fixing with replay after unlearning.
         - **fix_batch_size** (`int`): the batch size used during the fixing with replay after unlearning.
+        - **fix_num_steps** (`int`): the number of steps to perform fixing with replay after unlearning.
+        - **fix_strategy** (`str`): the strategy to perform fixing with replay after unlearning. It can be:
+            - **joint**: use joint replay data from all affected tasks for fixing.
+            - **sequential**: use replay data from each affected task one by one for fixing.
         """
         super().__init__(model=model)
 
+        self.if_backup_compensation: bool = if_backup_compensation
+        r"""Whether to perform compensation using the backup model before unlearning."""
+        self.compensate_order: str = compensate_order
+        r"""The order to compensate the affected tasks upon unlearning. It can be either 'normal' (from oldest to newest) or 'reverse' (from newest to oldest)."""
+
+        self.if_replay_fixing: bool = if_replay_fixing
+        r"""Whether to perform fixing with replay after unlearning."""
         self.fix_batch_size: int = fix_batch_size
         r"""The batch size used during the fixing with replay after unlearning."""
+        self.fix_num_steps: int = fix_num_steps
+        r"""The number of steps to perform fixing with replay after unlearning."""
+        self.fix_strategy: str = fix_strategy
+        r"""The strategy to perform fixing with replay after unlearning."""
 
     def delete_update(self, unlearning_task_ids: list[int]) -> None:
         r"""Delete the update of the specified unlearning task.
@@ -67,7 +95,13 @@ class AmnesiacHATUnlearn(CULAlgorithm):
             0
         ]  # only one unlearning task is supported for now
 
-        for affected_task_id in self.model.affected_tasks_upon_unlearning():
+        task_ids_to_compensate = self.model.affected_tasks_upon_unlearning()
+
+        if self.compensate_order == "reverse":
+            task_ids_to_compensate.reverse()  # compensate in reverse order
+        pylogger.debug(f"Tasks to compensate order: {task_ids_to_compensate}")
+
+        for affected_task_id in task_ids_to_compensate:
 
             print(affected_task_id, unlearning_task_id)
 
@@ -113,6 +147,8 @@ class AmnesiacHATUnlearn(CULAlgorithm):
         - **unlearning_task_id** (`list[int]`): the ID of the unlearning task to delete the update.
         """
 
+        task_ids_to_fix = self.model.affected_tasks_upon_unlearning()
+
         unlearning_mask = {}
         for layer_name in self.model.backbone.weighted_layer_names:
             mask_tensors = torch.stack(
@@ -125,57 +161,123 @@ class AmnesiacHATUnlearn(CULAlgorithm):
             # take element-wise maximum across all unlearning tasks to build a single mask
             unlearning_mask[layer_name] = torch.max(mask_tensors, dim=0).values
 
-        for s in range(5):
+        if self.fix_strategy == "sequential":
 
-            # get replay data for fixing from memory buffer
-            x_replay, _, logits_replay, task_labels_replay = (
-                self.model.memory_buffer.get_data(
-                    self.fix_batch_size,
-                    included_tasks=self.model.affected_tasks_upon_unlearning(),
+            summative_mask_for_previous_tasks_in_unlearning_fix = {
+                layer_name: torch.zeros(
+                    self.model.backbone.get_layer_by_name(layer_name).weight.shape[0]
                 )
-            )
+                for layer_name in self.model.backbone.weighted_layer_names
+            }
 
-            # zero the gradients before forward pass in manual optimization mode
-            opt = self.model.optimizers()
-            opt.zero_grad()
+            for task_id_to_fix in task_ids_to_fix:
 
-            student_feature_replay = torch.cat(
-                [
-                    self.model.backbone(
-                        x_replay[i].unsqueeze(0), stage="test", test_task_id=tid.item()
-                    )[0]
-                    for i, tid in enumerate(task_labels_replay)
-                ]
-            )
-
-            student_logits_replay = torch.cat(
-                [
-                    self.model.heads(
-                        student_feature_replay[i].unsqueeze(0), task_id=tid
+                for s in range(self.fix_num_steps):
+                    # get replay data for fixing from memory buffer
+                    x_replay, _, logits_replay, _ = self.model.memory_buffer.get_data(
+                        self.fix_batch_size,
+                        included_tasks=[task_id_to_fix],
                     )
-                    for i, tid in enumerate(task_labels_replay)
-                ]
-            )
 
-            with torch.no_grad():  # stop updating the previous heads
+                    # zero the gradients before forward pass in manual optimization mode
+                    opt = self.model.optimizers()
+                    opt.zero_grad()
 
-                teacher_logits_replay = logits_replay
+                    student_feature_replay = self.model.backbone(
+                        x_replay,
+                        stage="test",
+                        test_task_id=task_id_to_fix,
+                    )[0]
 
-            loss = self.model.distillation_reg(
-                student_logits=student_logits_replay,
-                teacher_logits=teacher_logits_replay,
-            )
+                    student_logits_replay = self.model.heads(
+                        student_feature_replay, task_id=task_id_to_fix
+                    )
 
-            self.model.manual_backward(loss)  # calculate the gradients
+                    with torch.no_grad():  # stop updating the previous heads
 
-            self.model.clip_grad_by_unlearning_mask(unlearning_mask=unlearning_mask)
+                        teacher_logits_replay = logits_replay
 
-            # update parameters with the modified gradients
-            opt.step()
+                    loss = self.model.distillation_reg(
+                        student_logits=student_logits_replay,
+                        teacher_logits=teacher_logits_replay,
+                    )
+
+                    self.model.manual_backward(loss)  # calculate the gradients
+
+                    self.model.clip_grad_by_unlearning_mask(
+                        unlearning_mask=unlearning_mask
+                    )
+
+                    # self.model.clip_grad_by_adjustment_in_unlearning_fix(
+                    #     summative_mask_for_previous_tasks_in_unlearning_fix=summative_mask_for_previous_tasks_in_unlearning_fix
+                    # )
+
+                    # update parameters with the modified gradients
+                    opt.step()
+
+                summative_mask_for_previous_tasks_in_unlearning_fix = {
+                    layer_name: summative_mask_for_previous_tasks_in_unlearning_fix[
+                        layer_name
+                    ]
+                    + self.model.backbone.masks[task_id_to_fix][layer_name]
+                    for layer_name in self.model.backbone.weighted_layer_names
+                }
+
+        elif self.fix_strategy == "joint":
+
+            for s in range(self.fix_num_steps):
+
+                # get replay data for fixing from memory buffer
+                x_replay, _, logits_replay, task_labels_replay = (
+                    self.model.memory_buffer.get_data(
+                        self.fix_batch_size,
+                        included_tasks=self.model.affected_tasks_upon_unlearning(),
+                    )
+                )
+
+                # zero the gradients before forward pass in manual optimization mode
+                opt = self.model.optimizers()
+                opt.zero_grad()
+
+                student_feature_replay = torch.cat(
+                    [
+                        self.model.backbone(
+                            x_replay[i].unsqueeze(0),
+                            stage="test",
+                            test_task_id=tid.item(),
+                        )[0]
+                        for i, tid in enumerate(task_labels_replay)
+                    ]
+                )
+
+                student_logits_replay = torch.cat(
+                    [
+                        self.model.heads(
+                            student_feature_replay[i].unsqueeze(0), task_id=tid
+                        )
+                        for i, tid in enumerate(task_labels_replay)
+                    ]
+                )
+
+                with torch.no_grad():  # stop updating the previous heads
+
+                    teacher_logits_replay = logits_replay
+
+                loss = self.model.distillation_reg(
+                    student_logits=student_logits_replay,
+                    teacher_logits=teacher_logits_replay,
+                )
+
+                self.model.manual_backward(loss)  # calculate the gradients
+
+                self.model.clip_grad_by_unlearning_mask(unlearning_mask=unlearning_mask)
+
+                # update parameters with the modified gradients
+                opt.step()
 
     def unlearn(self) -> None:
         r"""Unlearn the requested unlearning tasks in the current task `self.task_id`."""
-        if not self.unlearning_task_ids:
+        if self.unlearning_task_ids == []:
             return
 
         pylogger.info(
@@ -200,9 +302,11 @@ class AmnesiacHATUnlearn(CULAlgorithm):
         # after all compensations and deletions are done, reconstruct the model parameters once
         self.model.construct_parameters_from_updates()
 
-        self.compensate_by_backup(self.unlearning_task_ids)
+        if self.if_backup_compensation:
+            self.compensate_by_backup(self.unlearning_task_ids)
 
-        # fixing with replay must be done after parameter reconstruction
-        # self.fixing_with_replay(self.unlearning_task_ids)
+        if self.if_replay_fixing:
+            # fixing with replay must be done after parameter reconstruction
+            self.fixing_with_replay(self.unlearning_task_ids)
 
         pylogger.info("Unlearning process finished.")

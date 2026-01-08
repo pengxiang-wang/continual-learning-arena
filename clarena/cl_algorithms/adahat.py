@@ -110,7 +110,7 @@ class AdaHAT(HAT):
         super().on_train_start()
 
         # initialize the summative mask at the beginning of the first task. This should not be called in `__init__()` method because `self.device` is not available at that time
-        if self.task_id == 1:
+        if self.summative_mask_for_previous_tasks == {}:
             for layer_name in self.backbone.weighted_layer_names:
                 layer = self.backbone.get_layer_by_name(
                     layer_name

@@ -6,8 +6,7 @@ __all__ = ["IndependentUnlearn"]
 
 import logging
 
-
-from clarena.cl_algorithms import Independent
+from clarena.cl_algorithms import UnlearnableIndependent
 from clarena.cul_algorithms import CULAlgorithm
 
 # always get logger for built-in logging in each module
@@ -17,7 +16,7 @@ pylogger = logging.getLogger(__name__)
 class IndependentUnlearn(CULAlgorithm):
     r"""Vanilla unlearning algorithm for independent learning."""
 
-    def __init__(self, model: Independent) -> None:
+    def __init__(self, model: UnlearnableIndependent) -> None:
         r"""
         **Args:**
         - **model** (`Independent`): the continual learning model (`CLAlgorithm` object which already contains the backbone and heads). It must be `Independent` algorithm.

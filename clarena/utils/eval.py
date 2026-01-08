@@ -82,15 +82,17 @@ class CULEvaluation(LightningModule):
         agg_out_main = self.main_model.aggregated_backbone_output(x)
         agg_out_ref = self.refretrain_model.aggregated_backbone_output(x)
 
-        logits_main, activations_main = self.main_model.forward(
-            x, stage="test", task_id=test_task_id
-        )  # use the corresponding head to test (instead of the current task `self.task_id`)
+        logits_main = self.main_model.forward(x, stage="test", task_id=test_task_id)[
+            0
+        ]  # use the corresponding head to test (instead of the current task `self.task_id`)
         loss_cls_main = self.criterion(logits_main, y)
         acc_main = (logits_main.argmax(dim=1) == y).float().mean()
 
-        logits_full, activations_full = self.reforiginal_model.forward(
+        logits_full = self.reforiginal_model.forward(
             x, stage="test", task_id=test_task_id
-        )  # use the corresponding head to test (instead of the current task `self.task_id`)
+        )[
+            0
+        ]  # use the corresponding head to test (instead of the current task `self.task_id`)
         loss_cls_full = self.criterion(logits_full, y)
         acc_full = (logits_full.argmax(dim=1) == y).float().mean()
         # Return metrics for lightning loggers callback to handle at `on_test_batch_end()`

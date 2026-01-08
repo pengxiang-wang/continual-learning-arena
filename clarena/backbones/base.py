@@ -261,6 +261,7 @@ class HATMaskBackbone(CLBackbone):
             1. 'train': training stage. Get the mask from the current task embedding through the gate function, scaled by an annealed scalar. See Sec. 2.4 in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
             2. 'validation': validation stage. Get the mask from the current task embedding through the gate function, scaled by `s_max`, where large scaling makes masks nearly binary. (Note that in this stage, the binary mask hasn't been stored yet, as training is not over.)
             3. 'test': testing stage. Apply the test mask directly from the stored masks using `test_task_id`.
+            4. 'unlearning_test': unlearning testing stage. The mask is set to all 1s for unlearning testing.
         - **s_max** (`float`): The maximum scaling factor in the gate function. Doesn't apply to the testing stage. See Sec. 2.4 in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **batch_idx** (`int` | `None`): The current batch index. Applies only to the training stage. For other stages, it is `None`.
         - **num_batches** (`int` | `None`): The total number of batches. Applies only to the training stage. For other stages, it is `None`.
@@ -302,6 +303,12 @@ class HATMaskBackbone(CLBackbone):
                 ).squeeze()
         elif stage == "test":
             mask = self.masks[test_task_id]
+        elif stage == "unlearning_test":
+            for layer_name in self.weighted_layer_names:
+                layer = self.get_layer_by_name(layer_name)
+                mask[layer_name] = torch.ones(
+                    layer.weight.size(0), device=layer.weight.device
+                )
 
         return mask
 
@@ -473,16 +480,29 @@ class HATMaskBackbone(CLBackbone):
 class AmnesiacHATBackbone(HATMaskBackbone):
     r"""The backbone network for AmnesiacHAT on top of HAT. AmnesiacHAT introduces a parallel backup backbone in case of effects caused by unlearning."""
 
-    def __init__(self, output_dim: int | None, gate: str, **kwargs) -> None:
+    def __init__(
+        self,
+        output_dim: int | None,
+        gate: str,
+        disable_unlearning: bool = False,
+        **kwargs,
+    ) -> None:
         r"""
         **Args:**
         - **output_dim** (`int`): The output dimension that connects to CL output heads. The `input_dim` of output heads is expected to be the same as this `output_dim`. In some cases, this class is used as a block in the backbone network that doesn't have an output dimension. In this case, it can be `None`.
         - **gate** (`str`): The type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
             - `tanh`: the hyperbolic tangent function.
+        - **disable_unlearning** (`bool`): whether to disable unlearning. This is used in reference experiments following continual learning pipeline. Default is `False`.
         - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(output_dim=output_dim, gate=gate, **kwargs)
+
+        self.disable_unlearning: bool = disable_unlearning
+        r"""Whether to disable unlearning. This is used in reference experiments following continual learning pipeline."""
+
+        if disable_unlearning:
+            return
 
         self.backup_backbones: ModuleDict = {}
         r"""The backup backbone networks. Keys are task IDs (in string format coz they have to) that the backbone is backed up in case of which is unlearned, and values are the corresponding backbone networks that the backup is trained on. They all have the same architecture as the main backbone network.

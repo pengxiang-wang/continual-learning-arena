@@ -130,12 +130,11 @@ class CULFullEvaluation:
         )
 
         main_model = torch.load(self.main_model_path)
-        print("XSDSDSDSDSDD", main_model.backbone_valid_task_ids)
         refretrain_model = torch.load(self.refretrain_model_path)
         reforiginal_model = torch.load(self.reforiginal_model_path)
 
         self.evaluation_module = CULEvaluation(
-            main_model=main_model,
+            main_model=main_model, 
             refretrain_model=refretrain_model,
             reforiginal_model=reforiginal_model,
             dd_eval_task_ids=self.dd_eval_tasks,

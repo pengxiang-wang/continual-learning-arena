@@ -158,7 +158,7 @@ class HAT(CLAlgorithm):
             self.backbone.initialize_independent_bn()
 
         # initialize the cumulative mask for the first task at the beginning of the first task. This should not be called in `__init__()` because `self.device` is not available at that time.
-        if self.task_id == 1:
+        if self.cumulative_mask_for_previous_tasks == {}:
             for layer_name in self.backbone.weighted_layer_names:
                 layer = self.backbone.get_layer_by_name(
                     layer_name

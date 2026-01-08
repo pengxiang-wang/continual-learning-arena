@@ -13,6 +13,7 @@ from torch import Tensor, nn
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning
+from clarena.cl_algorithms.base import UnlearnableCLAlgorithm
 from clarena.cl_algorithms.regularizers import ParameterChangeReg
 from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
@@ -228,3 +229,6 @@ class EWC(Finetuning):
                 fisher_information_t[param_name] += batch_size * param.grad**2
 
         return fisher_information_t
+
+
+# class UnlearnableEWC(EWC, UnlearnableCLAlgorithm):
