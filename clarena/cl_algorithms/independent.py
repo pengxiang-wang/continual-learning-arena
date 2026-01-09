@@ -52,10 +52,8 @@ class Independent(Finetuning):
             **kwargs,
         )
 
-        self.original_backbone: dict = deepcopy(backbone)
-        r"""The original backbone network state dict is stored as the source of creating new independent backbone. """
-
         self.original_backbone_state_dict: dict = deepcopy(backbone.state_dict())
+        r"""The original backbone state dict before training on any task. Used to initialize new independent backbones for new tasks."""
 
         self.backbones: dict[int, CLBackbone] = {}
         r"""The list of independent backbones for each task. Keys are task IDs and values are the corresponding backbones. """
@@ -63,44 +61,14 @@ class Independent(Finetuning):
         self.backbone_valid_task_ids: set[int] = set()
         r"""The list of task IDs that have valid backbones."""
 
-    def setup_task_id(
-        self,
-        task_id: int,
-        num_classes: int,
-        optimizer: Optimizer,
-        lr_scheduler: LRScheduler | None,
-    ) -> None:
-        r"""Set up which task the CL experiment is on. This must be done before `forward()` method is called. In Independent, a new independent backbone is created for the new task from the original backbone.
-
-        **Args:**
-        - **task_id** (`int`): the target task ID.
-        - **num_classes** (`int`): the number of classes in the task.
-        - **optimizer** (`Optimizer`): the optimizer object (partially initialized) for the task.
-        - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.
-        """
-
-        # self.backbone = deepcopy(
-        #     self.original_backbone
-        # )  # must deepcopy the backbone completely! Do not use load_state_dict
-
-        super().setup_task_id(
-            task_id=task_id,
-            num_classes=num_classes,
-            optimizer=optimizer,
-            lr_scheduler=lr_scheduler,
-        )
-
     def on_train_start(self):
-        self.backbone = deepcopy(
-            self.original_backbone
-        )  # must deepcopy the backbone completely! Do not use load_state_dict
+        r"""At the start of training for current task `self.task_id`, load the original backbone state dict to create a new independent backbone for the current task."""
+        self.backbone.load_state_dict(self.original_backbone_state_dict)
 
     def on_train_end(self) -> None:
-        r"""The trained independent backbone for `self.task_id`."""
+        r"""Save the trained independent backbone for `self.task_id`."""
         self.backbones[self.task_id] = deepcopy(self.backbone)
-        print("XXXXXXXX", self.backbone_valid_task_ids)
         self.backbone_valid_task_ids.add(self.task_id)
-        print("YYYY", self.backbone_valid_task_ids)
 
     def test_step(
         self, batch: DataLoader, batch_idx: int, dataloader_idx: int = 0
