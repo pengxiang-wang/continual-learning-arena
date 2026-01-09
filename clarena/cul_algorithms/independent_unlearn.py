@@ -26,14 +26,10 @@ class IndependentUnlearn(CULAlgorithm):
     def unlearn(self) -> None:
         r"""Unlearn the requested unlearning tasks after training `self.task_id`."""
 
-        print("unlearn_f")
-
-        print(self.unlearning_task_ids)
-
         for unlearning_task_id in self.unlearning_task_ids:
 
             self.model.backbones[unlearning_task_id].load_state_dict(
-                self.model.original_backbone.state_dict()
+                self.model.original_backbone_state_dict
             )
             self.model.heads.get_head(unlearning_task_id).reset_parameters()
 
