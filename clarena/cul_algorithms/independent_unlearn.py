@@ -33,8 +33,4 @@ class IndependentUnlearn(CULAlgorithm):
             )
             self.model.heads.get_head(unlearning_task_id).reset_parameters()
 
-            print("unlearn", self.model.backbone_valid_task_ids)
-
             self.model.backbone_valid_task_ids.remove(unlearning_task_id)
-
-            print("unlearn", self.model.backbone_valid_task_ids)

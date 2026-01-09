@@ -28,7 +28,7 @@ from .random import Random
 
 from .lwf import LwF
 from .ewc import EWC
-from .der import DER
+from .der import DER, DERpp
 from .cbp import CBP
 
 from .hat import HAT

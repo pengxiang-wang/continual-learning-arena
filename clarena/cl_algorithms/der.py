@@ -1,8 +1,9 @@
 r"""
-The submodule in `cl_algorithms` for [DER (Dark Experience Replay) algorithm](https://arxiv.org/abs/2004.07211).
+The submodule in `cl_algorithms` for [DER (Dark Experience Replay) algorithm](https://arxiv.org/abs/2004.07211)
+and its DER++ variant.
 """
 
-__all__ = ["DER"]
+__all__ = ["DER", "DERpp"]
 
 import logging
 from collections import Counter
@@ -143,6 +144,130 @@ class DER(Finetuning):
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "loss_reg": loss_reg,
+            "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
+            "activations": activations,
+        }
+
+
+class DERpp(DER):
+    r"""[DER++ (Dark Experience Replay++) algorithm](https://arxiv.org/abs/2004.07211) algorithm.
+
+    DER++ adds a replay classification loss on buffered samples on top of DER's logit distillation.
+    """
+
+    def __init__(
+        self,
+        backbone: CLBackbone,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
+        buffer_size: int,
+        distillation_reg_factor: float,
+        replay_ce_factor: float,
+        augmentation_transforms: Callable | transforms.Compose | None = None,
+        non_algorithmic_hparams: dict[str, Any] = {},
+        **kwargs,
+    ) -> None:
+        r"""Initialize the DER++ algorithm with the network.
+
+        **Args:**
+        - **backbone** (`CLBackbone`): backbone network.
+        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
+        - **buffer_size** (`int`): the size of the memory buffer. For now we only support fixed size buffer.
+        - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor. It controls the strength of preventing forgetting.
+        - **replay_ce_factor** (`float`): hyperparameter, the classification loss factor for replayed samples.
+        - **augmentation_transforms** (`transform` or `transforms.Compose` or `None`): the transforms to apply for augmentation after replay sampling. Not to confuse with the data transforms applied to the input of training data. Can be a single transform, composed transforms, or no transform.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **kwargs**: Reserved for multiple inheritance.
+        """
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            buffer_size=buffer_size,
+            distillation_reg_factor=distillation_reg_factor,
+            augmentation_transforms=augmentation_transforms,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+            **kwargs,
+        )
+
+        self.replay_ce_factor: float = replay_ce_factor
+        r"""The classification loss factor for replayed samples."""
+
+        # save additional algorithmic hyperparameters
+        self.save_hyperparameters("replay_ce_factor")
+
+    def training_step(self, batch: Any) -> dict[str, Tensor]:
+        """Training step for current task `self.task_id`.
+
+        **Args:**
+        - **batch** (`Any`): a batch of training data.
+
+        **Returns:**
+        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this training step. Keys (`str`) are the metrics names, and values (`Tensor`) are the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs.
+        """
+        x, y = batch
+        batch_size = len(y)
+
+        # apply augmentation transforms if any
+        if self.augmentation_transforms:
+            x = self.augmentation_transforms(x)
+
+        # classification loss
+        logits, activations = self.forward(x, stage="train", task_id=self.task_id)
+        loss_cls = self.criterion(logits, y)
+
+        # DER++ adds replay classification loss on top of DER's logit distillation
+        loss_reg = 0.0
+        loss_replay = 0.0
+
+        if not self.memory_buffer.is_empty():
+
+            # sample from memory buffer with the same batch size as current batch
+            x_replay, labels_replay, logits_replay, task_labels_replay = (
+                self.memory_buffer.get_data(size=batch_size)
+            )
+
+            # apply augmentation transforms if any
+            if self.augmentation_transforms:
+                x_replay = self.augmentation_transforms(x_replay)
+
+            # get the student logits for this batch using the current model
+            student_feature_replay, _ = self.backbone(x_replay, stage="test")
+            student_logits_replay = torch.cat(
+                [
+                    self.heads(student_feature_replay[i].unsqueeze(0), task_id=tid)
+                    for i, tid in enumerate(task_labels_replay)
+                ]
+            )
+            with torch.no_grad():  # stop updating the previous heads
+                teacher_logits_replay = logits_replay
+
+            loss_reg = self.distillation_reg(
+                student_logits=student_logits_replay,
+                teacher_logits=teacher_logits_replay,
+            )
+            loss_replay = self.replay_ce_factor * self.criterion(
+                student_logits_replay, labels_replay.long()
+            )
+
+        # total loss
+        loss = loss_cls + loss_reg + loss_replay
+
+        # predicted labels
+        preds = logits.argmax(dim=1)
+
+        # accuracy of the batch
+        acc = (preds == y).float().mean()
+
+        # add current batch to memory buffer
+        self.memory_buffer.add_data(
+            x, y, logits.detach(), torch.full_like(y, self.task_id)
+        )
+
+        return {
+            "preds": preds,
+            "loss": loss,  # return loss is essential for training step, or backpropagation will fail
+            "loss_cls": loss_cls,
+            "loss_reg": loss_reg,
+            "loss_replay": loss_replay,
             "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
             "activations": activations,
         }
