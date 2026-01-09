@@ -42,6 +42,7 @@ class CULFullEvaluation:
         r"""The path to the model file to load the reference original model from."""
         self.cl_paradigm: str = cfg.cl_paradigm
         r"""The continual learning paradigm."""
+
         self.dd_eval_tasks: list[int] = (
             cfg.dd_eval_tasks
             if isinstance(cfg.dd_eval_tasks, ListConfig)
@@ -129,12 +130,30 @@ class CULFullEvaluation:
             "Instantiating evaluation module (clarena.utils.eval.CULEvaluation)...",
         )
 
-        main_model = torch.load(self.main_model_path)
-        refretrain_model = torch.load(self.refretrain_model_path)
-        reforiginal_model = torch.load(self.reforiginal_model_path)
+        # --- Step 1: print paths (run once is enough) ---
+        print("main_model_path:", self.main_model_path)
+        print("refretrain_model_path:", self.refretrain_model_path)
+        print("reforiginal_model_path:", self.reforiginal_model_path)
+
+        # NOTE: PyTorch >= 2.6 defaults to weights_only=True, which blocks loading custom classes.
+        # We explicitly set weights_only=False to allow loading full objects from our own checkpoints.
+        main_model = torch.load(
+            self.main_model_path, map_location="cpu", weights_only=False
+        )
+        refretrain_model = torch.load(
+            self.refretrain_model_path, map_location="cpu", weights_only=False
+        )
+        reforiginal_model = torch.load(
+            self.reforiginal_model_path, map_location="cpu", weights_only=False
+        )
+
+        # --- Step 1 (critical): print loaded object types ---
+        print("main_model type:", type(main_model))
+        print("refretrain_model type:", type(refretrain_model))
+        print("reforiginal_model type:", type(reforiginal_model))
 
         self.evaluation_module = CULEvaluation(
-            main_model=main_model, 
+            main_model=main_model,
             refretrain_model=refretrain_model,
             reforiginal_model=reforiginal_model,
             dd_eval_task_ids=self.dd_eval_tasks,

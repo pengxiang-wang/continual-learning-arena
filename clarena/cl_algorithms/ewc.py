@@ -2,7 +2,7 @@ r"""
 The submodule in `cl_algorithms` for [EWC (Elastic Weight Consolidation) algorithm](https://www.pnas.org/doi/10.1073/pnas.1611835114).
 """
 
-__all__ = ["EWC"]
+__all__ = ["EWC", "UnlearnableEWC"]
 
 import logging
 from copy import deepcopy
@@ -64,10 +64,13 @@ class EWC(Finetuning):
             "when_calculate_fisher_information",
         )
 
-        self.parameter_importance: dict[str, dict[str, Tensor]] = {}
+        # NOTE: task_id is int everywhere in the codebase; keep keys consistent
+        self.parameter_importance: dict[int, dict[str, Tensor]] = {}
         r"""The parameter importance of each previous task. Keys are task IDs and values are the corresponding importance. Each importance entity is a dict where keys are parameter names (named by `named_parameters()` of the `nn.Module`) and values are the importance tensor for the layer. It has the same shape as the parameters of the layer.
         """
-        self.previous_task_backbones: dict[str, nn.Module] = {}
+
+        # NOTE: keys are task IDs (int), not str
+        self.previous_task_backbones: dict[int, nn.Module] = {}
         r"""The backbone models of the previous tasks. Keys are task IDs and values are the corresponding models. Each model is a `nn.Module` backbone after the corresponding previous task was trained.
 
         Some would argue that since we could store the model of the previous tasks, why don't we test the task directly with the stored model, instead of doing the less easier EWC thing? The thing is, EWC only uses the model of the previous tasks to train current and future tasks, which aggregate them into a single model. Once the training of the task is done, the storage for those parameters can be released. However, this make the future tasks not able to use EWC anymore, which is a disadvantage for EWC.
@@ -92,7 +95,6 @@ class EWC(Finetuning):
 
     def sanity_check(self) -> None:
         r"""Sanity check."""
-
         if self.parameter_change_reg_factor <= 0:
             raise ValueError(
                 f"The parameter change regularization factor should be positive, but got {self.parameter_change_reg_factor}."
@@ -103,25 +105,15 @@ class EWC(Finetuning):
         self.parameter_importance[self.task_id] = {}
         for param_name, param in self.backbone.named_parameters():
             self.parameter_importance[self.task_id][param_name] = 0 * param.data
-
         self.num_data = 0
 
     def training_step(self, batch: Any) -> dict[str, Tensor]:
-        r"""Training step for current task `self.task_id`.
-
-        **Args:**
-        - **batch** (`Any`): a batch of training data.
-
-        **Returns:**
-        - **outputs** (`dict[str, Tensor]`): a dictionary contains loss and other metrics from this training step. Keys (`str`) are the metrics names, and values (`Tensor`) are the metrics. Must include the key 'loss' which is total loss in the case of automatic optimization, according to PyTorch Lightning docs.
-        """
+        r"""Training step for current task `self.task_id`."""
         x, y = batch
 
-        # zero the gradients before forward pass in manual optimization mode
         opt = self.optimizers()
         opt.zero_grad()
 
-        # classification loss
         logits, activations = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
@@ -129,38 +121,29 @@ class EWC(Finetuning):
         self.num_data += batch_size
 
         if self.when_calculate_fisher_information == "train":
-            # do the backpropagation only for classification loss to get the gradients
             loss_cls.backward(retain_graph=True)
-            # collect and accumulate the squared gradients into fisher information
             for param_name, param in self.backbone.named_parameters():
                 self.parameter_importance[self.task_id][param_name] += (
                     batch_size * param.grad**2
                 )
 
-        # regularization loss. See equation (3) in the [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114).
         loss_reg = 0.0
         for previous_task_id in range(1, self.task_id):
-            # sum over all previous models, because [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114) says: "When moving to a third task, task C, EWC will try to keep the network parameters close to the learned parameters of both tasks A and B. This can be enforced either with two separate penalties or as one by noting that the sum of two quadratic penalties is itself a quadratic penalty."
             loss_reg += 0.5 * self.parameter_change_reg(
                 target_model=self.backbone,
                 ref_model=self.previous_task_backbones[previous_task_id],
                 weights=self.parameter_importance[previous_task_id],
-            )  # the factor 1/2 in equation (3) in the [EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114) is included here instead of the parameter change regularizer.
+            )
 
-        # do not average over tasks to avoid linear increase of the regularization loss. EWC paper doesn't mention this!
-
-        # total loss
         loss = loss_cls + loss_reg
 
-        # backward step (manually)
-        self.manual_backward(loss)  # calculate the gradients for update
+        self.manual_backward(loss)
         opt.step()
 
-        # accuracy of the batch
         acc = (logits.argmax(dim=1) == y).float().mean()
 
         return {
-            "loss": loss,  # return loss is essential for training step, or backpropagation will fail
+            "loss": loss,
             "loss_cls": loss_cls,
             "loss_reg": loss_reg,
             "acc": acc,
@@ -168,67 +151,134 @@ class EWC(Finetuning):
         }
 
     def on_train_end(self) -> None:
-        r"""Calculate the fisher information as parameter importance and store the backbone model after the training of a task.
-
-        The calculated importance and model are stored in `self.parameter_importance[self.task_id]` and `self.previous_task_backbones[self.task_id]` respectively for constructing the regularization loss in the future tasks.
-        """
+        r"""Calculate the fisher information as parameter importance and store the backbone model after the training of a task."""
         if self.when_calculate_fisher_information == "train_end":
             self.parameter_importance[self.task_id] = (
                 self.accumulate_fisher_information_on_train_end()
             )
 
         for param_name, param in self.backbone.named_parameters():
-            self.parameter_importance[self.task_id][
-                param_name
-            ] /= self.num_data  # average over data, do not average over parameters
+            self.parameter_importance[self.task_id][param_name] /= self.num_data
 
         previous_backbone = deepcopy(self.backbone)
-        previous_backbone.eval()  # set the stored model to evaluation mode to prevent updating
+        previous_backbone.eval()
         self.previous_task_backbones[self.task_id] = previous_backbone
 
-    def accumulate_fisher_information_on_train_end(self) -> None:
-        r"""Accumulate the fisher information as the parameter importance for the learned task `self.task_id` at the end of its training. This is only called after the training of a task, which is the last previous task $t-1$. The accumulate importance is stored in `self.parameter_importance[self.task_id]` for constructing the regularization loss in the future tasks.
-
-        According to [the EWC paper](https://www.pnas.org/doi/10.1073/pnas.1611835114), the importance tensor is a Laplace approximation to Fisher information matrix by taking the digonal, i.e. $F_i$, where $i$ is the index of a parameter. The calculation is not following that theory but the derived formula below:
-
-        $$\omega_i = F_i  =\frac{1}{N_{t-1}} \sum_{(\mathbf{x}, y)\in \mathcal{D}^{(t-1)}_{\text{train}}} \left[\frac{\partial l(f^{(t-1)}\left(\mathbf{x}, \theta), y\right)}{\partial \theta_i}\right]^2$$
-
-        For a parameter $i$, its fisher information is the magnitude (square here) of gradient of the loss of model just trained over the training data just used. The $l$ is the classification loss. It shows the sensitivity of the loss to the parameter. The larger it is, the more it changed the performance (which is the loss) of the model, which indicates the importance of the parameter.
-
-        **Returns:**
-        - **fisher_information_t** (`dict[str, Tensor]`): the fisher information for the learned task. Keys are parameter names (named by `named_parameters()` of the `nn.Module`) and values are the importance tensor for the layer. It has the same shape as the parameters of the layer.
-        """
+    # FIX: return type was incorrect (this function returns a dict)
+    def accumulate_fisher_information_on_train_end(self) -> dict[str, Tensor]:
+        r"""Accumulate the fisher information as the parameter importance for the learned task `self.task_id` at the end of its training."""
         fisher_information_t = {}
 
-        # set model to evaluation mode to prevent updating the model parameters
         self.eval()
-
-        # get the training data
         last_task_train_dataloaders = self.trainer.datamodule.train_dataloader()
 
-        # initialize the accumulation of the squared gradients
         for param_name, param in self.backbone.named_parameters():
             fisher_information_t[param_name] = torch.zeros_like(param)
 
         for x, y in last_task_train_dataloaders:
-
-            # move data to device manually
             x = x.to(self.device)
             y = y.to(self.device)
-
             batch_size = len(y)
 
-            # compute the gradients within a batch
-            self.backbone.zero_grad()  # reset gradients
+            self.backbone.zero_grad()
             logits, _ = self.forward(x, stage="train", task_id=self.task_id)
             loss_cls = self.criterion(logits, y)
-            loss_cls.backward()  # compute gradients
+            loss_cls.backward()
 
-            # collect and accumulate the squared gradients into fisher information
             for param_name, param in self.backbone.named_parameters():
                 fisher_information_t[param_name] += batch_size * param.grad**2
 
         return fisher_information_t
 
 
-# class UnlearnableEWC(EWC, UnlearnableCLAlgorithm):
+class UnlearnableEWC(UnlearnableCLAlgorithm, EWC):
+    r"""Unlearnable EWC algorithm.
+
+    Variant of EWC that supports unlearning requests and permanent tasks.
+    """
+
+    def __init__(
+        self,
+        backbone: CLBackbone,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
+        parameter_change_reg_factor: float,
+        when_calculate_fisher_information: str,
+        non_algorithmic_hparams: dict[str, Any] = {},
+        disable_unlearning: bool = False,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            parameter_change_reg_factor=parameter_change_reg_factor,
+            when_calculate_fisher_information=when_calculate_fisher_information,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+            disable_unlearning=disable_unlearning,
+            **kwargs,
+        )
+
+        self.valid_task_ids: set[int] = set()
+        r"""Task IDs whose Fisher/importances & ref backbones are kept for regularization."""
+
+    def on_train_end(self) -> None:
+        super().on_train_end()
+        self.valid_task_ids.add(self.task_id)
+
+    def training_step(self, batch: Any) -> dict[str, Tensor]:
+        r"""Same as EWC.training_step but regularization sums over valid previous tasks only."""
+        x, y = batch
+
+        opt = self.optimizers()
+        opt.zero_grad()
+
+        logits, activations = self.forward(x, stage="train", task_id=self.task_id)
+        loss_cls = self.criterion(logits, y)
+
+        batch_size = len(y)
+        self.num_data += batch_size
+
+        if self.when_calculate_fisher_information == "train":
+            loss_cls.backward(retain_graph=True)
+            for param_name, param in self.backbone.named_parameters():
+                self.parameter_importance[self.task_id][param_name] += (
+                    batch_size * param.grad**2
+                )
+
+        # FIX: only regularize towards valid (non-unlearned) previous tasks
+        loss_reg = 0.0
+        for previous_task_id in sorted(self.valid_task_ids):
+            if previous_task_id >= self.task_id:
+                continue
+            if previous_task_id not in self.previous_task_backbones:
+                continue
+            if previous_task_id not in self.parameter_importance:
+                continue
+
+            loss_reg += 0.5 * self.parameter_change_reg(
+                target_model=self.backbone,
+                ref_model=self.previous_task_backbones[previous_task_id],
+                weights=self.parameter_importance[previous_task_id],
+            )
+
+        loss = loss_cls + loss_reg
+
+        self.manual_backward(loss)
+        opt.step()
+
+        acc = (logits.argmax(dim=1) == y).float().mean()
+
+        return {
+            "loss": loss,
+            "loss_cls": loss_cls,
+            "loss_reg": loss_reg,
+            "acc": acc,
+            "activations": activations,
+        }
+
+    def aggregated_backbone_output(self, input: Tensor) -> Tensor:
+        r"""Aggregated backbone output for unlearning metrics.
+
+        EWC keeps a single backbone, so we use its feature directly.
+        """
+        feature, _ = self.backbone(input, stage="unlearning_test", task_id=self.task_id)
+        return feature

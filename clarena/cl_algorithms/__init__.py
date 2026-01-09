@@ -26,8 +26,8 @@ from .independent import Independent, UnlearnableIndependent
 from .fix import Fix
 from .random import Random
 
-from .lwf import LwF
-from .ewc import EWC
+from .lwf import LwF, UnlearnableLwF
+from .ewc import EWC, UnlearnableEWC
 from .der import DER
 from .cbp import CBP
 
