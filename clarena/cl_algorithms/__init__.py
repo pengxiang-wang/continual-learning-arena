@@ -21,7 +21,7 @@ Please note that this is an API documentation. Please refer to the main document
 from .base import CLAlgorithm, UnlearnableCLAlgorithm
 
 # finetuning first
-from .finetuning import Finetuning
+from .finetuning import Finetuning, UnlearnableFinetuning
 from .independent import Independent, UnlearnableIndependent
 from .fix import Fix
 from .random import Random

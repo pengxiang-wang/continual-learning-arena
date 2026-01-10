@@ -22,6 +22,6 @@ from .independent_unlearn import IndependentUnlearn
 from .amnesiac_hat_unlearn import AmnesiacHATUnlearn
 from .ewc_unlearn import EWCUnlearn
 from .lwf_unlearn import LwFUnlearn
+from .finetuning_unlearn import FinetuningUnlearn
 
-
-__all__ = ["CULAlgorithm", "independent_unlearn", "amnesiac_hat_unlearn"]
+__all__ = ["CULAlgorithm", "independent_unlearn", "amnesiac_hat_unlearn", "ewc_unlearn", "lwf_unlearn", "finetuning_unlearn"]

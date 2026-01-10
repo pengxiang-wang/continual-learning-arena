@@ -166,273 +166,19 @@ class LwF(Finetuning):
         self.previous_task_backbones[self.task_id] = previous_backbone
 
 
-# # class UnlearnableLwF(UnlearnableCLAlgorithm, LwF):
-# #     r"""Unlearnable LwF algorithm.
-
-# #     This is a variant of LwF that supports unlearning. It has the same functionality as LwF,
-# #     but it also supports unlearning requests and permanent tasks.
-
-# #     In unlearnable setting, unlearning may remove some previous tasks from being distilled.
-# #     Therefore, we maintain a set of valid task IDs for distillation regularization.
-# #     """
-
-# #     def __init__(
-# #         self,
-# #         backbone: CLBackbone,
-# #         heads: HeadsTIL | HeadsCIL | HeadDIL,
-# #         distillation_reg_factor: float,
-# #         distillation_reg_temperature: float,
-# #         non_algorithmic_hparams: dict[str, Any] = {},
-# #         disable_unlearning: bool = False,
-# #         **kwargs,
-# #     ) -> None:
-# #         r"""Initialize the Unlearnable LwF algorithm with the network.
-
-# #         **Args:**
-# #         - **backbone** (`CLBackbone`): backbone network.
-# #         - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
-# #         - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor.
-# #         - **distillation_reg_temperature** (`float`): hyperparameter, the temperature in the distillation regularization.
-# #         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters (optimizer, lr scheduler, etc.).
-# #         - **disable_unlearning** (`bool`): whether to disable unlearning. This is used in reference experiments following continual learning pipeline. Default is `False`.
-# #         - **kwargs**: Reserved for multiple inheritance.
-# #         """
-# #         super().__init__(
-# #             backbone=backbone,
-# #             heads=heads,
-# #             distillation_reg_factor=distillation_reg_factor,
-# #             distillation_reg_temperature=distillation_reg_temperature,
-# #             non_algorithmic_hparams=non_algorithmic_hparams,
-# #             disable_unlearning=disable_unlearning,
-# #             **kwargs,
-# #         )
-
-# #         self.valid_task_ids: set[int] = set()
-# #         r"""The list of task IDs that are valid for distillation regularization."""
-
-# #     def on_train_end(self) -> None:
-# #         r"""Store the previous backbone and mark current task as valid."""
-# #         super().on_train_end()
-# #         self.valid_task_ids.add(self.task_id)
-
-# #     def training_step(self, batch: Any) -> dict[str, Tensor]:
-# #         r"""Training step for current task `self.task_id`.
-
-# #         This is the same as `LwF.training_step()` except that the distillation regularization
-# #         only sums over valid previous tasks, because some tasks may have been unlearned.
-# #         """
-# #         x, y = batch
-
-# #         # classification loss. See equation (1) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
-# #         logits, activations = self.forward(x, stage="train", task_id=self.task_id)
-# #         loss_cls = self.criterion(logits, y)
-
-# #         # regularization loss. See equation (2) (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
-# #         loss_reg = 0.0
-
-# #         for previous_task_id in sorted(self.valid_task_ids):
-# #             if previous_task_id >= self.task_id:
-# #                 continue
-# #             # defensive: skip if teacher backbone is missing (may be removed by unlearning)
-# #             if previous_task_id not in self.previous_task_backbones:
-# #                 continue
-
-# #             # get the student logits for this batch using the current model (to previous output head)
-# #             student_feature, _ = self.backbone(
-# #                 x, stage="train", task_id=previous_task_id
-# #             )
-# #             with torch.no_grad():  # stop updating the previous heads
-# #                 student_logits = self.heads(student_feature, task_id=previous_task_id)
-
-# #             # get the teacher logits for this batch, which is from the previous model
-# #             previous_backbone = self.previous_task_backbones[previous_task_id]
-# #             with torch.no_grad():  # stop updating the previous backbones and heads
-# #                 teacher_feature, _ = previous_backbone(
-# #                     x, stage="test", task_id=previous_task_id
-# #                 )
-# #                 teacher_logits = self.heads(teacher_feature, task_id=previous_task_id)
-
-# #             loss_reg += self.distillation_reg(
-# #                 student_logits=student_logits,
-# #                 teacher_logits=teacher_logits,
-# #             )
-
-# #         # do not average over tasks to avoid linear increase of the regularization loss. LwF paper doesn't mention this!
-
-# #         # total loss
-# #         loss = loss_cls + loss_reg
-
-# #         # predicted labels
-# #         preds = logits.argmax(dim=1)
-
-# #         # accuracy of the batch
-# #         acc = (preds == y).float().mean()
-
-# #         return {
-# #             "preds": preds,
-# #             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
-# #             "loss_cls": loss_cls,
-# #             "loss_reg": loss_reg,
-# #             "acc": acc,
-# #             "activations": activations,
-# #         }
-
-# #     def aggregated_backbone_output(self, input: Tensor) -> Tensor:
-# #         r"""Get the aggregated backbone output for the input data.
-
-# #         This output feature is used for measuring unlearning metrics, such as Distribution Distance (DD).
-# #         An aggregated output involving every part of the backbone is needed to ensure the fairness of the metric.
-
-# #         For LwF, we have a single backbone shared across tasks, so we directly use the current backbone feature.
-# #         """
-# #         feature, _ = self.backbone(input, stage="unlearning_test", task_id=self.task_id)
-# #         return feature
-
-# r"""
-# The submodule in `cl_algorithms` for [LwF (Learning without Forgetting) algorithm](https://ieeexplore.ieee.org/abstract/document/8107520).
-# """
-
-# __all__ = ["LwF", "UnlearnableLwF"]
-
-# import logging
-# from copy import deepcopy
-# from typing import Any
-
-# import torch
-# from torch import Tensor
-
-# from clarena.backbones import CLBackbone
-# from clarena.cl_algorithms import Finetuning
-# from clarena.cl_algorithms.base import UnlearnableCLAlgorithm
-# from clarena.cl_algorithms.regularizers import DistillationReg
-# from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
-
-# # always get logger for built-in logging in each module
-# pylogger = logging.getLogger(__name__)
-
-
-# class LwF(Finetuning):
-#     r"""[LwF (Learning without Forgetting)](https://ieeexplore.ieee.org/abstract/document/8107520) algorithm.
-
-#     A regularization-based continual learning approach that constrains the feature output of the model to be similar to that of the previous tasks.
-#     From the perspective of knowledge distillation, it distills previous tasks models into the training process for new task in the regularization term.
-#     """
-
-#     def __init__(
-#         self,
-#         backbone: CLBackbone,
-#         heads: HeadsTIL | HeadsCIL | HeadDIL,
-#         distillation_reg_factor: float,
-#         distillation_reg_temperature: float,
-#         non_algorithmic_hparams: dict[str, Any] = {},
-#         **kwargs,
-#     ) -> None:
-#         super().__init__(
-#             backbone=backbone,
-#             heads=heads,
-#             non_algorithmic_hparams=non_algorithmic_hparams,
-#             **kwargs,
-#         )
-
-#         self.previous_task_backbones: dict[int, CLBackbone] = {}
-#         r"""Backbone snapshots for previous tasks. Keys are task IDs (int)."""
-
-#         self.distillation_reg_factor: float = distillation_reg_factor
-#         self.distillation_reg_temperature: float = distillation_reg_temperature
-#         self.distillation_reg = DistillationReg(
-#             factor=distillation_reg_factor,
-#             temperature=distillation_reg_temperature,
-#             distance="cross_entropy",
-#         )
-
-#         # save additional algorithmic hyperparameters
-#         self.save_hyperparameters(
-#             "distillation_reg_factor",
-#             "distillation_reg_temperature",
-#         )
-
-#         LwF.sanity_check(self)
-
-#     def sanity_check(self) -> None:
-#         if self.distillation_reg_factor <= 0:
-#             raise ValueError(
-#                 f"The distillation regularization factor should be positive, but got {self.distillation_reg_factor}."
-#             )
-#         if self.distillation_reg_temperature <= 0:
-#             raise ValueError(
-#                 f"The distillation regularization temperature should be positive, but got {self.distillation_reg_temperature}."
-#             )
-
-#     def training_step(self, batch: Any) -> dict[str, Tensor]:
-#         x, y = batch
-
-#         # classification loss. See equation (1) in the LwF paper.
-#         logits, activations = self.forward(x, stage="train", task_id=self.task_id)
-#         loss_cls = self.criterion(logits, y)
-
-#         # regularization loss. See equation (2)(3) in the LwF paper.
-#         loss_reg = 0.0
-#         for previous_task_id in range(1, self.task_id):
-#             # NOTE (bugfix):
-#             # - student_logits MUST keep gradients, otherwise distillation cannot update
-#             #   the current model (loss_reg becomes ineffective).
-#             # - teacher path should be no_grad (frozen snapshot).
-#             #
-#             # The old version incorrectly wrapped student_logits in no_grad.
-
-#             # student logits from CURRENT model (needs grad)
-#             student_feature, _ = self.backbone(
-#                 x, stage="train", task_id=previous_task_id
-#             )
-#             student_logits = self.heads(student_feature, task_id=previous_task_id)
-
-#             # teacher logits from SNAPSHOT backbone (no grad)
-#             previous_backbone = self.previous_task_backbones[previous_task_id]
-#             with torch.no_grad():
-#                 teacher_feature, _ = previous_backbone(
-#                     x, stage="test", task_id=previous_task_id
-#                 )
-#                 teacher_logits = self.heads(teacher_feature, task_id=previous_task_id)
-
-#             loss_reg += self.distillation_reg(
-#                 student_logits=student_logits,
-#                 teacher_logits=teacher_logits,
-#             )
-
-#         loss = loss_cls + loss_reg
-
-#         preds = logits.argmax(dim=1)
-#         acc = (preds == y).float().mean()
-
-#         return {
-#             "preds": preds,
-#             "loss": loss,
-#             "loss_cls": loss_cls,
-#             "loss_reg": loss_reg,
-#             "acc": acc,
-#             "activations": activations,
-#         }
-
-#     def on_train_end(self) -> None:
-#         r"""Store snapshot backbone after finishing current task."""
-#         previous_backbone = deepcopy(self.backbone)
-#         previous_backbone.eval()
-
-#         # Keep per-task head in eval mode if it exists (TIL/DIL pattern)
-#         try:
-#             head = self.heads.heads[f"{self.task_id}"]
-#             head.eval()
-#         except Exception:
-#             pass
-
-#         self.previous_task_backbones[self.task_id] = previous_backbone
-
-
 class UnlearnableLwF(UnlearnableCLAlgorithm, LwF):
-    r"""Unlearnable LwF algorithm.
+    r"""Unlearnable LwF algorithm (Amnesiac-HAT / delta rollback style).
 
-    - Keeps `valid_task_ids` to indicate which teacher snapshots are considered "kept".
-    - Distillation regularization only sums over valid tasks (excluding unlearned ones).
+    Key idea:
+    - For each task t, record parameter delta: Δ_t = θ_post - θ_pre
+    - When forgetting task k, rollback: θ ← θ - Δ_k
+    - Also remove task k from teacher pool so future distillation ignores it.
+
+    Notes:
+    - We do NOT modify the original `LwF.training_step` above (per your requirement).
+      Instead, we override `training_step` here to implement the "correct" distillation:
+        * student logits SHOULD have gradients
+        * teacher logits SHOULD be under torch.no_grad()
     """
 
     def __init__(
@@ -455,37 +201,80 @@ class UnlearnableLwF(UnlearnableCLAlgorithm, LwF):
             **kwargs,
         )
 
+        # Teacher pool control: tasks in this set are eligible to be distilled from.
         self.valid_task_ids: set[int] = set()
-        r"""Task IDs whose teacher snapshots are kept for distillation regularization."""
+        r"""Task IDs whose teacher snapshots are kept & used for distillation."""
+
+        # --- delta rollback buffers (minimal additions) ---
+        self._pre_task_params: dict[str, Tensor] | None = None
+        r"""Backbone parameter snapshot before training current task (θ_pre)."""
+
+        self.task_deltas: dict[int, dict[str, Tensor]] = {}
+        r"""Per-task parameter delta Δ_t = θ_post - θ_pre, keyed by task_id."""
+
+    def on_train_start(self) -> None:
+        """Record θ_pre before training current task (only trainable params)."""
+        # No special hook needed from base, but safe to keep Lightning hook chain.
+        super().on_train_start()
+
+        if self.disable_unlearning:
+            return
+
+        self._pre_task_params = {
+            n: p.detach().clone()
+            for n, p in self.backbone.named_parameters()
+            if p.requires_grad
+        }
 
     def on_train_end(self) -> None:
-        r"""Ensure LwF snapshot is stored, then mark this task as valid."""
-        # Avoid MRO skipping LwF.on_train_end (same reason as your EWC fix)
-        LwF.on_train_end(self)
+        """After training: store teacher snapshot, record Δ_t, and mark current task as valid."""
+        super().on_train_end()  # this calls LwF.on_train_end() which stores previous_task_backbones[task_id]
+
+        # Mark current task as eligible teacher
         self.valid_task_ids.add(self.task_id)
 
+        if self.disable_unlearning:
+            return
+
+        # Record Δ_t = θ_post - θ_pre
+        if self._pre_task_params is not None:
+            delta_t: dict[str, Tensor] = {}
+            for n, p in self.backbone.named_parameters():
+                if not p.requires_grad:
+                    continue
+                delta_t[n] = (p.detach() - self._pre_task_params[n]).clone()
+            self.task_deltas[self.task_id] = delta_t
+            self._pre_task_params = None
+
     def training_step(self, batch: Any) -> dict[str, Tensor]:
-        r"""Same as LwF.training_step but distill only from valid previous tasks."""
+        r"""Training step (correct distillation version for UnlearnableLwF).
+
+        Important fix (only here, not touching original LwF):
+        - student path MUST have gradients (no torch.no_grad on student logits)
+        - teacher path MUST be torch.no_grad
+
+        Distillation is computed only over `valid_task_ids` (i.e., not-unlearned teachers).
+        """
         x, y = batch
 
+        # classification loss on current task head
         logits, activations = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
+        # distillation regularization to prevent forgetting (only from valid teachers)
         loss_reg = 0.0
-        # Only distill from valid (non-unlearned) teacher tasks
         for previous_task_id in sorted(self.valid_task_ids):
             if previous_task_id >= self.task_id:
                 continue
             if previous_task_id not in self.previous_task_backbones:
                 continue
 
-            # student logits from CURRENT model (needs grad)
-            student_feature, _ = self.backbone(
-                x, stage="train", task_id=previous_task_id
-            )
+            # --- student logits (WITH grad) ---
+            # Student uses current backbone, but routed to the old task head
+            student_feature, _ = self.backbone(x, stage="train", task_id=previous_task_id)
             student_logits = self.heads(student_feature, task_id=previous_task_id)
 
-            # teacher logits from SNAPSHOT backbone (no grad)
+            # --- teacher logits (NO grad) ---
             previous_backbone = self.previous_task_backbones[previous_task_id]
             with torch.no_grad():
                 teacher_feature, _ = previous_backbone(
@@ -512,7 +301,63 @@ class UnlearnableLwF(UnlearnableCLAlgorithm, LwF):
             "activations": activations,
         }
 
+    @torch.no_grad()
+    def unlearn_task(self, task_id: int) -> None:
+        r"""Forget task `task_id` by delta rollback: θ ← θ - Δ_task_id.
+
+        Also:
+        - remove from valid_task_ids so future distillation ignores it
+        - delete teacher snapshot for that task (previous_task_backbones[task_id])
+        - optional: reset task head (best-effort)
+        """
+        if self.disable_unlearning:
+            return
+
+        if task_id not in self.task_deltas:
+            raise ValueError(f"No stored delta for task {task_id}.")
+
+        delta = self.task_deltas[task_id]
+        for n, p in self.backbone.named_parameters():
+            if not p.requires_grad:
+                continue
+            if n in delta:
+                p.sub_(delta[n])
+
+        # Remove from teacher pool
+        self.valid_task_ids.discard(task_id)
+
+        # Delete teacher snapshot so it's not accidentally used
+        if task_id in self.previous_task_backbones:
+            del self.previous_task_backbones[task_id]
+
+        # Best-effort reset head (TIL/DIL)
+        self._reset_head_if_possible(task_id)
+
+    def _reset_head_if_possible(self, task_id: int) -> None:
+        """Best-effort reset for task-specific head (TIL/DIL)."""
+        try:
+            head = self.heads.get_head(task_id)
+            if hasattr(head, "reset_parameters"):
+                head.reset_parameters()
+            return
+        except Exception:
+            pass
+
+        # fallback for HeadsTIL-like dict storage: heads.heads[str(task_id)]
+        try:
+            if hasattr(self.heads, "heads"):
+                key = f"{task_id}"
+                if key in self.heads.heads:
+                    head = self.heads.heads[key]
+                    if hasattr(head, "reset_parameters"):
+                        head.reset_parameters()
+        except Exception:
+            pass
+
     def aggregated_backbone_output(self, input: Tensor) -> Tensor:
-        r"""Aggregated backbone output for unlearning metrics."""
+        r"""Aggregated backbone output for unlearning metrics.
+
+        LwF keeps a single backbone, so we use its feature directly.
+        """
         feature, _ = self.backbone(input, stage="unlearning_test", task_id=self.task_id)
         return feature
