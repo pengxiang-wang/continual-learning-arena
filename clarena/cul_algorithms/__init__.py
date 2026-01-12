@@ -7,6 +7,7 @@ This submodule provides the **continual unlearning algorithms** in CLArena.
 Here are the base classes for CUL algorithms:
 
 - `CULAlgorithm`: the base class for all continual unlearning algorithms.
+    - `AmnesiacCULAlgorithm`: the base class for Amnesiac continual unlearning algorithms.
 
 Please note that this is an API documantation. Please refer to the main documentation pages for more information about how to configure and implement CUL algorithms:
 
@@ -17,11 +18,23 @@ Please note that this is an API documantation. Please refer to the main document
 
 """
 
-from .base import CULAlgorithm
+from .base import CULAlgorithm, AmnesiacCULAlgorithm
 from .independent_unlearn import IndependentUnlearn
-from .amnesiac_hat_unlearn import AmnesiacHATUnlearn
-from .ewc_unlearn import EWCUnlearn
-from .lwf_unlearn import LwFUnlearn
-from .finetuning_unlearn import FinetuningUnlearn
 
-__all__ = ["CULAlgorithm", "independent_unlearn", "amnesiac_hat_unlearn", "ewc_unlearn", "lwf_unlearn", "finetuning_unlearn"]
+from .finetuning_unlearn import AmnesiacFinetuningUnlearn
+from .lwf_unlearn import AmnesiacLwFUnlearn
+from .ewc_unlearn import AmnesiacEWCUnlearn
+from .der_unlearn import AmnesiacDERUnlearn
+
+from .amnesiac_hat_unlearn import AmnesiacHATUnlearn
+
+__all__ = [
+    "CULAlgorithm",
+    "AmnesiacCULAlgorithm",
+    "independent_unlearn",
+    "finetuning_unlearn",
+    "lwf_unlearn",
+    "ewc_unlearn",
+    "der_unlearn",
+    "amnesiac_hat_unlearn",
+]

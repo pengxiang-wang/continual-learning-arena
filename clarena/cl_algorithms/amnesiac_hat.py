@@ -9,21 +9,20 @@ from copy import deepcopy
 from typing import Any, Callable
 
 import torch
-import torch.nn.functional as F
 from torch import Tensor
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torchvision.transforms import transforms
 
 from clarena.backbones import AmnesiacHATBackbone
-from clarena.cl_algorithms import DER, AdaHAT, UnlearnableCLAlgorithm
+from clarena.cl_algorithms import DER, AdaHAT, AmnesiacCLAlgorithm
 from clarena.heads import HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
-class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
+class AmnesiacHAT(AdaHAT, DER, AmnesiacCLAlgorithm):
     r"""AmnesiacHAT (Amnesiac Hard Attention to the Task) algorithm.
 
     A variant of [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a) enabling HAT with unlearning ability, based on the [AdaHAT (Adaptive Hard Attention to the Task)](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9) algorithm.
@@ -106,20 +105,6 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             "adjustment_intensity",
             "epsilon",
         )
-
-        if disable_unlearning:
-            return
-
-        self.original_backbone_state_dict: dict[str, Tensor] = deepcopy(
-            backbone.state_dict()
-        )
-        r"""Store the original backbone network state dict. It is a dict where keys are parameter names and values are the corresponding parameter update tensor for the layer. """
-
-        self.parameters_task_update: dict[int, dict[str, Tensor]] = {}
-        r"""Store the parameters update in each task. Keys are task IDs and values are the corresponding parameters update tensor. Each tensor is a dict where keys are parameter names and values are the corresponding parameter update tensor for the layer. """
-
-        self.state_dict_task_start: dict[str, Tensor]
-        r"""Store the backbone state dict at the start of training each task. """
 
     def setup_task_id(
         self,
@@ -248,13 +233,10 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
         return affected_task_ids
 
     def on_train_start(self):
-        r"""Store the current state dict at the start of training."""
-        super().on_train_start()
-
-        if self.disable_unlearning:
-            return
-
-        self.state_dict_task_start = deepcopy(self.backbone.state_dict())
+        r"""Initialize backup backbones at the start of training."""
+        AdaHAT.on_train_start(self)  # Explicitly call AdaHAT's on_train_start
+        DER.on_train_start(self)  # Explicitly call DER's on_train_start
+        AmnesiacCLAlgorithm.on_train_start(self)
 
         for backup_backbone in self.backbone.backup_backbones.values():
             backup_backbone.load_state_dict(
@@ -512,7 +494,12 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
 
     def on_train_end(self):
         r"""Store the parameters update of a task at the end of its training."""
-        super().on_train_end()
+        AdaHAT.on_train_end(self)  # Explicitly call AdaHAT's on_train_end
+        DER.on_train_end(self)  # Explicitly call DER's on_train_end
+        AmnesiacCLAlgorithm.on_train_end(self)
+
+        if self.disable_unlearning:
+            return
 
         # override cumulative mask to exclude unlearned tasks
         kept_masks = (
@@ -541,23 +528,6 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
             }
         )
 
-        if self.disable_unlearning:
-            return
-
-        current_state_dict = self.backbone.state_dict()
-        parameters_task_t_update = {}
-
-        # compute the parameters update for the current task
-        for layer_name, current_param_tensor in current_state_dict.items():
-            if layer_name.startswith("backup_backbones."):
-                continue
-            parameters_task_t_update[layer_name] = (
-                current_param_tensor - self.state_dict_task_start[layer_name]
-            )
-
-        # store the parameters update for the current task
-        self.parameters_task_update[self.task_id] = parameters_task_t_update
-
         # save backup backbone state dict for unlearning
         for unlearnable_task_id in self.unlearnable_task_ids:
             self.backbone.backup_state_dicts[(unlearnable_task_id, self.task_id)] = (
@@ -568,12 +538,3 @@ class AmnesiacHAT(AdaHAT, DER, UnlearnableCLAlgorithm):
                 )
             )
         pylogger.info(f"Backup backbone state dicts saved for unlearning tasks.")
-
-    def construct_parameters_from_updates(self):
-        r"""Construct the parameters of the model from parameters task updates."""
-        updated_state_dict = deepcopy(self.original_backbone_state_dict)
-        for param_update in self.parameters_task_update.values():
-            for layer_name, param_tensor in param_update.items():
-                updated_state_dict[layer_name] += param_tensor
-
-        self.backbone.load_state_dict(updated_state_dict, strict=False)

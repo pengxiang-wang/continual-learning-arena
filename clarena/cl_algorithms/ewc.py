@@ -2,7 +2,7 @@ r"""
 The submodule in `cl_algorithms` for [EWC (Elastic Weight Consolidation) algorithm](https://www.pnas.org/doi/10.1073/pnas.1611835114).
 """
 
-__all__ = ["EWC", "UnlearnableEWC"]
+__all__ = ["EWC", "AmnesiacEWC"]
 
 import logging
 from copy import deepcopy
@@ -12,8 +12,7 @@ import torch
 from torch import Tensor, nn
 
 from clarena.backbones import CLBackbone
-from clarena.cl_algorithms import Finetuning
-from clarena.cl_algorithms.base import UnlearnableCLAlgorithm
+from clarena.cl_algorithms import AmnesiacCLAlgorithm, Finetuning
 from clarena.cl_algorithms.regularizers import ParameterChangeReg
 from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
@@ -189,6 +188,10 @@ class EWC(Finetuning):
                 fisher_information_t[param_name] += batch_size * param.grad**2
 
         return fisher_information_t
+
+
+class AmnesiacEWC(AmnesiacCLAlgorithm, EWC):
+    r"""Amnesiac EWC algorithm."""
 
 
 # class UnlearnableEWC(UnlearnableCLAlgorithm, EWC):
@@ -382,149 +385,241 @@ class EWC(Finetuning):
 #         feature, _ = self.backbone(input, stage="unlearning_test", task_id=self.task_id)
 #         return feature
 
-class UnlearnableEWC(UnlearnableCLAlgorithm, EWC):
-    r"""Unlearnable EWC algorithm.
+# class UnlearnableEWC(UnlearnableCLAlgorithm, EWC):
+#     r"""Unlearnable EWC algorithm.
 
-    Variant of EWC that supports unlearning requests and permanent tasks.
+#     Variant of EWC that supports unlearning requests and permanent tasks.
 
-    Requirement (Amnesiac Hat style):
-    - For each task t, record parameter delta: Δ_t = θ_post - θ_pre
-    - When forgetting task k, rollback: θ ← θ - Δ_k
-    """
+#     Requirement (Amnesiac Hat style):
+#     - For each task t, record parameter delta: Δ_t = θ_post - θ_pre
+#     - When forgetting task k, rollback: θ ← θ - Δ_k
+#     """
 
-    def __init__(
-        self,
-        backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL | HeadDIL,
-        parameter_change_reg_factor: float,
-        when_calculate_fisher_information: str,
-        non_algorithmic_hparams: dict[str, Any] = {},
-        disable_unlearning: bool = False,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            backbone=backbone,
-            heads=heads,
-            parameter_change_reg_factor=parameter_change_reg_factor,
-            when_calculate_fisher_information=when_calculate_fisher_information,
-            non_algorithmic_hparams=non_algorithmic_hparams,
-            disable_unlearning=disable_unlearning,
-            **kwargs,
-        )
+#     def __init__(
+#         self,
+#         backbone: CLBackbone,
+#         heads: HeadsTIL | HeadsCIL | HeadDIL,
+#         parameter_change_reg_factor: float,
+#         when_calculate_fisher_information: str,
+#         non_algorithmic_hparams: dict[str, Any] = {},
+#         disable_unlearning: bool = False,
+#         **kwargs,
+#     ) -> None:
+#         super().__init__(
+#             backbone=backbone,
+#             heads=heads,
+#             parameter_change_reg_factor=parameter_change_reg_factor,
+#             when_calculate_fisher_information=when_calculate_fisher_information,
+#             non_algorithmic_hparams=non_algorithmic_hparams,
+#             disable_unlearning=disable_unlearning,
+#             **kwargs,
+#         )
 
-        self.valid_task_ids: set[int] = set()
-        r"""Task IDs whose Fisher/importances & ref backbones are kept for regularization."""
+#         self.valid_task_ids: set[int] = set()
+#         r"""Task IDs whose Fisher/importances & ref backbones are kept for regularization."""
 
-        # --- Amnesiac Hat buffers (minimal additions) ---
-        self._pre_task_params: dict[str, Tensor] | None = None
-        r"""Backbone parameter snapshot before training current task (θ_pre)."""
+#         # --- Amnesiac Hat buffers (minimal additions) ---
+#         self._pre_task_params: dict[str, Tensor] | None = None
+#         r"""Backbone parameter snapshot before training current task (θ_pre)."""
 
-        self.task_deltas: dict[int, dict[str, Tensor]] = {}
-        r"""Per-task parameter delta Δ_t = θ_post - θ_pre, keyed by task_id."""
+#         self.task_deltas: dict[int, dict[str, Tensor]] = {}
+#         r"""Per-task parameter delta Δ_t = θ_post - θ_pre, keyed by task_id."""
 
-    # --- minimal fix: make sure EWC hooks run (avoid MRO skipping EWC.on_train_start/end) ---
-    def on_train_start(self) -> None:
-        r"""Make sure EWC initializes fisher buffers and record θ_pre for current task."""
-        EWC.on_train_start(self)
+#     # --- minimal fix: make sure EWC hooks run (avoid MRO skipping EWC.on_train_start/end) ---
+#     def on_train_start(self) -> None:
+#         r"""Make sure EWC initializes fisher buffers and record θ_pre for current task."""
+#         EWC.on_train_start(self)
 
-        # Record θ_pre (only trainable params)
-        self._pre_task_params = {
-            n: p.detach().clone()
-            for n, p in self.backbone.named_parameters()
-            if p.requires_grad
-        }
+#         # Record θ_pre (only trainable params)
+#         self._pre_task_params = {
+#             n: p.detach().clone()
+#             for n, p in self.backbone.named_parameters()
+#             if p.requires_grad
+#         }
 
-    def on_train_end(self) -> None:
-        r"""Make sure EWC stores fisher and previous backbone snapshot; record Δ_t and mark task as valid."""
-        EWC.on_train_end(self)
+#     def on_train_end(self) -> None:
+#         r"""Make sure EWC stores fisher and previous backbone snapshot; record Δ_t and mark task as valid."""
+#         EWC.on_train_end(self)
 
-        # Record Δ_t = θ_post - θ_pre
-        if self._pre_task_params is not None:
-            delta_t: dict[str, Tensor] = {}
-            for n, p in self.backbone.named_parameters():
-                if not p.requires_grad:
-                    continue
-                delta_t[n] = (p.detach() - self._pre_task_params[n]).clone()
-            self.task_deltas[self.task_id] = delta_t
-            self._pre_task_params = None
+#         # Record Δ_t = θ_post - θ_pre
+#         if self._pre_task_params is not None:
+#             delta_t: dict[str, Tensor] = {}
+#             for n, p in self.backbone.named_parameters():
+#                 if not p.requires_grad:
+#                     continue
+#                 delta_t[n] = (p.detach() - self._pre_task_params[n]).clone()
+#             self.task_deltas[self.task_id] = delta_t
+#             self._pre_task_params = None
 
-        self.valid_task_ids.add(self.task_id)
+#         self.valid_task_ids.add(self.task_id)
 
-    def training_step(self, batch: Any) -> dict[str, Tensor]:
-        r"""Same as EWC.training_step but regularization sums over valid previous tasks only."""
-        x, y = batch
+#     def training_step(self, batch: Any) -> dict[str, Tensor]:
+#         r"""Same as EWC.training_step but regularization sums over valid previous tasks only."""
+#         x, y = batch
 
-        opt = self.optimizers()
-        opt.zero_grad()
+#         opt = self.optimizers()
+#         opt.zero_grad()
 
-        logits, activations = self.forward(x, stage="train", task_id=self.task_id)
-        loss_cls = self.criterion(logits, y)
+#         logits, activations = self.forward(x, stage="train", task_id=self.task_id)
+#         loss_cls = self.criterion(logits, y)
 
-        batch_size = len(y)
-        self.num_data += batch_size
+#         batch_size = len(y)
+#         self.num_data += batch_size
 
-        if self.when_calculate_fisher_information == "train":
-            loss_cls.backward(retain_graph=True)
-            for param_name, param in self.backbone.named_parameters():
-                self.parameter_importance[self.task_id][param_name] += (
-                    batch_size * param.grad**2
-                )
+#         if self.when_calculate_fisher_information == "train":
+#             loss_cls.backward(retain_graph=True)
+#             for param_name, param in self.backbone.named_parameters():
+#                 self.parameter_importance[self.task_id][param_name] += (
+#                     batch_size * param.grad**2
+#                 )
 
-        # only regularize towards valid (non-unlearned) previous tasks
-        loss_reg = 0.0
-        for previous_task_id in sorted(self.valid_task_ids):
-            if previous_task_id >= self.task_id:
-                continue
-            if previous_task_id not in self.previous_task_backbones:
-                continue
-            if previous_task_id not in self.parameter_importance:
-                continue
+#         # only regularize towards valid (non-unlearned) previous tasks
+#         loss_reg = 0.0
+#         for previous_task_id in sorted(self.valid_task_ids):
+#             if previous_task_id >= self.task_id:
+#                 continue
+#             if previous_task_id not in self.previous_task_backbones:
+#                 continue
+#             if previous_task_id not in self.parameter_importance:
+#                 continue
 
-            loss_reg += 0.5 * self.parameter_change_reg(
-                target_model=self.backbone,
-                ref_model=self.previous_task_backbones[previous_task_id],
-                weights=self.parameter_importance[previous_task_id],
-            )
+#             loss_reg += 0.5 * self.parameter_change_reg(
+#                 target_model=self.backbone,
+#                 ref_model=self.previous_task_backbones[previous_task_id],
+#                 weights=self.parameter_importance[previous_task_id],
+#             )
 
-        loss = loss_cls + loss_reg
+#         loss = loss_cls + loss_reg
 
-        self.manual_backward(loss)
-        opt.step()
+#         self.manual_backward(loss)
+#         opt.step()
 
-        acc = (logits.argmax(dim=1) == y).float().mean()
+#         acc = (logits.argmax(dim=1) == y).float().mean()
 
-        return {
-            "loss": loss,
-            "loss_cls": loss_cls,
-            "loss_reg": loss_reg,
-            "acc": acc,
-            "activations": activations,
-        }
+#         return {
+#             "loss": loss,
+#             "loss_cls": loss_cls,
+#             "loss_reg": loss_reg,
+#             "acc": acc,
+#             "activations": activations,
+#         }
 
-    @torch.no_grad()
-    def unlearn_task(self, task_id: int) -> None:
-        r"""Forget task `task_id` by Amnesiac Hat rollback: θ ← θ - Δ_task_id."""
-        if self.disable_unlearning:
-            return
+#     @torch.no_grad()
+#     def unlearn_task(self, task_id: int) -> None:
+#         r"""Forget task `task_id` by Amnesiac Hat rollback: θ ← θ - Δ_task_id."""
+#         if self.disable_unlearning:
+#             return
 
-        if task_id not in self.task_deltas:
-            raise ValueError(f"No stored delta for task {task_id}.")
+#         if task_id not in self.task_deltas:
+#             raise ValueError(f"No stored delta for task {task_id}.")
 
-        delta = self.task_deltas[task_id]
-        for n, p in self.backbone.named_parameters():
-            if not p.requires_grad:
-                continue
-            if n in delta:
-                p.sub_(delta[n])
+#         delta = self.task_deltas[task_id]
+#         for n, p in self.backbone.named_parameters():
+#             if not p.requires_grad:
+#                 continue
+#             if n in delta:
+#                 p.sub_(delta[n])
 
-        # Mark as no longer valid for future EWC regularization
-        if task_id in self.valid_task_ids:
-            self.valid_task_ids.remove(task_id)
+#         # Mark as no longer valid for future EWC regularization
+#         if task_id in self.valid_task_ids:
+#             self.valid_task_ids.remove(task_id)
 
-    def aggregated_backbone_output(self, input: Tensor) -> Tensor:
-        r"""Aggregated backbone output for unlearning metrics.
+#     def aggregated_backbone_output(self, input: Tensor) -> Tensor:
+#         r"""Aggregated backbone output for unlearning metrics.
 
-        EWC keeps a single backbone, so we use its feature directly.
-        """
-        feature, _ = self.backbone(input, stage="unlearning_test", task_id=self.task_id)
-        return feature
+#         EWC keeps a single backbone, so we use its feature directly.
+#         """
+#         feature, _ = self.backbone(input, stage="unlearning_test", task_id=self.task_id)
+#         return feature
+
+# class UnlearnableEWC(UnlearnableCLAlgorithm, EWC):
+#     r"""Unlearnable EWC algorithm.
+
+#     Variant of EWC that supports unlearning requests and permanent tasks.
+#     """
+
+#     def __init__(
+#         self,
+#         backbone: CLBackbone,
+#         heads: HeadsTIL | HeadsCIL | HeadDIL,
+#         parameter_change_reg_factor: float,
+#         when_calculate_fisher_information: str,
+#         non_algorithmic_hparams: dict[str, Any] = {},
+#         disable_unlearning: bool = False,
+#         **kwargs,
+#     ) -> None:
+#         super().__init__(
+#             backbone=backbone,
+#             heads=heads,
+#             parameter_change_reg_factor=parameter_change_reg_factor,
+#             when_calculate_fisher_information=when_calculate_fisher_information,
+#             non_algorithmic_hparams=non_algorithmic_hparams,
+#             disable_unlearning=disable_unlearning,
+#             **kwargs,
+#         )
+
+#         self.valid_task_ids: set[int] = set()
+#         r"""Task IDs whose Fisher/importances & ref backbones are kept for regularization."""
+
+#     def on_train_end(self) -> None:
+#         super().on_train_end()
+#         self.valid_task_ids.add(self.task_id)
+
+#     def training_step(self, batch: Any) -> dict[str, Tensor]:
+#         r"""Same as EWC.training_step but regularization sums over valid previous tasks only."""
+#         x, y = batch
+
+#         opt = self.optimizers()
+#         opt.zero_grad()
+
+#         logits, activations = self.forward(x, stage="train", task_id=self.task_id)
+#         loss_cls = self.criterion(logits, y)
+
+#         batch_size = len(y)
+#         self.num_data += batch_size
+
+#         if self.when_calculate_fisher_information == "train":
+#             loss_cls.backward(retain_graph=True)
+#             for param_name, param in self.backbone.named_parameters():
+#                 self.parameter_importance[self.task_id][param_name] += (
+#                     batch_size * param.grad**2
+#                 )
+
+#         # FIX: only regularize towards valid (non-unlearned) previous tasks
+#         loss_reg = 0.0
+#         for previous_task_id in sorted(self.valid_task_ids):
+#             if previous_task_id >= self.task_id:
+#                 continue
+#             if previous_task_id not in self.previous_task_backbones:
+#                 continue
+#             if previous_task_id not in self.parameter_importance:
+#                 continue
+
+#             loss_reg += 0.5 * self.parameter_change_reg(
+#                 target_model=self.backbone,
+#                 ref_model=self.previous_task_backbones[previous_task_id],
+#                 weights=self.parameter_importance[previous_task_id],
+#             )
+
+#         loss = loss_cls + loss_reg
+
+#         self.manual_backward(loss)
+#         opt.step()
+
+#         acc = (logits.argmax(dim=1) == y).float().mean()
+
+#         return {
+#             "loss": loss,
+#             "loss_cls": loss_cls,
+#             "loss_reg": loss_reg,
+#             "acc": acc,
+#             "activations": activations,
+#         }
+
+#     def aggregated_backbone_output(self, input: Tensor) -> Tensor:
+#         r"""Aggregated backbone output for unlearning metrics.
+
+#         EWC keeps a single backbone, so we use its feature directly.
+#         """
+#         feature, _ = self.backbone(input, stage="unlearning_test", task_id=self.task_id)
+#         return feature

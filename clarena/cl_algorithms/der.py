@@ -3,7 +3,7 @@ The submodule in `cl_algorithms` for [DER (Dark Experience Replay) algorithm](ht
 and its DER++ variant.
 """
 
-__all__ = ["DER", "DERpp"]
+__all__ = ["DER", "DERpp", "AmnesiacDER"]
 
 import logging
 from collections import Counter
@@ -15,7 +15,7 @@ from torch import Tensor
 from torchvision.transforms import transforms
 
 from clarena.backbones import CLBackbone
-from clarena.cl_algorithms import Finetuning
+from clarena.cl_algorithms import AmnesiacCLAlgorithm, Finetuning
 from clarena.cl_algorithms.regularizers import DistillationReg
 from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
@@ -433,3 +433,7 @@ class Buffer:
         self.labels = self.labels[mask]
         self.logits = self.logits[mask]
         self.task_labels = self.task_labels[mask]
+
+
+class AmnesiacDER(AmnesiacCLAlgorithm, DER):
+    r"""Amnesiac DER algorithm."""

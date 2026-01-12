@@ -8,6 +8,7 @@ Here are the base classes for CL algorithms, which inherit from PyTorch Lightnin
 
 - `CLAlgorithm`: the base class for all continual learning algorithms.
     - `UnlearnableCLAlgorithm`: the base class for unlearnable continual learning algorithms.
+        - `AmnesiacCULAlgorithm`: the base class for Amnesiac continual learning algorithms.
 
 Please note that this is an API documentation. Please refer to the main documentation pages for more information about and how to configure and implement CL algorithms:
 
@@ -18,17 +19,17 @@ Please note that this is an API documentation. Please refer to the main document
 
 """
 
-from .base import CLAlgorithm, UnlearnableCLAlgorithm
+from .base import CLAlgorithm, UnlearnableCLAlgorithm, AmnesiacCLAlgorithm
 
 # finetuning first
-from .finetuning import Finetuning, UnlearnableFinetuning
+from .finetuning import Finetuning, AmnesiacFinetuning
 from .independent import Independent, UnlearnableIndependent
 from .fix import Fix
 from .random import Random
 
-from .lwf import LwF, UnlearnableLwF
-from .ewc import EWC, UnlearnableEWC
-from .der import DER, DERpp
+from .lwf import LwF, AmnesiacLwF
+from .ewc import EWC, AmnesiacEWC
+from .der import DER, DERpp, AmnesiacDER
 from .cbp import CBP
 
 from .hat import HAT
@@ -43,6 +44,7 @@ from .wsn import WSN
 __all__ = [
     "CLAlgorithm",
     "UnlearnableCLAlgorithm",
+    "AmnesiacCLAlgorithm",
     "regularizers",
     "finetuning",
     "independent",

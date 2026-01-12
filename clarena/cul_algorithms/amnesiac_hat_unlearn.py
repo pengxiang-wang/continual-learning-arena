@@ -5,19 +5,18 @@ The submoduule in `cul_algorithms` for AmnesiacHAT unlearning algorithm.
 __all__ = ["AmnesiacHATUnlearn"]
 
 import logging
-from copy import deepcopy
 
 import torch
 from torch import Tensor
 
 from clarena.cl_algorithms.amnesiac_hat import AmnesiacHAT
-from clarena.cul_algorithms import CULAlgorithm
+from clarena.cul_algorithms import AmnesiacCULAlgorithm
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
-class AmnesiacHATUnlearn(CULAlgorithm):
+class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
     r"""The base class of the AmnesiacHAT unlearning algorithm."""
 
     def __init__(
@@ -58,31 +57,6 @@ class AmnesiacHATUnlearn(CULAlgorithm):
         r"""The number of steps to perform fixing with replay after unlearning."""
         self.fix_strategy: str = fix_strategy
         r"""The strategy to perform fixing with replay after unlearning."""
-
-    def delete_update(self, unlearning_task_ids: list[int]) -> None:
-        r"""Delete the update of the specified unlearning task.
-
-        **Args:**
-        - **unlearning_task_id** (`list[int]`): the ID of the unlearning task to delete the update.
-        """
-
-        for unlearning_task_id in unlearning_task_ids:
-            if unlearning_task_id not in self.model.parameters_task_update:
-                pylogger.warning(
-                    "Attempted to delete update for task %d, but it was not found.",
-                    unlearning_task_id,
-                )
-                continue
-
-            # delete the parameter update for the unlearning task so that it won't be used in future parameter constructions
-            del self.model.parameters_task_update[unlearning_task_id]
-
-            # delete the data of the unlearning task from the memory buffer
-            self.model.memory_buffer.delete_task(unlearning_task_id)
-
-        pylogger.info(
-            "Deleted parameter update for unlearning task %s.", unlearning_task_ids
-        )
 
     def compensate_by_backup(self, unlearning_task_ids: list[int]) -> None:
         r"""Compensate the model before unlearning using the backup model.
@@ -276,15 +250,15 @@ class AmnesiacHATUnlearn(CULAlgorithm):
                 opt.step()
 
     def unlearn(self) -> None:
-        r"""Unlearn the requested unlearning tasks in the current task `self.task_id`."""
-        if self.unlearning_task_ids == []:
-            return
+        r"""Unlearn the requested unlearning tasks (`self.unlearning_task_ids`) in the current task `self.task_id`."""
 
-        pylogger.info(
-            "Starting unlearning process for tasks: %s...", self.unlearning_task_ids
-        )
-
+        # delete the corresponding parameter update records
         self.delete_update(self.unlearning_task_ids)
+
+        for unlearning_task_id in self.unlearning_task_ids:
+
+            # delete the data of the unlearning task from the memory buffer
+            self.model.memory_buffer.delete_task(unlearning_task_id)
 
         # # nullify the stored mask for the unlearned task by setting it to zeros
         # if unlearning_task_id in self.model.backbone.masks:
@@ -299,7 +273,7 @@ class AmnesiacHATUnlearn(CULAlgorithm):
         #             torch.zeros_like(mask_tensor)
         #         )
 
-        # after all compensations and deletions are done, reconstruct the model parameters once
+        # reconstruct the model parameters
         self.model.construct_parameters_from_updates()
 
         if self.if_backup_compensation:
@@ -308,5 +282,3 @@ class AmnesiacHATUnlearn(CULAlgorithm):
         if self.if_replay_fixing:
             # fixing with replay must be done after parameter reconstruction
             self.fixing_with_replay(self.unlearning_task_ids)
-
-        pylogger.info("Unlearning process finished.")

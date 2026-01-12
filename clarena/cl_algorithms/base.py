@@ -2,9 +2,10 @@ r"""
 The submodule in `cl_algorithms` for continual learning algorithm bases.
 """
 
-__all__ = ["CLAlgorithm", "UnlearnableCLAlgorithm"]
+__all__ = ["CLAlgorithm", "UnlearnableCLAlgorithm", "AmnesiacCLAlgorithm"]
 
 import logging
+from copy import deepcopy
 from typing import Any
 
 from lightning import LightningModule
@@ -281,7 +282,6 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
 
         self.unlearnable_task_ids = unlearnable_task_ids
 
-
     def aggregated_backbone_output(self, input: Tensor) -> Tensor:
         r"""Get the aggregated backbone output for the input data. All parts of backbones should be aggregated together.
 
@@ -301,3 +301,92 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
         feature = feature / len(self.processed_task_ids)
 
         return feature
+
+
+class AmnesiacCLAlgorithm(UnlearnableCLAlgorithm):
+    r"""The base class of Amnesiac continual learning algorithms.
+
+    The Amnesiac continual learning algorithm refers to the corresponding continual learning model thatd the Amnesiac continual unlearning algorithm requires. The Amnesiac continual unlearning algorithm refers to update deletion operation that directly delete the parameter updates during a task's training. This is inspired by [AmnesiacML](https://arxiv.org/abs/2010.10981) in machine unlearning. In detail, the task-wise parameter updates are stored:
+
+    $$\theta_{l,ij}^{(t)} = \theta_{l,ij}^{(0)} + \sum_{\tau=1}^{t} \Delta \theta_{l,ij}^{(\tau)}$$
+
+    To unlearn $u(t)$, delete these updates:
+
+    $$\theta_{l,ij}^{(t-u(t))} = \theta_{l,ij}^{(t)} - \sum_{\tau\in u(t)}\Delta \theta_{l,ij}^{(\tau)}$$
+
+    It is mainly used in AmnesaicHAT, but can also be used in constructing other vanilla baseline continual unlearning algorithms based on different continual learning algorithms.
+    """
+
+    def __init__(
+        self,
+        backbone: CLBackbone,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
+        non_algorithmic_hparams: dict[str, Any] = {},
+        disable_unlearning: bool = False,
+        **kwargs,
+    ) -> None:
+        r"""
+        **Args:**
+        - **backbone** (`CLBackbone`): backbone network.
+        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **disable_unlearning** (`bool`): whether to disable unlearning. This is used in reference experiments following continual learning pipeline. Default is `False`.
+        - **kwargs**: Reserved for multiple inheritance.
+        """
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+            disable_unlearning=disable_unlearning,
+            **kwargs,
+        )
+
+        self.original_backbone_state_dict: dict[str, Tensor] = deepcopy(
+            backbone.state_dict()
+        )
+        r"""Store the original backbone network state dict. It is a dict where keys are parameter names and values are the corresponding parameter update tensor for the layer. """
+
+        self.parameters_task_update: dict[int, dict[str, Tensor]] = {}
+        r"""Store the parameters update in each task. Keys are task IDs and values are the corresponding parameters update tensor. Each tensor is a dict where keys are parameter names and values are the corresponding parameter update tensor for the layer. """
+
+        self.state_dict_task_start: dict[str, Tensor]
+        r"""Store the backbone state dict at the start of training each task. """
+
+    def on_train_start(self):
+        r"""Store the current state dict at the start of training."""
+        super().on_train_start()
+
+        if self.disable_unlearning:
+            return
+
+        self.state_dict_task_start = deepcopy(self.backbone.state_dict())
+
+    def on_train_end(self):
+        r"""Store the parameters update of a task at the end of its training."""
+        super().on_train_end()
+
+        if self.disable_unlearning:
+            return
+
+        current_state_dict = self.backbone.state_dict()
+        parameters_task_t_update = {}
+
+        # compute the parameters update for the current task
+        for layer_name, current_param_tensor in current_state_dict.items():
+            if layer_name.startswith("backup_backbones."):
+                continue
+            parameters_task_t_update[layer_name] = (
+                current_param_tensor - self.state_dict_task_start[layer_name]
+            )
+
+        # store the parameters update for the current task
+        self.parameters_task_update[self.task_id] = parameters_task_t_update
+
+    def construct_parameters_from_updates(self):
+        r"""Construct the parameters of the model from parameters task updates."""
+        updated_state_dict = deepcopy(self.original_backbone_state_dict)
+        for param_update in self.parameters_task_update.values():
+            for layer_name, param_tensor in param_update.items():
+                updated_state_dict[layer_name] += param_tensor
+
+        self.backbone.load_state_dict(updated_state_dict, strict=False)

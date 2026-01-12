@@ -214,7 +214,13 @@ class CULMainExperiment(CLMainExperiment):
             )
 
             # unlearn
-            self.cul_algorithm.unlearn()
+            if self.task_id in self.unlearning_requests.keys():
+                unlearning_task_ids = self.unlearning_requests[self.task_id]
+                pylogger.info(
+                    "Starting unlearning process for tasks: %s...", unlearning_task_ids
+                )
+                self.cul_algorithm.unlearn()
+                pylogger.info("Unlearning process finished.")
 
             # for unlearning_task_id in self.cul_algorithm.unlearning_task_ids:
             #     self.processed_task_ids.remove(unlearning_task_id)

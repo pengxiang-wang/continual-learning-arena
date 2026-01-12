@@ -2,12 +2,12 @@ r"""
 The submoduule in `cul_algorithms` for continual unlearning alogrithm bases.
 """
 
-__all__ = ["CULAlgorithm"]
+__all__ = ["CULAlgorithm", "AmnesiacCULAlgorithm"]
 
 import logging
 from abc import abstractmethod
 
-from clarena.cl_algorithms import UnlearnableCLAlgorithm
+from clarena.cl_algorithms import AmnesiacCLAlgorithm, UnlearnableCLAlgorithm
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -82,4 +82,61 @@ class CULAlgorithm:
 
     @abstractmethod
     def unlearn(self) -> None:
-        r"""Unlearn the requested unlearning tasks after training `self.task_id`. **It must be implemented in subclasses.**"""
+        r"""Unlearn the requested unlearning tasks (`self.unlearning_task_ids`) after training `self.task_id`. **It must be implemented in subclasses.**"""
+
+
+class AmnesiacCULAlgorithm(CULAlgorithm):
+    r"""The base class of Amnesiac continual unlearning algorithm.
+
+    The Amnesiac continual unlearning algorithm refers to update deletion operation that directly delete the parameter updates during a task's training. This is inspired by [AmnesiacML](https://arxiv.org/abs/2010.10981) in machine unlearning. In detail, the task-wise parameter updates are stored:
+
+    $$\theta_{l,ij}^{(t)} = \theta_{l,ij}^{(0)} + \sum_{\tau=1}^{t} \Delta \theta_{l,ij}^{(\tau)}$$
+
+    To unlearn $u(t)$, delete these updates:
+
+    $$\theta_{l,ij}^{(t-u(t))} = \theta_{l,ij}^{(t)} - \sum_{\tau\in u(t)}\Delta \theta_{l,ij}^{(\tau)}$$
+
+    It is mainly used in AmnesaicHAT, but can also be used in constructing other vanilla baseline continual unlearning algorithms based on different continual learning algorithms.
+    """
+
+    def __init__(
+        self,
+        model: AmnesiacCLAlgorithm,
+    ) -> None:
+        r"""Initialize the unlearning algorithm with the continual learning model.
+
+        **Args:**
+        - **model** (`AmnesiacHAT`): the continual learning model. It must be `AmnesicCLAlgorithm`.
+        """
+        super().__init__(model=model)
+
+    def delete_update(self, unlearning_task_ids: list[int]) -> None:
+        r"""Delete the update of the specified unlearning task.
+
+        **Args:**
+        - **unlearning_task_id** (`list[int]`): the ID of the unlearning task to delete the update.
+        """
+
+        for unlearning_task_id in unlearning_task_ids:
+            if unlearning_task_id not in self.model.parameters_task_update:
+                pylogger.warning(
+                    "Attempted to delete update for task %d, but it was not found.",
+                    unlearning_task_id,
+                )
+                continue
+
+            # delete the parameter update for the unlearning task so that it won't be used in future parameter constructions
+            del self.model.parameters_task_update[unlearning_task_id]
+
+        pylogger.info(
+            "Deleted parameter update for unlearning task %s.", unlearning_task_ids
+        )
+
+    def unlearn(self) -> None:
+        r"""Unlearn the requested unlearning tasks in the current task `self.task_id`."""
+
+        # delete the corresponding parameter update records
+        self.delete_update(self.unlearning_task_ids)
+
+        # reconstruct the model parameters
+        self.model.construct_parameters_from_updates()
