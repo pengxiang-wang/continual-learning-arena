@@ -248,39 +248,13 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
         self.unlearnable_task_ids: list[int]
         r"""The list of task IDs that are unlearnable at the current `self.task_id`."""
 
+        self.task_ids_no_longer_unlearnable: list[int]
+        r"""The list of task IDs that are just no longer unlearnable at the current `self.task_id`."""
+
         UnlearnableCLAlgorithm.sanity_check(self)
 
     def sanity_check(self) -> None:
         r"""Sanity check."""
-
-    def setup_task_id(
-        self,
-        task_id: int,
-        num_classes: int,
-        optimizer: Optimizer,
-        lr_scheduler: LRScheduler | None,
-        unlearnable_task_ids: list[int] | None = None,
-    ) -> None:
-        r"""Set up which task the CL experiment is on. This must be done before `forward()` method is called.
-
-        **Args:**
-        - **task_id** (`int`): the target task ID.
-        - **num_classes** (`int`): the number of classes in the task.
-        - **optimizer** (`Optimizer`): the optimizer object (partially initialized) for the task.
-        - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.
-        - **unlearnable_task_ids** (`list[int]` | `None`): the list of unlearnable task IDs at the current `task_id`. When running as reference experiments which follow continual learning pipeline, this field is left `None`.
-        """
-        super().setup_task_id(
-            task_id=task_id,
-            num_classes=num_classes,
-            optimizer=optimizer,
-            lr_scheduler=lr_scheduler,
-        )
-
-        if self.disable_unlearning:
-            return
-
-        self.unlearnable_task_ids = unlearnable_task_ids
 
     def aggregated_backbone_output(self, input: Tensor) -> Tensor:
         r"""Get the aggregated backbone output for the input data. All parts of backbones should be aggregated together.

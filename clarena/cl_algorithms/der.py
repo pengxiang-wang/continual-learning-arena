@@ -3,10 +3,9 @@ The submodule in `cl_algorithms` for [DER (Dark Experience Replay) algorithm](ht
 and its DER++ variant.
 """
 
-__all__ = ["DER", "DERpp", "AmnesiacDER"]
+__all__ = ["DER", "DERpp", "AmnesiacDER", "AmnesiacDERpp"]
 
 import logging
-from collections import Counter
 from typing import Any, Callable
 
 import torch
@@ -172,8 +171,8 @@ class DERpp(DER):
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
         - **buffer_size** (`int`): the size of the memory buffer. For now we only support fixed size buffer.
-        - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor. It controls the strength of preventing forgetting.
-        - **replay_ce_factor** (`float`): hyperparameter, the classification loss factor for replayed samples.
+        - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor ($\alpha$ in the [DER paper](https://arxiv.org/abs/2004.07211)). It controls the strength of preventing forgetting.
+        - **replay_ce_factor** (`float`): hyperparameter, the classification loss factor for replayed samples, ($\beta$ in the [DER paper](https://arxiv.org/abs/2004.07211)). It also controls the strength of preventing forgetting.
         - **augmentation_transforms** (`transform` or `transforms.Compose` or `None`): the transforms to apply for augmentation after replay sampling. Not to confuse with the data transforms applied to the input of training data. Can be a single transform, composed transforms, or no transform.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
         - **kwargs**: Reserved for multiple inheritance.
@@ -214,9 +213,8 @@ class DERpp(DER):
         logits, activations = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
-        # DER++ adds replay classification loss on top of DER's logit distillation
+        # regularization loss. DER++ adds replay classification loss on top of DER's logit distillation
         loss_reg = 0.0
-        loss_replay = 0.0
 
         if not self.memory_buffer.is_empty():
 
@@ -244,12 +242,12 @@ class DERpp(DER):
                 student_logits=student_logits_replay,
                 teacher_logits=teacher_logits_replay,
             )
-            loss_replay = self.replay_ce_factor * self.criterion(
+            loss_reg += self.replay_ce_factor * self.criterion(
                 student_logits_replay, labels_replay.long()
             )
 
         # total loss
-        loss = loss_cls + loss_reg + loss_replay
+        loss = loss_cls + loss_reg
 
         # predicted labels
         preds = logits.argmax(dim=1)
@@ -267,7 +265,6 @@ class DERpp(DER):
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "loss_reg": loss_reg,
-            "loss_replay": loss_replay,
             "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
             "activations": activations,
         }
@@ -437,3 +434,7 @@ class Buffer:
 
 class AmnesiacDER(AmnesiacCLAlgorithm, DER):
     r"""Amnesiac DER algorithm."""
+
+
+class AmnesiacDERpp(AmnesiacCLAlgorithm, DERpp):
+    r"""Amnesiac DERpp algorithm."""

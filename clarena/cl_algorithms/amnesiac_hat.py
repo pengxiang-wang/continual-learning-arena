@@ -112,7 +112,6 @@ class AmnesiacHAT(AdaHAT, DER, AmnesiacCLAlgorithm):
         num_classes: int,
         optimizer: Optimizer,
         lr_scheduler: LRScheduler | None,
-        unlearnable_task_ids: list[int] | None = None,
     ) -> None:
         r"""Set up which task the CL experiment is on. This must be done before `forward()` method is called.
 
@@ -121,21 +120,19 @@ class AmnesiacHAT(AdaHAT, DER, AmnesiacCLAlgorithm):
         - **num_classes** (`int`): the number of classes in the task.
         - **optimizer** (`Optimizer`): the optimizer object (partially initialized) for the task.
         - **lr_scheduler** (`LRScheduler` | `None`): the learning rate scheduler for the optimizer. If `None`, no scheduler is used.
-        - **unlearnable_task_ids** (`list[int]` | `None`): the list of unlearnable task IDs at the current `task_id`. When running as reference experiments which follow continual learning pipeline, this field is left `None`.
         """
         super().setup_task_id(
             task_id=task_id,
             num_classes=num_classes,
             optimizer=optimizer,
             lr_scheduler=lr_scheduler,
-            unlearnable_task_ids=unlearnable_task_ids,
         )
 
         if self.disable_unlearning:
             return
 
         self.backbone.initialize_backup_backbone(
-            unlearnable_task_ids=unlearnable_task_ids
+            unlearnable_task_ids=self.unlearnable_task_ids
         )
 
     def clip_grad_by_unlearning_mask(
@@ -311,10 +308,8 @@ class AmnesiacHAT(AdaHAT, DER, AmnesiacCLAlgorithm):
         logits = self.heads(feature, task_id)
         if stage == "train" and not self.disable_unlearning:
             backup_logits = {
-                unlearnable_task_id: self.heads(
-                    backup_feature[unlearnable_task_id], task_id
-                )
-                for unlearnable_task_id in self.unlearnable_task_ids
+                backup_task_id: self.heads(backup_feature[backup_task_id], task_id)
+                for backup_task_id in backup_feature.keys()
             }
             return (
                 (logits, backup_logits)
@@ -370,12 +365,10 @@ class AmnesiacHAT(AdaHAT, DER, AmnesiacCLAlgorithm):
         if not self.disable_unlearning:
 
             backup_loss_cls = {
-                unlearnable_task_id: self.criterion(
-                    backup_logits[unlearnable_task_id], y
-                )
-                for unlearnable_task_id in self.unlearnable_task_ids
+                backup_task_id: self.criterion(backup_logits[backup_task_id], y)
+                for backup_task_id in backup_logits.keys()
             }
-            unlearnale_task_num = len(self.unlearnable_task_ids)
+            unlearnale_task_num = len(backup_logits.keys())
 
             backup_loss_cls_total = (
                 sum(backup_loss_cls.values()) / unlearnale_task_num
@@ -529,12 +522,11 @@ class AmnesiacHAT(AdaHAT, DER, AmnesiacCLAlgorithm):
         )
 
         # save backup backbone state dict for unlearning
-        for unlearnable_task_id in self.unlearnable_task_ids:
-            self.backbone.backup_state_dicts[(unlearnable_task_id, self.task_id)] = (
-                deepcopy(
-                    self.backbone.backup_backbones[
-                        f"{unlearnable_task_id}"
-                    ].state_dict()
-                )
+        for backup_task_id in self.backbone.backup_backbones.keys():
+            backup_task_id = int(backup_task_id)
+            self.backbone.backup_state_dicts[(backup_task_id, self.task_id)] = deepcopy(
+                self.backbone.backup_backbones[f"{backup_task_id}"].state_dict()
             )
-        pylogger.info(f"Backup backbone state dicts saved for unlearning tasks.")
+            pylogger.info(
+                f"Backup backbone state dicts saved for unlearning tasks. ({backup_task_id}, {self.task_id})"
+            )

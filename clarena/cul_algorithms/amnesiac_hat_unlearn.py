@@ -7,7 +7,6 @@ __all__ = ["AmnesiacHATUnlearn"]
 import logging
 
 import torch
-from torch import Tensor
 
 from clarena.cl_algorithms.amnesiac_hat import AmnesiacHAT
 from clarena.cul_algorithms import AmnesiacCULAlgorithm

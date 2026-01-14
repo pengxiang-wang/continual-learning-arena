@@ -29,7 +29,8 @@ from .random import Random
 
 from .lwf import LwF, AmnesiacLwF
 from .ewc import EWC, AmnesiacEWC
-from .der import DER, DERpp, AmnesiacDER
+from .der import DER, DERpp, AmnesiacDER, AmnesiacDERpp
+from .clpu_derpp import CLPUDERpp
 from .cbp import CBP
 
 from .hat import HAT

@@ -49,13 +49,6 @@ class CULMainExperiment(CLMainExperiment):
         )
         r"""The dict of task unlearnable ages. Keys are task IDs and values are the unlearnable age of the corresponding task. A task cannot be unlearned when its age (i.e., the number of tasks learned after it) exceeds this value. If `None`, the task is unlearnable at any time."""
 
-        self.permanent_mark: dict[int, bool] = (
-            cfg.permanent_mark
-            if cfg.get("permanent_mark")
-            else {t: True for t in self.train_tasks}
-        )
-        r"""Whether a task is permanent for each task in the experiment. If a task is permanent, it will not be unlearned i.e. not shown in future unlearning requests. This applies to some unlearning algorithms that need to know whether a task is permanent. """
-
     def sanity_check(self) -> None:
         r"""Check the sanity of the config dict `self.cfg`."""
 
@@ -118,22 +111,40 @@ class CULMainExperiment(CLMainExperiment):
         )
 
     def unlearnable_task_ids(self, task_id: int) -> list[int]:
-        r"""Get the list of unlearnable task IDs at the current `self.task_id`.
+        r"""Get the list of unlearnable task IDs at task `task_id`.
 
         **Args:**
         - **task_id** (`int`): the target task ID to check unlearnable task IDs.
 
         **Returns:**
-        - **unlearnable_task_ids** (`list[int]`): the list of unlearnable task IDs at the current `self.task_id`.
+        - **unlearnable_task_ids** (`list[int]`): the list of unlearnable task IDs at task `task_id`.
         """
         unlearnable_task_ids = []
-        for tid in self.processed_task_ids:
+        for tid in range(1, task_id + 1):
             unlearnable_age = self.unlearnable_ages[tid]
-            if unlearnable_age is None or (task_id - tid) <= unlearnable_age:
-
+            if (
+                unlearnable_age is None or (task_id - tid) < unlearnable_age
+            ) and tid not in self.unlearned_task_ids:
                 unlearnable_task_ids.append(tid)
 
         return unlearnable_task_ids
+
+    def task_ids_no_longer_unlearnable(self, task_id: int) -> list[int]:
+        r"""Get the list of task IDs just turning not unlearnable at task `task_id`.
+
+        **Args:**
+        - **task_id** (`int`): the target task ID to check.
+
+        **Returns:**
+        - **task_ids_no_longer_unlearnable** (`list[int]`): the list of task IDs just turning not unlearnable at task `task_id`.
+        """
+        task_ids_no_longer_unlearnable = []
+        for tid in range(1, task_id + 1):
+            unlearnable_age = self.unlearnable_ages[tid]
+            if task_id - unlearnable_age == tid and tid not in self.unlearned_task_ids:
+                task_ids_no_longer_unlearnable.append(tid)
+
+        return task_ids_no_longer_unlearnable
 
     def run(self) -> None:
         r"""The main method to run the continual unlearning main experiment."""
@@ -193,18 +204,19 @@ class CULMainExperiment(CLMainExperiment):
 
             # setup task ID for dataset and model
             self.cl_dataset.setup_task_id(task_id=task_id)
+            self.cul_algorithm.setup_task_id(
+                task_id=self.task_id,
+                unlearning_requests=self.unlearning_requests,
+                unlearnable_task_ids=self.unlearnable_task_ids(self.task_id),
+                task_ids_no_longer_unlearnable=self.task_ids_no_longer_unlearnable(
+                    self.task_id
+                ),
+            )
             self.model.setup_task_id(
                 task_id=task_id,
                 num_classes=len(self.cl_dataset.get_cl_class_map(self.task_id)),
                 optimizer=self.optimizer_t,
                 lr_scheduler=self.lr_scheduler_t,
-                unlearnable_task_ids=self.unlearnable_task_ids(self.task_id),
-            )
-            self.cul_algorithm.setup_task_id(
-                task_id=self.task_id,
-                unlearning_requests=self.unlearning_requests,
-                unlearnable_task_ids=self.unlearnable_task_ids(self.task_id),
-                if_permanent=self.permanent_mark[self.task_id],
             )
 
             # train and validate the model

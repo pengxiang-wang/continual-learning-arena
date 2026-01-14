@@ -28,6 +28,7 @@ from .base import (
 )
 
 from .permuted_mnist import PermutedMNIST
+from .rotated_mnist import RotatedMNIST
 from .permuted_emnist import PermutedEMNIST
 from .permuted_fashionmnist import PermutedFashionMNIST
 from .permuted_kmnist import PermutedKMNIST
@@ -78,6 +79,7 @@ __all__ = [
     "CLCombinedDataset",
     "combined",
     "permuted_mnist",
+    "rotated_mnist",
     "permuted_emnist",
     "permuted_fashionmnist",
     "permuted_imagenette",

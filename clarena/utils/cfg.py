@@ -235,8 +235,6 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
 
         # delete the unlearning configs, since this is a continual learning experiment
         del cfg.cul_algorithm, cfg.unlearning_requests
-        if cfg.get("permanent_mark"):
-            del cfg.permanent_mark
 
         # revise callbacks
         for callback in cfg.callbacks:
@@ -253,8 +251,6 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
 
         # delete the unlearning configs, since this is a continual learning experiment
         del cfg.cul_algorithm, cfg.unlearning_requests
-        if cfg.get("permanent_mark"):
-            del cfg.permanent_mark
 
         # revise callbacks
         for callback in cfg.callbacks:

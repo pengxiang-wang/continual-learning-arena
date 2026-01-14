@@ -48,10 +48,7 @@ class Independent(Finetuning):
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
         - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
-        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic
-          hyperparameters that are not related to the algorithm itself are
-          passed to this `LightningModule` object from the config, such as
-          optimizer and learning rate scheduler configurations.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations.
         - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
@@ -162,7 +159,7 @@ class UnlearnableIndependent(UnlearnableCLAlgorithm, Independent):
         feature = feature / len(self.backbone_valid_task_ids)
         return feature
 
-    
+
 # r"""
 # The submodule in `cl_algorithms` for Independent learning algorithm.
 # """

@@ -26,6 +26,7 @@ from .lwf_unlearn import AmnesiacLwFUnlearn
 from .ewc_unlearn import AmnesiacEWCUnlearn
 from .der_unlearn import AmnesiacDERUnlearn
 
+from .clpu_derpp_unlearn import CLPUDERppUnlearn
 from .amnesiac_hat_unlearn import AmnesiacHATUnlearn
 
 __all__ = [
@@ -36,5 +37,6 @@ __all__ = [
     "lwf_unlearn",
     "ewc_unlearn",
     "der_unlearn",
+    "clpu_derpp_unlearn",
     "amnesiac_hat_unlearn",
 ]

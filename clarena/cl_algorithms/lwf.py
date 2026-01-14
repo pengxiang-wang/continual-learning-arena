@@ -111,7 +111,9 @@ class LwF(Finetuning):
 
         # regularization loss. See equation (2) (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
         loss_reg = 0.0
-        for previous_task_id in range(1, self.task_id):
+        for previous_task_id in self.processed_task_ids:
+            if previous_task_id == self.task_id:
+                continue
             # sum over all previous models, because [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520) says: "If there are multiple old tasks, or if an old task is multi-label classification, we take the sum of the loss for each old task and label."
 
             # get the student logits for this batch using the current model (to previous output head)

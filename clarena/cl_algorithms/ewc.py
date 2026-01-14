@@ -127,7 +127,9 @@ class EWC(Finetuning):
                 )
 
         loss_reg = 0.0
-        for previous_task_id in range(1, self.task_id):
+        for previous_task_id in self.processed_task_ids:
+            if previous_task_id == self.task_id:
+                continue
             loss_reg += 0.5 * self.parameter_change_reg(
                 target_model=self.backbone,
                 ref_model=self.previous_task_backbones[previous_task_id],
