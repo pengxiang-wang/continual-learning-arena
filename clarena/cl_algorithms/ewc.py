@@ -195,6 +195,42 @@ class EWC(Finetuning):
 class AmnesiacEWC(AmnesiacCLAlgorithm, EWC):
     r"""Amnesiac EWC algorithm."""
 
+    def __init__(
+        self,
+        backbone: CLBackbone,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
+        non_algorithmic_hparams: dict[str, Any] = {},
+        disable_unlearning: bool = False,
+        **kwargs,
+    ) -> None:
+        r"""Initialize the Amnesiac EWC algorithm with the network.
+
+
+        **Args:**
+        - **backbone** (`CLBackbone`): backbone network.
+        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
+        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
+        - **disable_unlearning** (`bool`): whether to disable the unlearning functionality. Default is `False`.
+        - **kwargs**: Reserved for multiple inheritance.
+        """
+        super().__init__(
+            backbone=backbone,
+            heads=heads,
+            non_algorithmic_hparams=non_algorithmic_hparams,
+            disable_unlearning=disable_unlearning,
+            **kwargs,
+        )
+
+    def on_train_start(self) -> None:
+        """Record backbone parameters before training current task."""
+        EWC.on_train_start(self)
+        AmnesiacCLAlgorithm.on_train_start(self)
+
+    def on_train_end(self) -> None:
+        """Record backbone parameters before training current task."""
+        EWC.on_train_end(self)
+        AmnesiacCLAlgorithm.on_train_end(self)
+
 
 # class UnlearnableEWC(UnlearnableCLAlgorithm, EWC):
 #     r"""Unlearnable EWC algorithm.

@@ -6,7 +6,6 @@ __all__ = ["CLPUDERpp"]
 
 import logging
 from copy import deepcopy
-from heapq import merge
 from typing import Any, Callable
 
 import torch
@@ -95,9 +94,9 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
 
         # initialise a temporary backbone for the current task (if it is temporary)
         if self.task_id not in self.task_ids_no_longer_unlearnable:
-            self.temporary_backbones[self.task_id] = deepcopy(self.backbone)
+            self.temporary_backbones[f"{self.task_id}"] = deepcopy(self.backbone)
             if self.temporary_backbone_init_mode == "from_scratch":
-                self.temporary_backbones[self.task_id].load_state_dict(
+                self.temporary_backbones[f"{self.task_id}"].load_state_dict(
                     self.original_backbone_state_dict
                 )
 
@@ -105,10 +104,100 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
         for tid in self.task_ids_no_longer_unlearnable:
 
             self.merge_temporary_backbone_to_main(tid)
-            del self.temporary_backbones[tid]
+            del self.temporary_backbones[f"{tid}"]
 
     def merge_temporary_backbone_to_main(self, task_id: int) -> None:
         r"""Merge the temporary backbone for `task_id` into the main backbone using replay."""
+        temp_key: int | str = task_id
+        if temp_key not in self.temporary_backbones:
+            temp_key = str(task_id)
+        if temp_key not in self.temporary_backbones:
+            pylogger.warning("No temporary backbone found for task %d.", task_id)
+            return
+
+        if self.merge_iters <= 0:
+            pylogger.warning("No merge steps configured for task %d.", task_id)
+            return
+        if self.merge_batch_size <= 0:
+            pylogger.warning("Invalid merge batch size for task %d.", task_id)
+            return
+
+        for param in self.backbone.parameters():
+            param.requires_grad = True
+        for param in self.temporary_backbones[temp_key].parameters():
+            param.requires_grad = False
+
+        optimizer = self.optimizer_t(
+            params=[p for p in self.parameters() if p.requires_grad]
+        )
+
+        temporary_task_ids = {int(tid) for tid in self.temporary_backbones.keys()}
+        unlearned_task_ids = getattr(self, "unlearned_task_ids", set())
+
+        replay_task_ids: list[int] = []
+        if self.memory_buffer.task_labels.numel() > 0:
+            buffer_task_ids = torch.unique(self.memory_buffer.task_labels).tolist()
+            replay_task_ids = [
+                int(tid)
+                for tid in buffer_task_ids
+                if int(tid) != task_id
+                and int(tid) not in temporary_task_ids
+                and int(tid) not in unlearned_task_ids
+            ]
+
+        self.train()
+        for _ in range(self.merge_iters):
+            loss = 0.0
+
+            if replay_task_ids:
+                x_replay, labels_replay, logits_replay, task_labels_replay = (
+                    self.memory_buffer.get_data(
+                        size=self.merge_batch_size,
+                        included_tasks=replay_task_ids,
+                    )
+                )
+                if x_replay.numel() > 0:
+                    if self.augmentation_transforms:
+                        x_replay = self.augmentation_transforms(x_replay)
+
+                    student_feature_replay, _ = self.backbone(x_replay, stage="test")
+                    student_logits_replay = torch.cat(
+                        [
+                            self.heads(
+                                student_feature_replay[i].unsqueeze(0),
+                                task_id=int(task_labels_replay[i].item()),
+                            )
+                            for i in range(task_labels_replay.numel())
+                        ]
+                    )
+
+                    loss += self.distillation_reg(
+                        student_logits=student_logits_replay,
+                        teacher_logits=logits_replay,
+                    )
+                    loss += self.replay_ce_factor * self.criterion(
+                        student_logits_replay, labels_replay.long()
+                    )
+
+            x_t, y_t, logits_t, _ = self.memory_buffer.get_data(
+                size=self.merge_batch_size, included_tasks=[task_id]
+            )
+            if x_t.numel() == 0:
+                continue
+
+            if self.augmentation_transforms:
+                x_t = self.augmentation_transforms(x_t)
+
+            student_feature_t, _ = self.backbone(x_t, stage="test", task_id=task_id)
+            student_logits_t = self.heads(student_feature_t, task_id)
+            loss += self.replay_ce_factor * self.criterion(student_logits_t, y_t.long())
+            loss += self.distillation_reg(
+                student_logits=student_logits_t, teacher_logits=logits_t
+            )
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
     def forward(self, input: Tensor, stage: str, task_id: int | None = None) -> Tensor:
         r"""Forward pass that routes temporary tasks to their independent backbones.
@@ -220,381 +309,392 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
         }
 
 
-class CLPUDERpp(DERpp):
-    r"""CLPU-DER++ algorithm.
+# class CLPUDERpp(DERpp):
+#     r"""CLPU-DER++ algorithm.
 
-    This is a continual learning variant of DER++ that supports temporary (private)
-    task learning via side backbones. Temporary tasks are excluded from replay
-    and can later be consolidated into the main backbone via `finally_learn()`.
-    """
+#     This is a continual learning variant of DER++ that supports temporary (private)
+#     task learning via side backbones. Temporary tasks are excluded from replay
+#     and can later be consolidated into the main backbone via `finally_learn()`.
+#     """
 
-    def __init__(
-        self,
-        backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL | HeadDIL,
-        buffer_size: int,
-        distillation_reg_factor: float,
-        replay_ce_factor: float,
-        use_pretrain: bool = False,
-        merge_iters: int | None = None,
-        merge_batch_size: int | None = None,
-        augmentation_transforms: Callable | transforms.Compose | None = None,
-        non_algorithmic_hparams: dict[str, Any] = {},
-        **kwargs,
-    ) -> None:
-        r"""Initialize the CLPU-DER++ algorithm with the network.
+#     def __init__(
+#         self,
+#         backbone: CLBackbone,
+#         heads: HeadsTIL | HeadsCIL | HeadDIL,
+#         buffer_size: int,
+#         distillation_reg_factor: float,
+#         replay_ce_factor: float,
+#         use_pretrain: bool = False,
+#         merge_iters: int | None = None,
+#         merge_batch_size: int | None = None,
+#         augmentation_transforms: Callable | transforms.Compose | None = None,
+#         non_algorithmic_hparams: dict[str, Any] = {},
+#         **kwargs,
+#     ) -> None:
+#         r"""Initialize the CLPU-DER++ algorithm with the network.
 
-        **Args:**
-        - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
-        - **buffer_size** (`int`): the size of the memory buffer.
-        - **distillation_reg_factor** (`float`): distillation regularization factor.
-        - **replay_ce_factor** (`float`): classification loss factor for replayed samples.
-        - **use_pretrain** (`bool`): whether to initialize side backbones from the
-          current backbone weights when temporarily learning.
-        - **merge_iters** (`int` | `None`): number of optimization steps to merge a
-          temporary task back into the main backbone.
-        - **merge_batch_size** (`int` | `None`): batch size used for merge replay.
-        - **augmentation_transforms** (`transform` or `transforms.Compose` or `None`):
-          transforms to apply for augmentation after replay sampling.
-        - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters
-          passed to `save_hyperparameters()`.
-        - **kwargs**: Reserved for multiple inheritance.
-        """
-        super().__init__(
-            backbone=backbone,
-            heads=heads,
-            buffer_size=buffer_size,
-            distillation_reg_factor=distillation_reg_factor,
-            replay_ce_factor=replay_ce_factor,
-            augmentation_transforms=augmentation_transforms,
-            non_algorithmic_hparams=non_algorithmic_hparams,
-            **kwargs,
-        )
+#         **Args:**
+#         - **backbone** (`CLBackbone`): backbone network.
+#         - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
+#         - **buffer_size** (`int`): the size of the memory buffer.
+#         - **distillation_reg_factor** (`float`): distillation regularization factor.
+#         - **replay_ce_factor** (`float`): classification loss factor for replayed samples.
+#         - **use_pretrain** (`bool`): whether to initialize side backbones from the
+#           current backbone weights when temporarily learning.
+#         - **merge_iters** (`int` | `None`): number of optimization steps to merge a
+#           temporary task back into the main backbone.
+#         - **merge_batch_size** (`int` | `None`): batch size used for merge replay.
+#         - **augmentation_transforms** (`transform` or `transforms.Compose` or `None`):
+#           transforms to apply for augmentation after replay sampling.
+#         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters
+#           passed to `save_hyperparameters()`.
+#         - **kwargs**: Reserved for multiple inheritance.
+#         """
+#         super().__init__(
+#             backbone=backbone,
+#             heads=heads,
+#             buffer_size=buffer_size,
+#             distillation_reg_factor=distillation_reg_factor,
+#             replay_ce_factor=replay_ce_factor,
+#             augmentation_transforms=augmentation_transforms,
+#             non_algorithmic_hparams=non_algorithmic_hparams,
+#             **kwargs,
+#         )
 
-        self.use_pretrain: bool = use_pretrain
-        r"""Whether to initialize side backbones from the current backbone."""
+#         self.use_pretrain: bool = use_pretrain
+#         r"""Whether to initialize side backbones from the current backbone."""
 
-        self.merge_iters: int | None = merge_iters
-        r"""Number of optimization steps used to merge a temporary task."""
+#         self.merge_iters: int | None = merge_iters
+#         r"""Number of optimization steps used to merge a temporary task."""
 
-        self.merge_batch_size: int | None = merge_batch_size
-        r"""Batch size used during merge optimization."""
+#         self.merge_batch_size: int | None = merge_batch_size
+#         r"""Batch size used during merge optimization."""
 
-        self.side_backbones: nn.ModuleDict = nn.ModuleDict()
-        r"""Side backbones for temporarily learned tasks, keyed by task id."""
+#         self.side_backbones: nn.ModuleDict = nn.ModuleDict()
+#         r"""Side backbones for temporarily learned tasks, keyed by task id."""
 
-        self.task_status: dict[int, str] = {}
-        r"""Task status map: 'R' for remembered, 'T' for temporary, 'F' for forgotten."""
+#         self.task_status: dict[int, str] = {}
+#         r"""Task status map: 'R' for remembered, 'T' for temporary, 'F' for forgotten."""
 
-        self.remembered_task_ids: set[int] = set()
-        r"""Tasks consolidated into the main backbone."""
+#         self.remembered_task_ids: set[int] = set()
+#         r"""Tasks consolidated into the main backbone."""
 
-        self.temporary_task_ids: set[int] = set()
-        r"""Tasks stored in side backbones and excluded from replay."""
+#         self.temporary_task_ids: set[int] = set()
+#         r"""Tasks stored in side backbones and excluded from replay."""
 
-        self._task_train_iters: dict[int, int] = {}
-        r"""Number of training iterations recorded per task."""
+#         self._task_train_iters: dict[int, int] = {}
+#         r"""Number of training iterations recorded per task."""
 
-        self._last_batch_size: int | None = None
-        r"""Last observed batch size, used as fallback in merge."""
+#         self._last_batch_size: int | None = None
+#         r"""Last observed batch size, used as fallback in merge."""
 
-        self.save_hyperparameters("use_pretrain", "merge_iters", "merge_batch_size")
+#         self.save_hyperparameters("use_pretrain", "merge_iters", "merge_batch_size")
 
-    def setup_task_id(
-        self,
-        task_id: int,
-        num_classes: int,
-        optimizer: torch.optim.Optimizer,
-        lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None,
-        unlearnable_task_ids: list[int] | None = None,
-    ) -> None:
-        r"""Set up which task the CL experiment is on.
+#     def setup_task_id(
+#         self,
+#         task_id: int,
+#         num_classes: int,
+#         optimizer: torch.optim.Optimizer,
+#         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None,
+#         unlearnable_task_ids: list[int] | None = None,
+#     ) -> None:
+#         r"""Set up which task the CL experiment is on.
 
-        Accepts an optional `unlearnable_task_ids` argument for compatibility with
-        continual unlearning pipelines.
-        """
-        super().setup_task_id(
-            task_id=task_id,
-            num_classes=num_classes,
-            optimizer=optimizer,
-            lr_scheduler=lr_scheduler,
-        )
+#         Accepts an optional `unlearnable_task_ids` argument for compatibility with
+#         continual unlearning pipelines.
+#         """
+#         super().setup_task_id(
+#             task_id=task_id,
+#             num_classes=num_classes,
+#             optimizer=optimizer,
+#             lr_scheduler=lr_scheduler,
+#         )
 
-        # Default to permanent if the pipeline does not provide this flag.
-        if_permanent = getattr(self, "if_permanent_t", True)
+#         # Default to permanent if the pipeline does not provide this flag.
+#         if_permanent = getattr(self, "if_permanent_t", True)
 
-        if if_permanent:
-            self.task_status[task_id] = "R"
-        else:
-            self.task_status[task_id] = "T"
-            self._ensure_side_backbone(task_id)
+#         if if_permanent:
+#             self.task_status[task_id] = "R"
+#         else:
+#             self.task_status[task_id] = "T"
+#             self._ensure_side_backbone(task_id)
 
-    def on_train_start(self) -> None:
-        super().on_train_start()
+#     def on_train_start(self) -> None:
+#         super().on_train_start()
 
-        is_temporary = self._is_temporary_task(self.task_id)
-        if is_temporary:
-            self._set_requires_grad(self.backbone, False)
-            self._set_requires_grad(self._get_side_backbone(self.task_id), True)
-        else:
-            self._set_requires_grad(self.backbone, True)
-            for backbone in self.side_backbones.values():
-                self._set_requires_grad(backbone, False)
+#         is_temporary = self._is_temporary_task(self.task_id)
+#         if is_temporary:
+#             self._set_requires_grad(self.backbone, False)
+#             self._set_requires_grad(self._get_side_backbone(self.task_id), True)
+#         else:
+#             self._set_requires_grad(self.backbone, True)
+#             for backbone in self.side_backbones.values():
+#                 self._set_requires_grad(backbone, False)
 
-        if self.trainer is not None:
-            self._task_train_iters[self.task_id] = int(
-                self.trainer.num_training_batches * self.trainer.max_epochs
-            )
+#         if self.trainer is not None:
+#             self._task_train_iters[self.task_id] = int(
+#                 self.trainer.num_training_batches * self.trainer.max_epochs
+#             )
 
-    def on_train_end(self) -> None:
-        super().on_train_end()
+#     def on_train_end(self) -> None:
+#         super().on_train_end()
 
-        if self._is_temporary_task(self.task_id):
-            self.temporary_task_ids.add(self.task_id)
-        else:
-            self.remembered_task_ids.add(self.task_id)
+#         if self._is_temporary_task(self.task_id):
+#             self.temporary_task_ids.add(self.task_id)
+#         else:
+#             self.remembered_task_ids.add(self.task_id)
 
-    def forward(self, input: Tensor, stage: str, task_id: int | None = None) -> Tensor:
-        r"""Forward pass that routes temporary tasks to side backbones."""
-        backbone = self._select_backbone(task_id)
-        feature, activations = backbone(input, stage=stage, task_id=task_id)
-        logits = self.heads(feature, task_id)
-        return (
-            logits if self.if_forward_func_return_logits_only else (logits, activations)
-        )
+#     def forward(self, input: Tensor, stage: str, task_id: int | None = None) -> Tensor:
+#         r"""Forward pass that routes temporary tasks to side backbones."""
+#         backbone = self._select_backbone(task_id)
+#         feature, activations = backbone(input, stage=stage, task_id=task_id)
+#         logits = self.heads(feature, task_id)
+#         return (
+#             logits if self.if_forward_func_return_logits_only else (logits, activations)
+#         )
 
-    def training_step(self, batch: Any) -> dict[str, Tensor]:
-        """Training step for current task `self.task_id`."""
-        x, y = batch
-        self._last_batch_size = len(y)
+#     def training_step(self, batch: Any) -> dict[str, Tensor]:
+#         """Training step for current task `self.task_id`."""
+#         x, y = batch
+#         self._last_batch_size = len(y)
 
-        if self.augmentation_transforms:
-            x = self.augmentation_transforms(x)
+#         if self.augmentation_transforms:
+#             x = self.augmentation_transforms(x)
 
-        logits, activations = self.forward(x, stage="train", task_id=self.task_id)
-        loss_cls = self.criterion(logits, y)
+#         logits, activations = self.forward(x, stage="train", task_id=self.task_id)
+#         loss_cls = self.criterion(logits, y)
 
-        loss_reg = 0.0
-        loss_replay = 0.0
+#         loss_reg = 0.0
+#         loss_replay = 0.0
 
-        if (
-            not self._is_temporary_task(self.task_id)
-            and not self.memory_buffer.is_empty()
-        ):
-            replay_task_ids = self._replay_task_ids(exclude_task_id=self.task_id)
-            if replay_task_ids:
-                x_replay, labels_replay, logits_replay, task_labels_replay = (
-                    self.memory_buffer.get_data(
-                        size=self._last_batch_size,
-                        included_tasks=replay_task_ids,
-                    )
-                )
+#         if (
+#             not self._is_temporary_task(self.task_id)
+#             and not self.memory_buffer.is_empty()
+#         ):
+#             replay_task_ids = self._replay_task_ids(exclude_task_id=self.task_id)
+#             if replay_task_ids:
+#                 x_replay, labels_replay, logits_replay, task_labels_replay = (
+#                     self.memory_buffer.get_data(
+#                         size=self._last_batch_size,
+#                         included_tasks=replay_task_ids,
+#                     )
+#                 )
 
-                if x_replay.numel() > 0:
-                    if self.augmentation_transforms:
-                        x_replay = self.augmentation_transforms(x_replay)
+#                 if x_replay.numel() > 0:
+#                     if self.augmentation_transforms:
+#                         x_replay = self.augmentation_transforms(x_replay)
 
-                    student_feature_replay, _ = self.backbone(x_replay, stage="test")
-                    student_logits_replay = torch.cat(
-                        [
-                            self.heads(
-                                student_feature_replay[i].unsqueeze(0),
-                                task_id=int(task_labels_replay[i].item()),
-                            )
-                            for i in range(task_labels_replay.numel())
-                        ]
-                    )
-                    with torch.no_grad():
-                        teacher_logits_replay = logits_replay
+#                     student_feature_replay, _ = self.backbone(x_replay, stage="test")
+#                     student_logits_replay = torch.cat(
+#                         [
+#                             self.heads(
+#                                 student_feature_replay[i].unsqueeze(0),
+#                                 task_id=int(task_labels_replay[i].item()),
+#                             )
+#                             for i in range(task_labels_replay.numel())
+#                         ]
+#                     )
+#                     with torch.no_grad():
+#                         teacher_logits_replay = logits_replay
 
-                    loss_reg = self.distillation_reg(
-                        student_logits=student_logits_replay,
-                        teacher_logits=teacher_logits_replay,
-                    )
-                    loss_replay = self.replay_ce_factor * self.criterion(
-                        student_logits_replay, labels_replay.long()
-                    )
+#                     loss_reg = self.distillation_reg(
+#                         student_logits=student_logits_replay,
+#                         teacher_logits=teacher_logits_replay,
+#                     )
+#                     loss_replay = self.replay_ce_factor * self.criterion(
+#                         student_logits_replay, labels_replay.long()
+#                     )
 
-        loss = loss_cls + loss_reg + loss_replay
-        preds = logits.argmax(dim=1)
-        acc = (preds == y).float().mean()
+#         loss = loss_cls + loss_reg + loss_replay
+#         preds = logits.argmax(dim=1)
+#         acc = (preds == y).float().mean()
 
-        # store current batch into replay buffer (teacher logits from current backbone)
-        self.memory_buffer.add_data(
-            x, y, logits.detach(), torch.full_like(y, self.task_id)
-        )
+#         # store current batch into replay buffer (teacher logits from current backbone)
+#         self.memory_buffer.add_data(
+#             x, y, logits.detach(), torch.full_like(y, self.task_id)
+#         )
 
-        return {
-            "preds": preds,
-            "loss": loss,
-            "loss_cls": loss_cls,
-            "loss_reg": loss_reg,
-            "loss_replay": loss_replay,
-            "acc": acc,
-            "activations": activations,
-        }
+#         return {
+#             "preds": preds,
+#             "loss": loss,
+#             "loss_cls": loss_cls,
+#             "loss_reg": loss_reg,
+#             "loss_replay": loss_replay,
+#             "acc": acc,
+#             "activations": activations,
+#         }
 
-    def finally_learn(
-        self,
-        task_id: int,
-        num_steps: int | None = None,
-        batch_size: int | None = None,
-    ) -> None:
-        r"""Merge a temporarily learned task into the main backbone using replay."""
-        side_key = str(task_id)
-        if side_key not in self.side_backbones:
-            pylogger.warning("No side backbone found for task %d.", task_id)
-            return
+#     def merge_temporary_backbone_to_main(
+#         self,
+#         task_id: int,
+#         num_steps: int | None = None,
+#         batch_size: int | None = None,
+#     ) -> None:
+#         r"""Merge a temporarily learned task into the main backbone using replay."""
+#         side_key = str(task_id)
+#         if side_key not in self.side_backbones:
+#             pylogger.warning("No side backbone found for task %d.", task_id)
+#             return
 
-        if num_steps is None:
-            num_steps = (
-                self.merge_iters
-                if self.merge_iters is not None
-                else self._task_train_iters.get(task_id, 0)
-            )
-        if num_steps <= 0:
-            pylogger.warning("No merge steps configured for task %d.", task_id)
-            return
+#         if num_steps is None:
+#             num_steps = (
+#                 self.merge_iters
+#                 if self.merge_iters is not None
+#                 else self._task_train_iters.get(task_id, 0)
+#             )
+#         if num_steps <= 0:
+#             pylogger.warning("No merge steps configured for task %d.", task_id)
+#             return
 
-        if batch_size is None:
-            batch_size = (
-                self.merge_batch_size
-                if self.merge_batch_size is not None
-                else (self._last_batch_size or 0)
-            )
-            if batch_size <= 0:
-                available = int(self.memory_buffer.labels.size(0))
-                batch_size = min(32, max(1, available))
+#         if batch_size is None:
+#             batch_size = (
+#                 self.merge_batch_size
+#                 if self.merge_batch_size is not None
+#                 else (self._last_batch_size or 0)
+#             )
+#             if batch_size <= 0:
+#                 available = int(self.memory_buffer.labels.size(0))
+#                 batch_size = min(32, max(1, available))
 
-        self._set_requires_grad(self.backbone, True)
-        self._set_requires_grad(self.side_backbones[side_key], False)
+#         self._set_requires_grad(self.backbone, True)
+#         self._set_requires_grad(self.side_backbones[side_key], False)
 
-        optimizer = self.optimizer_t(
-            params=[p for p in self.parameters() if p.requires_grad]
-        )
+#         optimizer = self.optimizer_t(
+#             params=[p for p in self.parameters() if p.requires_grad]
+#         )
 
-        self.train()
-        for _ in range(num_steps):
-            loss = 0.0
+#         self.train()
+#         for _ in range(num_steps):
+#             loss = 0.0
 
-            replay_task_ids = self._replay_task_ids(exclude_task_id=task_id)
-            if replay_task_ids:
-                x_replay, labels_replay, logits_replay, task_labels_replay = (
-                    self.memory_buffer.get_data(
-                        size=batch_size, included_tasks=replay_task_ids
-                    )
-                )
-                if x_replay.numel() > 0:
-                    if self.augmentation_transforms:
-                        x_replay = self.augmentation_transforms(x_replay)
+#             replay_task_ids = self._replay_task_ids(exclude_task_id=task_id)
+#             if replay_task_ids:
+#                 x_replay, labels_replay, logits_replay, task_labels_replay = (
+#                     self.memory_buffer.get_data(
+#                         size=batch_size, included_tasks=replay_task_ids
+#                     )
+#                 )
+#                 if x_replay.numel() > 0:
+#                     if self.augmentation_transforms:
+#                         x_replay = self.augmentation_transforms(x_replay)
 
-                    student_feature_replay, _ = self.backbone(x_replay, stage="test")
-                    student_logits_replay = torch.cat(
-                        [
-                            self.heads(
-                                student_feature_replay[i].unsqueeze(0),
-                                task_id=int(task_labels_replay[i].item()),
-                            )
-                            for i in range(task_labels_replay.numel())
-                        ]
-                    )
+#                     student_feature_replay, _ = self.backbone(x_replay, stage="test")
+#                     student_logits_replay = torch.cat(
+#                         [
+#                             self.heads(
+#                                 student_feature_replay[i].unsqueeze(0),
+#                                 task_id=int(task_labels_replay[i].item()),
+#                             )
+#                             for i in range(task_labels_replay.numel())
+#                         ]
+#                     )
 
-                    loss += self.distillation_reg(
-                        student_logits=student_logits_replay,
-                        teacher_logits=logits_replay,
-                    )
-                    loss += self.replay_ce_factor * self.criterion(
-                        student_logits_replay, labels_replay.long()
-                    )
+#                     loss += self.distillation_reg(
+#                         student_logits=student_logits_replay,
+#                         teacher_logits=logits_replay,
+#                     )
+#                     loss += self.replay_ce_factor * self.criterion(
+#                         student_logits_replay, labels_replay.long()
+#                     )
 
-            x_t, y_t, logits_t, _ = self.memory_buffer.get_data(
-                size=batch_size, included_tasks=[task_id]
-            )
-            if x_t.numel() == 0:
-                continue
+#             x_t, y_t, logits_t, _ = self.memory_buffer.get_data(
+#                 size=batch_size, included_tasks=[task_id]
+#             )
+#             if x_t.numel() == 0:
+#                 continue
 
-            if self.augmentation_transforms:
-                x_t = self.augmentation_transforms(x_t)
+#             if self.augmentation_transforms:
+#                 x_t = self.augmentation_transforms(x_t)
 
-            student_feature_t, _ = self.backbone(x_t, stage="test", task_id=task_id)
-            student_logits_t = self.heads(student_feature_t, task_id)
-            loss += self.replay_ce_factor * self.criterion(student_logits_t, y_t.long())
-            loss += self.distillation_reg(
-                student_logits=student_logits_t, teacher_logits=logits_t
-            )
+#             student_feature_t, _ = self.backbone(x_t, stage="test", task_id=task_id)
+#             student_logits_t = self.heads(student_feature_t, task_id)
+#             loss += self.replay_ce_factor * self.criterion(student_logits_t, y_t.long())
+#             loss += self.distillation_reg(
+#                 student_logits=student_logits_t, teacher_logits=logits_t
+#             )
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+#             optimizer.zero_grad()
+#             loss.backward()
+#             optimizer.step()
 
-        del self.side_backbones[side_key]
-        self.temporary_task_ids.discard(task_id)
-        self.remembered_task_ids.add(task_id)
-        self.task_status[task_id] = "R"
+#         del self.side_backbones[side_key]
+#         self.temporary_task_ids.discard(task_id)
+#         self.remembered_task_ids.add(task_id)
+#         self.task_status[task_id] = "R"
 
-    def forget(self, task_id: int) -> None:
-        r"""Forget a temporarily learned task by removing its replay data and side backbone."""
-        self.memory_buffer.delete_task(task_id)
-        side_key = str(task_id)
-        if side_key in self.side_backbones:
-            del self.side_backbones[side_key]
+#     def finally_learn(
+#         self,
+#         task_id: int,
+#         num_steps: int | None = None,
+#         batch_size: int | None = None,
+#     ) -> None:
+#         r"""Merge a temporarily learned task into the main backbone using replay."""
+#         self.merge_temporary_backbone_to_main(
+#             task_id=task_id, num_steps=num_steps, batch_size=batch_size
+#         )
 
-        self.task_status[task_id] = "F"
-        self.temporary_task_ids.discard(task_id)
-        self.remembered_task_ids.discard(task_id)
-        self._reset_task_head(task_id)
+#     def forget(self, task_id: int) -> None:
+#         r"""Forget a temporarily learned task by removing its replay data and side backbone."""
+#         self.memory_buffer.delete_task(task_id)
+#         side_key = str(task_id)
+#         if side_key in self.side_backbones:
+#             del self.side_backbones[side_key]
 
-    def _is_temporary_task(self, task_id: int | None) -> bool:
-        return task_id is not None and self.task_status.get(task_id) == "T"
+#         self.task_status[task_id] = "F"
+#         self.temporary_task_ids.discard(task_id)
+#         self.remembered_task_ids.discard(task_id)
+#         self._reset_task_head(task_id)
 
-    def _replay_task_ids(self, exclude_task_id: int | None = None) -> list[int]:
-        replay_tasks = [
-            task_id for task_id, status in self.task_status.items() if status == "R"
-        ]
-        if exclude_task_id is not None:
-            replay_tasks = [t for t in replay_tasks if t != exclude_task_id]
-        return replay_tasks
+#     def _is_temporary_task(self, task_id: int | None) -> bool:
+#         return task_id is not None and self.task_status.get(task_id) == "T"
 
-    def _ensure_side_backbone(self, task_id: int) -> None:
-        side_key = str(task_id)
-        if side_key in self.side_backbones:
-            return
+#     def _replay_task_ids(self, exclude_task_id: int | None = None) -> list[int]:
+#         replay_tasks = [
+#             task_id for task_id, status in self.task_status.items() if status == "R"
+#         ]
+#         if exclude_task_id is not None:
+#             replay_tasks = [t for t in replay_tasks if t != exclude_task_id]
+#         return replay_tasks
 
-        side_backbone = deepcopy(self.backbone)
-        if not self.use_pretrain:
-            self._reset_module_parameters(side_backbone)
-        side_backbone.setup_task_id(task_id=task_id)
-        self.side_backbones[side_key] = side_backbone
+#     def _ensure_side_backbone(self, task_id: int) -> None:
+#         side_key = str(task_id)
+#         if side_key in self.side_backbones:
+#             return
 
-    def _select_backbone(self, task_id: int | None) -> CLBackbone:
-        if task_id is None:
-            return self.backbone
-        side_key = str(task_id)
-        if side_key in self.side_backbones and self._is_temporary_task(task_id):
-            return self.side_backbones[side_key]
-        return self.backbone
+#         side_backbone = deepcopy(self.backbone)
+#         if not self.use_pretrain:
+#             self._reset_module_parameters(side_backbone)
+#         side_backbone.setup_task_id(task_id=task_id)
+#         self.side_backbones[side_key] = side_backbone
 
-    def _get_side_backbone(self, task_id: int) -> CLBackbone:
-        return self.side_backbones[str(task_id)]
+#     def _select_backbone(self, task_id: int | None) -> CLBackbone:
+#         if task_id is None:
+#             return self.backbone
+#         side_key = str(task_id)
+#         if side_key in self.side_backbones and self._is_temporary_task(task_id):
+#             return self.side_backbones[side_key]
+#         return self.backbone
 
-    @staticmethod
-    def _set_requires_grad(module: nn.Module, requires_grad: bool) -> None:
-        for param in module.parameters():
-            param.requires_grad = requires_grad
+#     def _get_side_backbone(self, task_id: int) -> CLBackbone:
+#         return self.side_backbones[str(task_id)]
 
-    @staticmethod
-    def _reset_module_parameters(module: nn.Module) -> None:
-        for submodule in module.modules():
-            if hasattr(submodule, "reset_parameters"):
-                submodule.reset_parameters()
+#     @staticmethod
+#     def _set_requires_grad(module: nn.Module, requires_grad: bool) -> None:
+#         for param in module.parameters():
+#             param.requires_grad = requires_grad
 
-    def _reset_task_head(self, task_id: int) -> None:
-        if isinstance(self.heads, HeadsTIL):
-            key = f"{task_id}"
-            if key in self.heads.heads:
-                self.heads.heads[key].reset_parameters()
-        elif isinstance(self.heads, HeadsCIL):
-            key = f"{task_id}"
-            if key in self.heads.heads:
-                self.heads.heads[key].reset_parameters()
+#     @staticmethod
+#     def _reset_module_parameters(module: nn.Module) -> None:
+#         for submodule in module.modules():
+#             if hasattr(submodule, "reset_parameters"):
+#                 submodule.reset_parameters()
+
+#     def _reset_task_head(self, task_id: int) -> None:
+#         if isinstance(self.heads, HeadsTIL):
+#             key = f"{task_id}"
+#             if key in self.heads.heads:
+#                 self.heads.heads[key].reset_parameters()
+#         elif isinstance(self.heads, HeadsCIL):
+#             key = f"{task_id}"
+#             if key in self.heads.heads:
+#                 self.heads.heads[key].reset_parameters()

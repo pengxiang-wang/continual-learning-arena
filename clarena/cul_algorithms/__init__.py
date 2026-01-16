@@ -24,7 +24,7 @@ from .independent_unlearn import IndependentUnlearn
 from .finetuning_unlearn import AmnesiacFinetuningUnlearn
 from .lwf_unlearn import AmnesiacLwFUnlearn
 from .ewc_unlearn import AmnesiacEWCUnlearn
-from .der_unlearn import AmnesiacDERUnlearn
+from .der_unlearn import AmnesiacDERUnlearn, AmnesiacDERppUnlearn
 
 from .clpu_derpp_unlearn import CLPUDERppUnlearn
 from .amnesiac_hat_unlearn import AmnesiacHATUnlearn

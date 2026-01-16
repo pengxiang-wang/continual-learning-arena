@@ -8,6 +8,7 @@ Here are the base classes for continual learning datasets, which inherit from Li
 
 - `CLDataset`: The base class for all continual learning datasets.
     - `CLPermutedDataset`: The base class for permuted continual learning datasets. A child class of `CLDataset`.
+    - `CLRotatedDataset`: The base class for rotated continual learning datasets. A child class of `CLDataset`.
     - `CLSplitDataset`: The base class for split continual learning datasets. A child class of `CLDataset`.
     - `CLCombinedDataset`: The base class for combined continual learning datasets. A child class of `CLDataset`.
 
@@ -23,6 +24,7 @@ Please note that this is an API documantation. Please refer to the main document
 from .base import (
     CLDataset,
     CLPermutedDataset,
+    CLRotatedDataset,
     CLSplitDataset,
     CLCombinedDataset,
 )
@@ -75,6 +77,7 @@ from .combined import Combined
 __all__ = [
     "CLDataset",
     "CLPermutedDataset",
+    "CLRotatedDataset",
     "CLSplitDataset",
     "CLCombinedDataset",
     "combined",
