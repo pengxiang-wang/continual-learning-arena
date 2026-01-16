@@ -92,7 +92,7 @@ class CLAlgorithm(LightningModule):
         self.backbone.setup_task_id(task_id=task_id)
         if isinstance(self.heads, HeadsTIL) or isinstance(self.heads, HeadsCIL):
             self.heads.setup_task_id(task_id, num_classes)
-        elif isinstance(self.heads, HeadDIL) and task_id == 1:
+        elif isinstance(self.heads, HeadDIL) and not self.heads.if_head_setup():
             self.heads.setup_task(num_classes)
         self.optimizer_t = optimizer
         self.lr_scheduler_t = lr_scheduler

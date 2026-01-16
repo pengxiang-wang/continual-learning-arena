@@ -122,8 +122,10 @@ class HAT(CLAlgorithm):
         # check the backbone and heads
         if not isinstance(self.backbone, HATMaskBackbone):
             raise ValueError("The backbone should be an instance of `HATMaskBackbone`.")
-        if not isinstance(self.heads, HeadsTIL):
-            raise ValueError("The heads should be an instance of `HeadsTIL`.")
+        if not isinstance(self.heads, HeadsTIL) and not isinstance(self.heads, HeadDIL):
+            raise ValueError(
+                "The heads should be an instance of `HeadsTIL` or `HeadDIL`."
+            )
 
         # check marker sparsity regularization mode
         if self.mask_sparsity_reg_mode not in ["original", "cross"]:

@@ -27,6 +27,17 @@ class HeadDIL(nn.Module):
         self.input_dim: int = input_dim
         r"""Store the input dimension of the head. Used when creating new head."""
 
+        self._if_head_setup: bool = False
+        r"""Flag indicating whether the head has been set up."""
+
+    def if_head_setup(self) -> bool:
+        r"""Check whether the head has been set up.
+
+        **Returns:**
+        - **if_head_setup** (`bool`): whether the head has been set up.
+        """
+        return self._if_head_setup
+
     def setup_task(self, num_classes: dict[int, int]) -> None:
         r"""Create the output head. This must be done before `forward()` is called.
 
@@ -34,6 +45,7 @@ class HeadDIL(nn.Module):
         - **num_classes** (`int`): the number of classes in the task.
         """
         self.head = nn.Linear(self.input_dim, num_classes)
+        self._if_head_setup = True
 
     def forward(self, feature: Tensor, task_id: int | None = None) -> Tensor:
         r"""The forward pass for data. The information of which `task_id` the data are from is not provided.
