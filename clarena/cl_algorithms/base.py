@@ -320,11 +320,48 @@ class AmnesiacCLAlgorithm(UnlearnableCLAlgorithm):
         )
         r"""Store the original backbone network state dict. It is a dict where keys are parameter names and values are the corresponding parameter update tensor for the layer. """
 
+        self.original_heads_state_dict: dict[str, Tensor] = deepcopy(heads.state_dict())
+        r"""Store the original heads state dict. It is a dict where keys are parameter names and values are the corresponding parameter update tensor for the head. """
+
         self.parameters_task_update: dict[int, dict[str, Tensor]] = {}
         r"""Store the parameters update in each task. Keys are task IDs and values are the corresponding parameters update tensor. Each tensor is a dict where keys are parameter names and values are the corresponding parameter update tensor for the layer. """
 
+        self.parameters_task_update_heads: dict[int, dict[str, Tensor]] = {}
+        r"""Store the heads parameters update in each task. Keys are task IDs and values are the corresponding parameters update tensor. Each tensor is a dict where keys are parameter names and values are the corresponding parameter update tensor for the head. """
+
         self.state_dict_task_start: dict[str, Tensor]
         r"""Store the backbone state dict at the start of training each task. """
+
+        self.heads_state_dict_task_start: dict[str, Tensor]
+        r"""Store the heads state dict at the start of training each task. """
+
+    def _record_new_head_parameters(self) -> None:
+        r"""Record the initial parameters for any newly created heads."""
+        current_heads_state_dict = self.heads.state_dict()
+        for param_name, param_tensor in current_heads_state_dict.items():
+            if param_name not in self.original_heads_state_dict:
+                self.original_heads_state_dict[param_name] = deepcopy(param_tensor)
+
+    def setup_task_id(
+        self,
+        task_id: int,
+        num_classes: int,
+        optimizer: Optimizer,
+        lr_scheduler: LRScheduler | None,
+    ) -> None:
+        r"""Set up which task the CL experiment is on. This must be done before `forward()` method is called."""
+        super().setup_task_id(
+            task_id=task_id,
+            num_classes=num_classes,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+        )
+
+        if self.disable_unlearning:
+            return
+
+        # record initial parameters of any newly created heads for later reconstruction
+        self._record_new_head_parameters()
 
     def on_train_start(self):
         r"""Store the current state dict at the start of training."""
@@ -334,6 +371,7 @@ class AmnesiacCLAlgorithm(UnlearnableCLAlgorithm):
             return
 
         self.state_dict_task_start = deepcopy(self.backbone.state_dict())
+        self.heads_state_dict_task_start = deepcopy(self.heads.state_dict())
 
     def on_train_end(self):
         r"""Store the parameters update of a task at the end of its training."""
@@ -356,11 +394,63 @@ class AmnesiacCLAlgorithm(UnlearnableCLAlgorithm):
         # store the parameters update for the current task
         self.parameters_task_update[self.task_id] = parameters_task_t_update
 
+        # compute the heads parameters update for the current task
+        current_heads_state_dict = self.heads.state_dict()
+        parameters_task_t_update_heads = {}
+        for param_name, current_param_tensor in current_heads_state_dict.items():
+            if param_name not in self.heads_state_dict_task_start:
+                pylogger.warning(
+                    "Head parameter %s was not found in task start state dict.",
+                    param_name,
+                )
+                continue
+            parameters_task_t_update_heads[param_name] = (
+                current_param_tensor - self.heads_state_dict_task_start[param_name]
+            )
+
+        # store the heads parameters update for the current task
+        self.parameters_task_update_heads[self.task_id] = parameters_task_t_update_heads
+
     def construct_parameters_from_updates(self):
-        r"""Construct the parameters of the model from parameters task updates."""
-        updated_state_dict = deepcopy(self.original_backbone_state_dict)
-        for param_update in self.parameters_task_update.values():
+        r"""Delete the updates for unlearning tasks from the current parameters."""
+        if not hasattr(self, "unlearning_task_ids") or not self.unlearning_task_ids:
+            return
+
+        updated_state_dict = deepcopy(self.backbone.state_dict())
+        for task_id in self.unlearning_task_ids:
+            param_update = self.parameters_task_update.get(task_id)
+            if param_update is None:
+                pylogger.warning(
+                    "Attempted to delete update for task %d, but it was not found.",
+                    task_id,
+                )
+                continue
             for layer_name, param_tensor in param_update.items():
-                updated_state_dict[layer_name] += param_tensor
+                if layer_name in updated_state_dict:
+                    updated_state_dict[layer_name] -= param_tensor
+                else:
+                    pylogger.warning(
+                        "Backbone parameter %s was not found for task %d.",
+                        layer_name,
+                        task_id,
+                    )
 
         self.backbone.load_state_dict(updated_state_dict, strict=False)
+
+        updated_heads_state_dict = deepcopy(self.heads.state_dict())
+        for task_id in self.unlearning_task_ids:
+            param_update = self.parameters_task_update_heads.get(task_id)
+            if param_update is None:
+                continue
+            for param_name, param_tensor in param_update.items():
+                if param_name in updated_heads_state_dict:
+                    updated_heads_state_dict[param_name] -= param_tensor
+                else:
+                    pylogger.warning(
+                        "Head parameter %s was not found for task %d.",
+                        param_name,
+                        task_id,
+                    )
+
+        if updated_heads_state_dict:
+            self.heads.load_state_dict(updated_heads_state_dict, strict=False)

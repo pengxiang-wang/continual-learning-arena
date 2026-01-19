@@ -72,7 +72,8 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
 
         if self.compensate_order == "reverse":
             task_ids_to_compensate.reverse()  # compensate in reverse order
-        pylogger.debug(f"Tasks to compensate order: {task_ids_to_compensate}")
+
+        pylogger.info(f"Tasks to compensate order: {task_ids_to_compensate}")
 
         for affected_task_id in task_ids_to_compensate:
 
@@ -122,6 +123,13 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
 
         task_ids_to_fix = self.model.affected_tasks_upon_unlearning()
 
+        pylogger.info(f"Tasks to fix after unlearning: {task_ids_to_fix}")
+
+        if len(task_ids_to_fix) == 0:
+            pylogger.info("No tasks to fix after unlearning. Skipping fixing step.")
+            return
+
+        print("flag")
         unlearning_mask = {}
         for layer_name in self.model.backbone.weighted_layer_names:
             mask_tensors = torch.stack(
@@ -197,14 +205,14 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
                 }
 
         elif self.fix_strategy == "joint":
-
+            pylogger.info("Using joint replay fixing strategy.")
             for s in range(self.fix_num_steps):
 
                 # get replay data for fixing from memory buffer
                 x_replay, _, logits_replay, task_labels_replay = (
                     self.model.memory_buffer.get_data(
                         self.fix_batch_size,
-                        included_tasks=self.model.affected_tasks_upon_unlearning(),
+                        included_tasks=task_ids_to_fix,
                     )
                 )
 
@@ -251,6 +259,9 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
     def unlearn(self) -> None:
         r"""Unlearn the requested unlearning tasks (`self.unlearning_task_ids`) in the current task `self.task_id`."""
 
+        # delete updates from current parameters before removing update records
+        self.model.construct_parameters_from_updates()
+
         # delete the corresponding parameter update records
         self.delete_update(self.unlearning_task_ids)
 
@@ -272,12 +283,8 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
         #             torch.zeros_like(mask_tensor)
         #         )
 
-        # reconstruct the model parameters
-        self.model.construct_parameters_from_updates()
-
         if self.if_backup_compensation:
             self.compensate_by_backup(self.unlearning_task_ids)
 
         if self.if_replay_fixing:
-            # fixing with replay must be done after parameter reconstruction
             self.fixing_with_replay(self.unlearning_task_ids)

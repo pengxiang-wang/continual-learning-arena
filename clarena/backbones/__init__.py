@@ -44,6 +44,11 @@ from .resnet import (
     HATMaskResNet50,
     HATMaskResNet101,
     HATMaskResNet152,
+    AmnesiacHATResNet18,
+    AmnesiacHATResNet34,
+    AmnesiacHATResNet50,
+    AmnesiacHATResNet101,
+    AmnesiacHATResNet152,
 )
 
 

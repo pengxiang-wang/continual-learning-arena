@@ -92,7 +92,12 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
     def on_train_start(self) -> None:
         r"""Set up the temporary backbone if necessary before training starts. Merge temporary backbones that just become no longer unlearnable."""
 
+        if self.disable_unlearning:
+            return
+
         # initialise a temporary backbone for the current task (if it is temporary)
+        print("no_longer", self.task_ids_no_longer_unlearnable)
+        print("temp", self.temporary_backbones.keys())
         if self.task_id not in self.task_ids_no_longer_unlearnable:
             self.temporary_backbones[f"{self.task_id}"] = deepcopy(self.backbone)
             if self.temporary_backbone_init_mode == "from_scratch":
@@ -102,9 +107,13 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
 
         # merge and delete temporary backbones that just becomes no longer unlearnable
         for tid in self.task_ids_no_longer_unlearnable:
-
-            self.merge_temporary_backbone_to_main(tid)
-            del self.temporary_backbones[f"{tid}"]
+            print(tid, self.unlearned_task_ids)
+            if tid not in self.unlearned_task_ids:
+                pylogger.info(
+                    "Merging temporary backbone for task %d into main backbone.", tid
+                )
+                self.merge_temporary_backbone_to_main(tid)
+                del self.temporary_backbones[f"{tid}"]
 
     def merge_temporary_backbone_to_main(self, task_id: int) -> None:
         r"""Merge the temporary backbone for `task_id` into the main backbone using replay."""

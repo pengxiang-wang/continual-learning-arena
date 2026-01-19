@@ -128,6 +128,9 @@ class AmnesiacCULAlgorithm(CULAlgorithm):
             # delete the parameter update for the unlearning task so that it won't be used in future parameter constructions
             del self.model.parameters_task_update[unlearning_task_id]
 
+            if unlearning_task_id in self.model.parameters_task_update_heads:
+                del self.model.parameters_task_update_heads[unlearning_task_id]
+
         pylogger.info(
             "Deleted parameter update for unlearning task %s.", unlearning_task_ids
         )
@@ -135,8 +138,8 @@ class AmnesiacCULAlgorithm(CULAlgorithm):
     def unlearn(self) -> None:
         r"""Unlearn the requested unlearning tasks in the current task `self.task_id`."""
 
+        # delete updates from current parameters before removing update records
+        self.model.construct_parameters_from_updates()
+
         # delete the corresponding parameter update records
         self.delete_update(self.unlearning_task_ids)
-
-        # reconstruct the model parameters
-        self.model.construct_parameters_from_updates()

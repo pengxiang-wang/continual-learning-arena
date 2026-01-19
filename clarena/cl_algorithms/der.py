@@ -382,6 +382,13 @@ class Buffer:
             )
 
         # filter to only included tasks (if specified)
+        if included_tasks is not None and len(included_tasks) == 0:
+            return (
+                torch.empty((0,)),
+                torch.empty((0,)),
+                torch.empty((0,)),
+                torch.empty((0,)),
+            )
         if included_tasks:
             included = torch.tensor(included_tasks, device=self.task_labels.device)
             mask = torch.isin(self.task_labels, included)

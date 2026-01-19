@@ -27,6 +27,12 @@ class AmnesiacDERUnlearn(AmnesiacCULAlgorithm):
         """
         super().__init__(model=model)
 
+    def unlearn(self) -> None:
+        r"""Unlearn the requested unlearning tasks in the current task `self.task_id`."""
+        super().unlearn()
+        for task_id in self.unlearning_task_ids:
+            self.model.memory_buffer.delete_task(task_id)
+
 
 class AmnesiacDERppUnlearn(AmnesiacCULAlgorithm):
     r"""Amnesiac continual unlearning algorithm for DER++."""
@@ -41,3 +47,9 @@ class AmnesiacDERppUnlearn(AmnesiacCULAlgorithm):
         - **model** (`AmnesiacDERpp`): the continual learning model. It must be `AmnesiacDERpp`.
         """
         super().__init__(model=model)
+
+    def unlearn(self) -> None:
+        r"""Unlearn the requested unlearning tasks in the current task `self.task_id`."""
+        super().unlearn()
+        for task_id in self.unlearning_task_ids:
+            self.model.memory_buffer.delete_task(task_id)
