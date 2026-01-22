@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 import torch
 from torch import Tensor, nn
+from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 
 from clarena.backbones import CLBackbone
@@ -89,6 +90,38 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
         r"""Independent temporary backbones for temporary tasks. Keys are task IDs and values are the corresponding backbones.
         """
 
+    def setup_task_id(
+        self,
+        task_id: int,
+        num_classes: int,
+        optimizer: torch.optim.Optimizer,
+        lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None,
+    ) -> None:
+        """Set up task ID and eagerly create temporary backbones before optimizer init."""
+        super().setup_task_id(
+            task_id=task_id,
+            num_classes=num_classes,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+        )
+        print("no_longer", self.task_ids_no_longer_unlearnable)
+
+        if self.disable_unlearning:
+            return
+
+        if (
+            self.task_id not in self.task_ids_no_longer_unlearnable
+            and str(self.task_id) not in self.temporary_backbones
+        ):
+            self.temporary_backbones[f"{self.task_id}"] = deepcopy(self.backbone)
+            if self.temporary_backbone_init_mode == "from_scratch":
+                self.temporary_backbones[f"{self.task_id}"].load_state_dict(
+                    self.original_backbone_state_dict
+                )
+            pylogger.info(
+                "Temporary backbone created for temporary task %d.", self.task_id
+            )
+
     def on_train_start(self) -> None:
         r"""Set up the temporary backbone if necessary before training starts. Merge temporary backbones that just become no longer unlearnable."""
 
@@ -96,19 +129,22 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
             return
 
         # initialise a temporary backbone for the current task (if it is temporary)
-        print("no_longer", self.task_ids_no_longer_unlearnable)
-        print("temp", self.temporary_backbones.keys())
-        if self.task_id not in self.task_ids_no_longer_unlearnable:
-            self.temporary_backbones[f"{self.task_id}"] = deepcopy(self.backbone)
-            if self.temporary_backbone_init_mode == "from_scratch":
-                self.temporary_backbones[f"{self.task_id}"].load_state_dict(
-                    self.original_backbone_state_dict
-                )
+        # print("no_longer", self.task_ids_no_longer_unlearnable)
+        # print("temp", self.temporary_backbones.keys())
+        # if (
+        #     self.task_id not in self.task_ids_no_longer_unlearnable
+        #     and str(self.task_id) not in self.temporary_backbones
+        # ):
+        #     self.temporary_backbones[f"{self.task_id}"] = deepcopy(self.backbone)
+        #     if self.temporary_backbone_init_mode == "from_scratch":
+        #         self.temporary_backbones[f"{self.task_id}"].load_state_dict(
+        #             self.original_backbone_state_dict
+        #         )
 
         # merge and delete temporary backbones that just becomes no longer unlearnable
         for tid in self.task_ids_no_longer_unlearnable:
             print(tid, self.unlearned_task_ids)
-            if tid not in self.unlearned_task_ids:
+            if tid not in self.unlearned_task_ids and tid != self.task_id:
                 pylogger.info(
                     "Merging temporary backbone for task %d into main backbone.", tid
                 )
@@ -117,10 +153,7 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
 
     def merge_temporary_backbone_to_main(self, task_id: int) -> None:
         r"""Merge the temporary backbone for `task_id` into the main backbone using replay."""
-        temp_key: int | str = task_id
-        if temp_key not in self.temporary_backbones:
-            temp_key = str(task_id)
-        if temp_key not in self.temporary_backbones:
+        if str(task_id) not in self.temporary_backbones:
             pylogger.warning("No temporary backbone found for task %d.", task_id)
             return
 
@@ -133,7 +166,7 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
 
         for param in self.backbone.parameters():
             param.requires_grad = True
-        for param in self.temporary_backbones[temp_key].parameters():
+        for param in self.temporary_backbones[str(task_id)].parameters():
             param.requires_grad = False
 
         optimizer = self.optimizer_t(
@@ -225,8 +258,8 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
         - **logits** (`Tensor`): the output logits tensor.
         - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name, value (`Tensor`) is the hidden feature tensor. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
         """
-        if task_id in self.temporary_backbones:
-            routed_backbone = self.temporary_backbones[task_id]
+        if str(task_id) in self.temporary_backbones.keys():
+            routed_backbone = self.temporary_backbones[str(task_id)]
         else:
             routed_backbone = self.backbone
 
@@ -259,8 +292,8 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
         # regularization loss. DER++ adds replay classification loss on top of DER's logit distillation
         loss_reg = 0.0
 
-        if self.task_id in self.temporary_backbones:
-            routed_backbone = self.temporary_backbones[self.task_id]
+        if str(self.task_id) in self.temporary_backbones.keys():
+            routed_backbone = self.temporary_backbones[str(self.task_id)]
         else:
             routed_backbone = self.backbone
 
@@ -315,6 +348,43 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
             "loss_reg": loss_reg,
             "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
             "activations": activations,
+        }
+
+    def test_step(
+        self,
+        batch: DataLoader,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> dict[str, Tensor]:
+        r"""Test step for CLPU-DER++.
+
+        Tests all seen tasks indexed by `dataloader_idx`.
+
+        **Args:**
+        - **batch** (`Any`): a batch of test data.
+        - **dataloader_idx** (`int`): task ID being tested.
+
+        **Returns:**
+        - **outputs** (`dict[str, Tensor]`): loss and accuracy.
+        """
+        test_task_id = self.get_test_task_id_from_dataloader_idx(dataloader_idx)
+
+        x, y = batch
+
+        if str(test_task_id) in self.temporary_backbones.keys():
+            routed_backbone = self.temporary_backbones[str(test_task_id)]
+        else:
+            routed_backbone = self.backbone
+
+        feature, _ = routed_backbone(x, stage="test", task_id=test_task_id)
+        logits = self.heads(feature, test_task_id)
+
+        loss_cls = self.criterion(logits, y)
+        acc = (logits.argmax(dim=1) == y).float().mean()
+
+        return {
+            "loss_cls": loss_cls,
+            "acc": acc,
         }
 
 
