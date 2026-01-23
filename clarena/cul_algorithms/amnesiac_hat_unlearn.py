@@ -114,6 +114,105 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
                         layer.bias.data,
                     )
 
+    # def compensate_by_backup(self, unlearning_task_ids: list[int]) -> None:
+    #     r"""Compensate the model before unlearning using the backup model.
+
+    #     **Args:**
+    #     - **unlearning_task_id** (`list[int]`): the ID of the unlearning task to delete the update.
+    #     """
+
+    #     unlearning_task_id = unlearning_task_ids[
+    #         0
+    #     ]  # only one unlearning task is supported for now
+
+    #     task_ids_to_compensate = self.model.affected_tasks_upon_unlearning()
+
+    #     if self.compensate_order == "reverse":
+    #         task_ids_to_compensate.reverse()  # compensate in reverse order
+
+    #     pylogger.info(f"Tasks to compensate order: {task_ids_to_compensate}")
+
+    #     compensate_masks = {}
+    #     backup_state_dicts = {}
+
+    #     for affected_task_id in task_ids_to_compensate:
+    #         print(affected_task_id, unlearning_task_id)
+
+    #         print(self.model.backbone.backup_state_dicts.keys())
+    #         backup_state_dicts[affected_task_id] = self.model.backbone.backup_state_dicts[
+    #             (unlearning_task_id, affected_task_id)
+    #         ]
+    #         compensate_masks[affected_task_id] = self.model.backbone.masks_intersection(
+    #             [
+    #                 self.model.backbone.masks[affected_task_id],
+    #                 self.model.backbone.masks[unlearning_task_id],
+    #             ]
+    #         )
+
+    #     def apply_random_compensation(
+    #         current_tensor: torch.Tensor,
+    #         candidate_tensors: list[torch.Tensor],
+    #         mask_tensors: list[torch.Tensor],
+    #     ) -> torch.Tensor:
+    #         if not candidate_tensors:
+    #             return current_tensor
+
+    #         mask_stack = torch.stack(mask_tensors, dim=0).bool()
+    #         union_mask = mask_stack.any(dim=0)
+    #         if not union_mask.any().item():
+    #             return current_tensor
+
+    #         candidate_stack = torch.stack(candidate_tensors, dim=0)
+    #         rand = torch.rand(mask_stack.shape, device=mask_stack.device)
+    #         rand = rand.masked_fill(~mask_stack, -1.0)
+    #         selected_idx = rand.argmax(dim=0)
+    #         chosen = candidate_stack.gather(0, selected_idx.unsqueeze(0)).squeeze(0)
+
+    #         return torch.where(union_mask, chosen, current_tensor)
+
+    #     for layer_name in self.model.backbone.weighted_layer_names:
+    #         layer = self.model.backbone.get_layer_by_name(layer_name)
+
+    #         weight_candidates = []
+    #         weight_masks = []
+    #         bias_candidates = []
+    #         bias_masks = []
+
+    #         for affected_task_id in task_ids_to_compensate:
+    #             weight_mask, bias_mask = (
+    #                 self.model.backbone.get_layer_measure_parameter_wise(
+    #                     neuron_wise_measure=compensate_masks[affected_task_id],
+    #                     layer_name=layer_name,
+    #                     aggregation_mode="min",
+    #                 )
+    #             )
+    #             weight_candidates.append(
+    #                 backup_state_dicts[affected_task_id][
+    #                     layer_name.replace("/", ".") + ".weight"
+    #                 ]
+    #             )
+    #             weight_masks.append(weight_mask)
+    #             if layer.bias is not None:
+    #                 bias_candidates.append(
+    #                     backup_state_dicts[affected_task_id][
+    #                         layer_name.replace("/", ".") + ".bias"
+    #                     ]
+    #                 )
+    #                 bias_masks.append(bias_mask)
+
+    #         layer.weight.data = apply_random_compensation(
+    #             layer.weight.data,
+    #             weight_candidates,
+    #             weight_masks,
+    #         )
+    #         if layer.bias is not None:
+
+    #             layer.bias.data = apply_random_compensation(
+    #                 layer.bias.data,
+    #                 bias_candidates,
+    #                 bias_masks,
+    #             )
+
     def fixing_with_replay(self, unlearning_task_ids: list[int]) -> None:
         r"""Fixing the model with replay after unlearning.
 

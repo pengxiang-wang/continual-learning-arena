@@ -248,7 +248,7 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
         self.unlearnable_task_ids: list[int]
         r"""The list of task IDs that are unlearnable at the current `self.task_id`."""
 
-        self.task_ids_no_longer_unlearnable: list[int]
+        self.task_ids_just_no_longer_unlearnable: list[int]
         r"""The list of task IDs that are just no longer unlearnable at the current `self.task_id`."""
 
         UnlearnableCLAlgorithm.sanity_check(self)

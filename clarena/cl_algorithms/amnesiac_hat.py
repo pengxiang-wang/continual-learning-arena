@@ -6,6 +6,7 @@ __all__ = ["AmnesiacHAT"]
 
 import logging
 from copy import deepcopy
+from itertools import accumulate
 from typing import Any, Callable
 
 import torch
@@ -131,8 +132,9 @@ class AmnesiacHAT(AdaHAT, DER, AmnesiacCLAlgorithm):
         if self.disable_unlearning:
             return
 
+        # initialize backup backbones for unlearning tasks
         self.backbone.initialize_backup_backbone(
-            unlearnable_task_ids=self.unlearnable_task_ids
+            unlearnable_task_ids=self.unlearnable_task_ids,
         )
 
     def clip_grad_by_unlearning_mask(
@@ -235,10 +237,42 @@ class AmnesiacHAT(AdaHAT, DER, AmnesiacCLAlgorithm):
         DER.on_train_start(self)  # Explicitly call DER's on_train_start
         AmnesiacCLAlgorithm.on_train_start(self)
 
-        for backup_backbone in self.backbone.backup_backbones.values():
-            backup_backbone.load_state_dict(
-                self.original_backbone_state_dict, strict=False
+        if self.disable_unlearning:
+            return
+
+        for unlearnable_task_id in self.unlearnable_task_ids:
+
+            if unlearnable_task_id == self.task_id:
+                continue
+
+            # for each backup backbone, compute the init state dict
+            state_dict_before_the_unlearnable_task = deepcopy(
+                self.original_backbone_state_dict
             )
+
+            # construct parameters saved before the training of each unlearnable task
+            accumulated_tasks = []     
+            for task_id in range(1, unlearnable_task_id):
+
+                if task_id in self.parameters_task_update.keys():
+                    accumulated_tasks.append(task_id)
+                    param_update = self.parameters_task_update[task_id]
+                    for layer_name, param_tensor in param_update.items():
+                        if layer_name in state_dict_before_the_unlearnable_task:
+                            state_dict_before_the_unlearnable_task[
+                                layer_name
+                            ] += param_tensor
+
+                pylogger.info(
+                    f"For backuping {unlearnable_task_id} for {self.task_id}, the backup backbone is initialized as original backbone plus accumulated parameter updates from tasks {accumulated_tasks}"
+                )
+
+                backup_backbone = self.backbone.backup_backbones[
+                    f"{unlearnable_task_id}"
+                ]
+                backup_backbone.load_state_dict(
+                    state_dict_before_the_unlearnable_task, strict=False
+                )
 
     def forward(
         self,
@@ -473,6 +507,7 @@ class AmnesiacHAT(AdaHAT, DER, AmnesiacCLAlgorithm):
             "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
+            "backup_loss_cls_total": backup_loss_cls_total,
             "loss_reg": loss_reg,
             "acc": acc,
             "activations": activations,

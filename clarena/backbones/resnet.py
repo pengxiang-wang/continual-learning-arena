@@ -39,12 +39,7 @@ import torchvision
 from torch import Tensor, nn
 from torch.nn import ModuleDict
 
-from clarena.backbones import (
-    AmnesiacHATBackbone,
-    Backbone,
-    CLBackbone,
-    HATMaskBackbone,
-)
+from clarena.backbones import AmnesiacHATBackbone, Backbone, CLBackbone, HATMaskBackbone
 from clarena.backbones.constants import (
     HATMASKRESNET18_STATE_DICT_MAPPING,
     RESNET18_STATE_DICT_MAPPING,
@@ -1986,10 +1981,7 @@ class HATMaskResNet152(HATMaskResNetBase):
 
 
 class AmnesiacHATResNetBase(AmnesiacHATBackbone, HATMaskResNetBase):
-    r"""The base class of AmnesiacHAT masked ResNet.
-
-    AmnesiacHAT extends HAT with parallel backup backbones used during unlearning.
-    """
+    r"""AmnesiacHAT masked ResNet backbone network."""
 
     def __init__(
         self,
@@ -2076,9 +2068,9 @@ class AmnesiacHATResNetBase(AmnesiacHATBackbone, HATMaskResNetBase):
         **Args:**
         - **unlearnable_task_ids** (`list[int]`): The list of unlearnable task IDs at current task `self.task_id`.
         """
-        unlearnable_task_ids = [
+        task_ids_to_backup = [
             tid for tid in unlearnable_task_ids if tid != self.task_id
-        ]
+        ]  # exclude current task, as we don't need backup backbone for current task
 
         backup_block_type = (
             ResNetBlockSmall
@@ -2099,11 +2091,11 @@ class AmnesiacHATResNetBase(AmnesiacHATBackbone, HATMaskResNetBase):
                     batch_normalization=self.batch_normalization,
                     bias=self.bias,
                 )
-                for unlearnable_task_id in unlearnable_task_ids
+                for unlearnable_task_id in task_ids_to_backup
             }
         )
 
-        self.unlearnable_task_ids = unlearnable_task_ids
+        self.unlearnable_task_ids = task_ids_to_backup
 
     def _mix_output(
         self,
@@ -2157,16 +2149,12 @@ class AmnesiacHATResNetBase(AmnesiacHATBackbone, HATMaskResNetBase):
                 mask_b1 = mask_backup[block.full_1st_layer_name]
                 mask_b2 = mask_backup[block.full_2nd_layer_name]
 
-                x_b = self._mix_output(
-                    block.conv1, backup_block.conv1, x_b, mask_b1
-                )
+                x_b = self._mix_output(block.conv1, backup_block.conv1, x_b, mask_b1)
                 x_b = x_b * mask_1
                 if block.activation:
                     x_b = block.conv_activation1(x_b)
 
-                x_b = self._mix_output(
-                    block.conv2, backup_block.conv2, x_b, mask_b2
-                )
+                x_b = self._mix_output(block.conv2, backup_block.conv2, x_b, mask_b2)
                 identity_b = self._mix_output(
                     block.identity_downsample,
                     backup_block.identity_downsample,
@@ -2230,23 +2218,17 @@ class AmnesiacHATResNetBase(AmnesiacHATBackbone, HATMaskResNetBase):
                 mask_b2 = mask_backup[block.full_2nd_layer_name]
                 mask_b3 = mask_backup[block.full_3rd_layer_name]
 
-                x_b = self._mix_output(
-                    block.conv1, backup_block.conv1, x_b, mask_b1
-                )
+                x_b = self._mix_output(block.conv1, backup_block.conv1, x_b, mask_b1)
                 x_b = x_b * mask_1
                 if block.activation:
                     x_b = block.conv_activation1(x_b)
 
-                x_b = self._mix_output(
-                    block.conv2, backup_block.conv2, x_b, mask_b2
-                )
+                x_b = self._mix_output(block.conv2, backup_block.conv2, x_b, mask_b2)
                 x_b = x_b * mask_2
                 if block.activation:
                     x_b = block.conv_activation2(x_b)
 
-                x_b = self._mix_output(
-                    block.conv3, backup_block.conv3, x_b, mask_b3
-                )
+                x_b = self._mix_output(block.conv3, backup_block.conv3, x_b, mask_b3)
                 identity_b = self._mix_output(
                     block.identity_downsample,
                     backup_block.identity_downsample,

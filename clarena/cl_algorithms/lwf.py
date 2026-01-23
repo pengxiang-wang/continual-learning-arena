@@ -120,8 +120,7 @@ class LwF(Finetuning):
             student_feature, _ = self.backbone(
                 x, stage="train", task_id=previous_task_id
             )
-            with torch.no_grad():  # stop updating the previous heads
-                student_logits = self.heads(student_feature, task_id=previous_task_id)
+            student_logits = self.heads(student_feature, task_id=previous_task_id)
 
             # get the teacher logits for this batch, which is from the previous model
             previous_backbone = self.previous_task_backbones[previous_task_id]

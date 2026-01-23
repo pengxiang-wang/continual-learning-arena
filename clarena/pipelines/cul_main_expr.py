@@ -129,22 +129,22 @@ class CULMainExperiment(CLMainExperiment):
 
         return unlearnable_task_ids
 
-    def task_ids_no_longer_unlearnable(self, task_id: int) -> list[int]:
+    def task_ids_just_no_longer_unlearnable(self, task_id: int) -> list[int]:
         r"""Get the list of task IDs just turning not unlearnable at task `task_id`.
 
         **Args:**
         - **task_id** (`int`): the target task ID to check.
 
         **Returns:**
-        - **task_ids_no_longer_unlearnable** (`list[int]`): the list of task IDs just turning not unlearnable at task `task_id`.
+        - **task_ids_just_no_longer_unlearnable** (`list[int]`): the list of task IDs just turning not unlearnable at task `task_id`.
         """
-        task_ids_no_longer_unlearnable = []
+        task_ids_just_no_longer_unlearnable = []
         for tid in range(1, task_id + 1):
             unlearnable_age = self.unlearnable_ages[tid]
             if task_id - unlearnable_age == tid and tid not in self.unlearned_task_ids:
-                task_ids_no_longer_unlearnable.append(tid)
+                task_ids_just_no_longer_unlearnable.append(tid)
 
-        return task_ids_no_longer_unlearnable
+        return task_ids_just_no_longer_unlearnable
 
     def run(self) -> None:
         r"""The main method to run the continual unlearning main experiment."""
@@ -208,7 +208,7 @@ class CULMainExperiment(CLMainExperiment):
                 task_id=self.task_id,
                 unlearning_requests=self.unlearning_requests,
                 unlearnable_task_ids=self.unlearnable_task_ids(self.task_id),
-                task_ids_no_longer_unlearnable=self.task_ids_no_longer_unlearnable(
+                task_ids_just_no_longer_unlearnable=self.task_ids_just_no_longer_unlearnable(
                     self.task_id
                 ),
             )

@@ -390,6 +390,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
 
 
 class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
+    
 
     def __init__(
         self,
@@ -467,26 +468,28 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
         - **unlearnable_task_ids** (`list[int]`): The list of unlearnable task IDs at current task `self.task_id`.
         """
 
-        unlearnable_task_ids = [
+        task_ids_to_backup = [
             tid for tid in unlearnable_task_ids if tid != self.task_id
         ]  # exclude current task, as we don't need backup backbone for current task
 
         self.backup_backbones = ModuleDict(
             {
-                f"{unlearnable_task_id}": MLP(
-                    input_dim=self.input_dim,
-                    hidden_dims=self.hidden_dims,
-                    output_dim=self.output_dim,
-                    activation_layer=self.activation_layer,
-                    batch_normalization=self.batch_normalization,
-                    bias=self.bias,
-                    dropout=self.dropout,
+                f"{unlearnable_task_id}": (
+                    MLP(
+                        input_dim=self.input_dim,
+                        hidden_dims=self.hidden_dims,
+                        output_dim=self.output_dim,
+                        activation_layer=self.activation_layer,
+                        batch_normalization=self.batch_normalization,
+                        bias=self.bias,
+                        dropout=self.dropout,
+                    )
                 )
-                for unlearnable_task_id in unlearnable_task_ids
+                for unlearnable_task_id in task_ids_to_backup
             }
         )
 
-        self.unlearnable_task_ids = unlearnable_task_ids
+        self.unlearnable_task_ids = task_ids_to_backup
 
     def forward(
         self,

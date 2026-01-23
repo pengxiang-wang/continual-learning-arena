@@ -504,7 +504,7 @@ class AmnesiacHATBackbone(HATMaskBackbone):
         if disable_unlearning:
             return
 
-        self.backup_backbones: ModuleDict = {}
+        self.backup_backbones: nn.ModuleDict
         r"""The backup backbone networks. Keys are task IDs (in string format coz they have to) that the backbone is backed up in case of which is unlearned, and values are the corresponding backbone networks that the backup is trained on. They all have the same architecture as the main backbone network.
         
         Please note that we use `ModuleDict` rather than `dict` to ensure `LightningModule` can track these model parameters for training. DO NOT change this to `dict`."""

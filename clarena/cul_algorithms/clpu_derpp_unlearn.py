@@ -25,6 +25,8 @@ class CLPUDERppUnlearn(CULAlgorithm):
 
     def unlearn(self) -> None:
         r"""Unlearn the requested unlearning tasks after training `self.task_id`."""
+        # It corresponds to Case IV in the algorithm description of the [CLPU paper](https://arxiv.org/abs/2203.12817).
+
         print("unlearning_task_id", self.unlearning_task_ids)
         for unlearning_task_id in self.unlearning_task_ids:
             temp_key = str(unlearning_task_id)

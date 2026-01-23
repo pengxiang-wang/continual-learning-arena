@@ -37,7 +37,7 @@ class CULAlgorithm:
         r"""The list of task IDs that have been unlearned in the experiment. """
         self.unlearnable_task_ids: list[int] = []
         r"""The list of task IDs that are unlearnable at the current `self.task_id`."""
-        self.task_ids_no_longer_unlearnable: list[int] = []
+        self.task_ids_just_no_longer_unlearnable: list[int] = []
         r"""The list of task IDs that are just no longer unlearnable at the current `self.task_id`."""
 
     def setup_task_id(
@@ -45,7 +45,7 @@ class CULAlgorithm:
         task_id: int,
         unlearning_requests: dict[int, list[int]],
         unlearnable_task_ids: list[int],
-        task_ids_no_longer_unlearnable: list[int],
+        task_ids_just_no_longer_unlearnable: list[int],
     ) -> None:
         r"""Set up which task the CUL experiment is on. This must be done before `unlearn()` method is called.
 
@@ -53,7 +53,7 @@ class CULAlgorithm:
         - **task_id** (`int`): the target task ID to be set up.
         - **unlearning_requests** (`dict[int, list[int]]`): the entire unlearning requests. Keys are IDs of the tasks that request unlearning after their learning, and values are the list of the previous tasks to be unlearned.
         - **unlearnable_task_ids** (`list[int]`): the list of unlearnable task IDs at the current `self.task_id`.
-        - **task_ids_no_longer_unlearnable** (`list[int]`): the list of task IDs that are just no longer unlearnable at the current `self.task_id`.
+        - **task_ids_just_no_longer_unlearnable** (`list[int]`): the list of task IDs that are just no longer unlearnable at the current `self.task_id`.
         """
         self.task_id = task_id
         self.processed_task_ids.append(task_id)
@@ -67,8 +67,10 @@ class CULAlgorithm:
         self.unlearnable_task_ids = unlearnable_task_ids
         self.model.unlearnable_task_ids = unlearnable_task_ids
 
-        self.task_ids_no_longer_unlearnable = task_ids_no_longer_unlearnable
-        self.model.task_ids_no_longer_unlearnable = task_ids_no_longer_unlearnable
+        self.task_ids_just_no_longer_unlearnable = task_ids_just_no_longer_unlearnable
+        self.model.task_ids_just_no_longer_unlearnable = (
+            task_ids_just_no_longer_unlearnable
+        )
 
     def setup_test_task_id(self) -> None:
         r"""Set up before testing `self.task_id`. This must be done after `unlearn()` method is called."""
