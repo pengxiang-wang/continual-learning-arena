@@ -110,7 +110,7 @@ class LwF(Finetuning):
         loss_cls = self.criterion(logits, y)
 
         # regularization loss. See equation (2) (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
-        loss_reg = 0.0
+        distillation_reg = 0.0
         for previous_task_id in self.processed_task_ids:
             if previous_task_id == self.task_id:
                 continue
@@ -130,7 +130,7 @@ class LwF(Finetuning):
                 )
                 teacher_logits = self.heads(teacher_feature, task_id=previous_task_id)
 
-            loss_reg += self.distillation_reg(
+            distillation_reg += self.distillation_reg(
                 student_logits=student_logits,
                 teacher_logits=teacher_logits,
             )
@@ -138,7 +138,7 @@ class LwF(Finetuning):
         # do not average over tasks to avoid linear increase of the regularization loss. LwF paper doesn't mention this!
 
         # total loss
-        loss = loss_cls + loss_reg
+        loss = loss_cls + distillation_reg
 
         # predicted labels
         preds = logits.argmax(dim=1)
@@ -150,7 +150,7 @@ class LwF(Finetuning):
             "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
-            "loss_reg": loss_reg,
+            "distillation_reg": distillation_reg,
             "acc": acc,
             "activations": activations,
         }
@@ -307,7 +307,7 @@ class AmnesiacLwF(AmnesiacCLAlgorithm, LwF):
 #         loss_cls = self.criterion(logits, y)
 
 #         # distillation regularization to prevent forgetting (only from valid teachers)
-#         loss_reg = 0.0
+#         distillation_reg = 0.0
 #         for previous_task_id in sorted(self.valid_task_ids):
 #             if previous_task_id >= self.task_id:
 #                 continue
@@ -327,12 +327,12 @@ class AmnesiacLwF(AmnesiacCLAlgorithm, LwF):
 #                 )
 #                 teacher_logits = self.heads(teacher_feature, task_id=previous_task_id)
 
-#             loss_reg += self.distillation_reg(
+#             distillation_reg += self.distillation_reg(
 #                 student_logits=student_logits,
 #                 teacher_logits=teacher_logits,
 #             )
 
-#         loss = loss_cls + loss_reg
+#         loss = loss_cls + distillation_reg
 
 #         preds = logits.argmax(dim=1)
 #         acc = (preds == y).float().mean()
@@ -341,7 +341,7 @@ class AmnesiacLwF(AmnesiacCLAlgorithm, LwF):
 #             "preds": preds,
 #             "loss": loss,
 #             "loss_cls": loss_cls,
-#             "loss_reg": loss_reg,
+#             "distillation_reg": distillation_reg,
 #             "acc": acc,
 #             "activations": activations,
 #         }
@@ -470,7 +470,7 @@ class AmnesiacLwF(AmnesiacCLAlgorithm, LwF):
 #         loss_cls = self.criterion(logits, y)
 
 #         # regularization loss. See equation (2) (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
-#         loss_reg = 0.0
+#         distillation_reg = 0.0
 
 #         for previous_task_id in sorted(self.valid_task_ids):
 #             if previous_task_id >= self.task_id:
@@ -494,7 +494,7 @@ class AmnesiacLwF(AmnesiacCLAlgorithm, LwF):
 #                 )
 #                 teacher_logits = self.heads(teacher_feature, task_id=previous_task_id)
 
-#             loss_reg += self.distillation_reg(
+#             distillation_reg += self.distillation_reg(
 #                 student_logits=student_logits,
 #                 teacher_logits=teacher_logits,
 #             )
@@ -502,7 +502,7 @@ class AmnesiacLwF(AmnesiacCLAlgorithm, LwF):
 #         # do not average over tasks to avoid linear increase of the regularization loss. LwF paper doesn't mention this!
 
 #         # total loss
-#         loss = loss_cls + loss_reg
+#         loss = loss_cls + distillation_reg
 
 #         # predicted labels
 #         preds = logits.argmax(dim=1)
@@ -514,7 +514,7 @@ class AmnesiacLwF(AmnesiacCLAlgorithm, LwF):
 #             "preds": preds,
 #             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
 #             "loss_cls": loss_cls,
-#             "loss_reg": loss_reg,
+#             "distillation_reg": distillation_reg,
 #             "acc": acc,
 #             "activations": activations,
 #         }

@@ -126,17 +126,17 @@ class EWC(Finetuning):
                     batch_size * param.grad**2
                 )
 
-        loss_reg = 0.0
+        ewc_reg = 0.0
         for previous_task_id in self.processed_task_ids:
             if previous_task_id == self.task_id:
                 continue
-            loss_reg += 0.5 * self.parameter_change_reg(
+            ewc_reg += 0.5 * self.parameter_change_reg(
                 target_model=self.backbone,
                 ref_model=self.previous_task_backbones[previous_task_id],
                 weights=self.parameter_importance[previous_task_id],
             )
 
-        loss = loss_cls + loss_reg
+        loss = loss_cls + ewc_reg
 
         self.manual_backward(loss)
         opt.step()
@@ -146,7 +146,7 @@ class EWC(Finetuning):
         return {
             "loss": loss,
             "loss_cls": loss_cls,
-            "loss_reg": loss_reg,
+            "ewc_reg": ewc_reg,
             "acc": acc,
             "activations": activations,
         }

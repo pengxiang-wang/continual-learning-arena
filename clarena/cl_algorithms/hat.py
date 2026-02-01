@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import CLAlgorithm
-from clarena.cl_algorithms.regularizers import HATMaskSparsityReg
+from clarena.cl_algorithms.regularizers import HATMaskSparsityReg, hat_mask_sparsity
 from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 from clarena.utils.metrics import HATNetworkCapacityMetric
 
@@ -172,6 +172,41 @@ class HAT(CLAlgorithm):
                 ).to(
                     self.device
                 )  # the cumulative mask $\mathrm{M}^{<t}$ is initialized as a zeros mask ($t = 1$). See Eq. (2) in Sec. 3 in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9), or Eq. (5) in Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
+
+    def clip_grad_by_mask(
+        self,
+        mask: dict[int, Tensor],
+        aggregation_mode: str,
+    ) -> None:
+        r"""Clip the gradients by neuron mask.
+
+        **Args:**
+        - **mask** (`dict[int, Tensor]`): the neuron-wise mask which the gradients outside are clipped. Keys are layer names and values are the corresponding mask tensor for the layer.
+        - **aggregation_mode** (`str`): The aggregation mode mapping two feature-wise measures into a weight-wise matrix; one of:
+            - 'min': takes the minimum of the two connected unit measures.
+            - 'max': takes the maximum of the two connected unit measures.
+            - 'mean': takes the mean of the two connected unit measures.
+
+        Note that because the task embedding fully covers every layer in the backbone network, no parameters are left out of this system.
+        This applies not only to parameters between layers with task embeddings, but also to those before the first layer. We design it separately in the code.
+        """
+
+        for layer_name in self.backbone.weighted_layer_names:
+
+            layer = self.backbone.get_layer_by_name(
+                layer_name
+            )  # get the layer by its name
+
+            weight_mask, bias_mask = self.backbone.get_layer_measure_parameter_wise(
+                neuron_wise_measure=mask,
+                layer_name=layer_name,
+                aggregation_mode=aggregation_mode,
+            )
+
+            # apply the adjustment rate to the gradients
+            layer.weight.grad.data *= weight_mask
+            if layer.bias is not None:
+                layer.bias.grad.data *= bias_mask
 
     def clip_grad_by_adjustment(
         self,
@@ -361,12 +396,12 @@ class HAT(CLAlgorithm):
         loss_cls = self.criterion(logits, y)
 
         # regularization loss. See Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
-        loss_reg, network_sparsity = self.mark_sparsity_reg(
+        hat_mask_sparsity_reg, network_sparsity = self.mark_sparsity_reg(
             mask, self.cumulative_mask_for_previous_tasks
         )
 
         # total loss. See Eq. (4) in Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
-        loss = loss_cls + loss_reg
+        loss = loss_cls + hat_mask_sparsity_reg
 
         # backward step (manually)
         self.manual_backward(loss)  # calculate the gradients
@@ -396,7 +431,7 @@ class HAT(CLAlgorithm):
             "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
-            "loss_reg": loss_reg,
+            "hat_mask_sparsity_reg": hat_mask_sparsity_reg,
             "acc": acc,
             "activations": activations,
             "logits": logits,

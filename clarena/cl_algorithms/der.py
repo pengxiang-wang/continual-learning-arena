@@ -14,8 +14,9 @@ from torch import Tensor
 from torchvision.transforms import transforms
 
 from clarena.backbones import CLBackbone
+from clarena.backbones.base import AmnesiacHATBackbone
 from clarena.cl_algorithms import AmnesiacCLAlgorithm, Finetuning
-from clarena.cl_algorithms.regularizers import DistillationReg
+from clarena.cl_algorithms.regularizers import DistillationReg, distillation
 from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
@@ -73,6 +74,55 @@ class DER(Finetuning):
         # save additional algorithmic hyperparameters
         self.save_hyperparameters("buffer_size", "distillation_reg_factor")
 
+    def compute_distillation_reg(
+        self,
+        backbone: CLBackbone,
+        batch_size: int,
+    ) -> Tensor:
+        """Compute the distillation regularization loss on replayed samples.
+
+        **Args:**
+        - **backbone** (`CLBackbone`): the backbone network to use for computing logits.
+        - **batch_size** (`int`): the batch size of current training batch.
+
+        **Returns:**
+        - **loss_reg** (`Tensor`): the distillation regularization loss on replayed samples.
+        """
+        loss_reg = 0.0
+        previous_task_ids = [
+            tid for tid in self.processed_task_ids if tid != self.task_id
+        ]
+
+        if not self.memory_buffer.is_empty() and previous_task_ids != []:
+
+            # sample from memory buffer with the same batch size as current batch
+            x_replay, _, logits_replay, task_labels_replay = (
+                self.memory_buffer.get_data(size=batch_size, included_tasks=previous_task_ids)
+            )
+
+            # apply augmentation transforms if any
+            if self.augmentation_transforms:
+                x_replay = self.augmentation_transforms(x_replay)
+
+            # get the student logits for this batch using the current model
+            student_feature_replay, _ = backbone(x_replay, stage="test")
+            student_logits_replay = torch.cat(
+                [
+                    self.heads(student_feature_replay[i].unsqueeze(0), task_id=tid)
+                    for i, tid in enumerate(task_labels_replay)
+                ]
+            )
+            with torch.no_grad():  # stop updating the previous heads
+
+                teacher_logits_replay = logits_replay
+
+            loss_reg = self.distillation_reg(
+                student_logits=student_logits_replay,
+                teacher_logits=teacher_logits_replay,
+            )
+
+        return loss_reg
+
     def training_step(self, batch: Any) -> dict[str, Tensor]:
         """Training step for current task `self.task_id`.
 
@@ -94,38 +144,12 @@ class DER(Finetuning):
         loss_cls = self.criterion(logits, y)
 
         # regularization loss. In DER, this is the knowledge distillation loss from replay data
-        loss_reg = 0.0
-
-        if not self.memory_buffer.is_empty():
-
-            # sample from memory buffer with the same batch size as current batch
-            x_replay, _, logits_replay, task_labels_replay = (
-                self.memory_buffer.get_data(size=batch_size)
-            )
-
-            # apply augmentation transforms if any
-            if self.augmentation_transforms:
-                x_replay = self.augmentation_transforms(x_replay)
-
-            # get the student logits for this batch using the current model
-            student_feature_replay, _ = self.backbone(x_replay, stage="test")
-            student_logits_replay = torch.cat(
-                [
-                    self.heads(student_feature_replay[i].unsqueeze(0), task_id=tid)
-                    for i, tid in enumerate(task_labels_replay)
-                ]
-            )
-            with torch.no_grad():  # stop updating the previous heads
-
-                teacher_logits_replay = logits_replay
-
-            loss_reg = self.distillation_reg(
-                student_logits=student_logits_replay,
-                teacher_logits=teacher_logits_replay,
-            )
+        der_reg = self.compute_distillation_reg(
+            backbone=self.backbone, batch_size=batch_size
+        )
 
         # total loss
-        loss = loss_cls + loss_reg
+        loss = loss_cls + der_reg
 
         # predicted labels
         preds = logits.argmax(dim=1)
@@ -142,7 +166,7 @@ class DER(Finetuning):
             "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
-            "loss_reg": loss_reg,
+            "der_reg": der_reg,
             "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
             "activations": activations,
         }
@@ -193,6 +217,77 @@ class DERpp(DER):
         # save additional algorithmic hyperparameters
         self.save_hyperparameters("replay_ce_factor")
 
+    def compute_distillation_and_replay_ce_reg(
+        self,
+        backbone: CLBackbone,
+        batch_size: int,
+    ) -> Tensor:
+        """Compute the distillation regularization and replay cross-entropy loss on replayed samples.
+
+        **Args:**
+        - **backbone** (`CLBackbone`): the backbone network to use for computing logits.
+        - **batch_size** (`int`): the batch size of current training batch.
+        - **kwargs**: additional keyword arguments passed to the backbone's forward method, include `s_max`, `batch_idx`, etc.
+
+
+        **Returns:**
+        - **loss_reg** (`Tensor`): the distillation regularization loss on replayed samples.
+        """
+
+        loss_reg = 0.0
+        previous_task_ids = [
+            tid for tid in self.processed_task_ids if tid != self.task_id
+        ]
+
+        if not self.memory_buffer.is_empty() and previous_task_ids != []:
+
+            # sample from memory buffer with the same batch size as current batch
+            x_replay, labels_replay, logits_replay, task_labels_replay = (
+                self.memory_buffer.get_data(
+                    size=batch_size, included_tasks=previous_task_ids
+                )
+            )
+
+            # apply augmentation transforms if any
+            if self.augmentation_transforms:
+                x_replay = self.augmentation_transforms(x_replay)
+
+            # get the student logits for this batch using the current model
+            if isinstance(backbone, AmnesiacHATBackbone):
+                student_feature_replay = torch.cat(
+                    [
+                        self.backbone(
+                            x_replay[i].unsqueeze(0),
+                            stage="test",
+                            test_task_id=tid.item(),
+                        )[0]
+                        for i, tid in enumerate(task_labels_replay)
+                    ]
+                )
+            else:
+                student_feature_replay = backbone(x_replay, stage="train")[0]
+
+            student_logits_replay = torch.cat(
+                [
+                    self.heads(student_feature_replay[i].unsqueeze(0), task_id=tid)
+                    for i, tid in enumerate(task_labels_replay)
+                ]
+            )
+
+            with torch.no_grad():  # stop updating the previous heads
+                teacher_logits_replay = logits_replay
+
+            loss_reg = self.distillation_reg(
+                student_logits=student_logits_replay,
+                teacher_logits=teacher_logits_replay,
+            )
+
+            loss_reg += self.replay_ce_factor * self.criterion(
+                student_logits_replay, labels_replay.long()
+            )
+
+        return loss_reg
+
     def training_step(self, batch: Any) -> dict[str, Tensor]:
         """Training step for current task `self.task_id`.
 
@@ -214,40 +309,12 @@ class DERpp(DER):
         loss_cls = self.criterion(logits, y)
 
         # regularization loss. DER++ adds replay classification loss on top of DER's logit distillation
-        loss_reg = 0.0
-
-        if not self.memory_buffer.is_empty():
-
-            # sample from memory buffer with the same batch size as current batch
-            x_replay, labels_replay, logits_replay, task_labels_replay = (
-                self.memory_buffer.get_data(size=batch_size)
-            )
-
-            # apply augmentation transforms if any
-            if self.augmentation_transforms:
-                x_replay = self.augmentation_transforms(x_replay)
-
-            # get the student logits for this batch using the current model
-            student_feature_replay, _ = self.backbone(x_replay, stage="test")
-            student_logits_replay = torch.cat(
-                [
-                    self.heads(student_feature_replay[i].unsqueeze(0), task_id=tid)
-                    for i, tid in enumerate(task_labels_replay)
-                ]
-            )
-            with torch.no_grad():  # stop updating the previous heads
-                teacher_logits_replay = logits_replay
-
-            loss_reg = self.distillation_reg(
-                student_logits=student_logits_replay,
-                teacher_logits=teacher_logits_replay,
-            )
-            loss_reg += self.replay_ce_factor * self.criterion(
-                student_logits_replay, labels_replay.long()
-            )
+        derpp_reg = self.compute_distillation_and_replay_ce_reg(
+            backbone=self.backbone, batch_size=batch_size
+        )
 
         # total loss
-        loss = loss_cls + loss_reg
+        loss = loss_cls + derpp_reg
 
         # predicted labels
         preds = logits.argmax(dim=1)
@@ -264,7 +331,7 @@ class DERpp(DER):
             "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
-            "loss_reg": loss_reg,
+            "derpp_reg": derpp_reg,
             "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
             "activations": activations,
         }

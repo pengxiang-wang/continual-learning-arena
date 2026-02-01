@@ -87,16 +87,14 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
             "temporary_backbone_init_mode", "merge_iters", "merge_batch_size"
         )
 
-        if disable_unlearning:
-            return
+        if not disable_unlearning:
+            self.original_backbone_state_dict: dict = deepcopy(backbone.state_dict())
+            r"""The original backbone state dict before training on any task. Used to initialize new independent temporary backbones for new tasks."""
 
-        self.original_backbone_state_dict: dict = deepcopy(backbone.state_dict())
-        r"""The original backbone state dict before training on any task. Used to initialize new independent temporary backbones for new tasks."""
-
-        self.temporary_backbones: nn.ModuleDict = nn.ModuleDict()
-        r"""Independent temporary backbones for temporary tasks. Keys are task IDs  (in string format coz they have to) and values are the corresponding temporary backbones. Only temporary task corresponds
-        to a temporary backbone.
-        """
+            self.temporary_backbones: nn.ModuleDict = nn.ModuleDict()
+            r"""Independent temporary backbones for temporary tasks. Keys are task IDs  (in string format coz they have to) and values are the corresponding temporary backbones. Only temporary task corresponds
+            to a temporary backbone.
+            """
 
     def setup_task_id(
         self,
@@ -114,41 +112,37 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
         )
         print("no_longer", self.task_ids_just_no_longer_unlearnable)
 
-        if self.disable_unlearning:
-            return
-
-        # initialise a temporary backbone for the current task (if it is temporary). This has to be done before configure_optimizers(), because optimizer needs to include parameters from temporary backbone if any.
-        if self.task_id not in self.task_ids_just_no_longer_unlearnable:
-            # if the current task (`self.task_id`) is permanent, it just turns no longer unlearnable
-            self.temporary_backbones[f"{self.task_id}"] = deepcopy(self.backbone)
-            if self.temporary_backbone_init_mode == "from_scratch":
-                self.temporary_backbones[f"{self.task_id}"].load_state_dict(
-                    self.original_backbone_state_dict
+        if not self.disable_unlearning:
+            # initialise a temporary backbone for the current task (if it is temporary). This has to be done before configure_optimizers(), because optimizer needs to include parameters from temporary backbone if any.
+            if self.task_id not in self.task_ids_just_no_longer_unlearnable:
+                # if the current task (`self.task_id`) is permanent, it just turns no longer unlearnable
+                self.temporary_backbones[f"{self.task_id}"] = deepcopy(self.backbone)
+                if self.temporary_backbone_init_mode == "from_scratch":
+                    self.temporary_backbones[f"{self.task_id}"].load_state_dict(
+                        self.original_backbone_state_dict
+                    )
+                pylogger.info(
+                    "Temporary backbone created for temporary task %d.", self.task_id
                 )
-            pylogger.info(
-                "Temporary backbone created for temporary task %d.", self.task_id
-            )
 
     def on_train_start(self) -> None:
         r"""Merge and delete temporary backbones that just become no longer unlearnable."""
 
-        if self.disable_unlearning:
-            return
+        if not self.disable_unlearning:
+            # merge and delete temporary backbones that just becomes no longer unlearnable. It corresponds to Case III in the algorithm description of the [CLPU paper](https://arxiv.org/abs/2203.12817).
+            for tid in self.task_ids_just_no_longer_unlearnable:
+                if tid not in self.unlearned_task_ids and tid != self.task_id:
+                    pylogger.info(
+                        "Merging temporary backbone for task %d into main backbone...",
+                        tid,
+                    )
+                    self.merge_temporary_backbone_to_main(tid)
 
-        # merge and delete temporary backbones that just becomes no longer unlearnable. It corresponds to Case III in the algorithm description of the [CLPU paper](https://arxiv.org/abs/2203.12817).
-        for tid in self.task_ids_just_no_longer_unlearnable:
-            if tid not in self.unlearned_task_ids and tid != self.task_id:
-
-                pylogger.info(
-                    "Merging temporary backbone for task %d into main backbone...", tid
-                )
-                self.merge_temporary_backbone_to_main(tid)
-
-                pylogger.info(
-                    "Merging completed! Deleting temporary backbone for task %d.",
-                    tid,
-                )
-                del self.temporary_backbones[f"{tid}"]
+                    pylogger.info(
+                        "Merging completed! Deleting temporary backbone for task %d.",
+                        tid,
+                    )
+                    del self.temporary_backbones[f"{tid}"]
 
     def merge_temporary_backbone_to_main(self, task_id: int) -> None:
         r"""Merge the temporary backbone for `task_id` into the main backbone using replay."""
@@ -284,7 +278,7 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
         loss_cls = self.criterion(logits, y)
 
         # regularization loss. DER++ adds replay classification loss on top of DER's logit distillation
-        loss_reg = 0.0
+        derpp_reg = 0.0
 
         if str(self.task_id) in self.temporary_backbones.keys():
             # It corresponds to Case II in the algorithm description of the [CLPU paper](https://arxiv.org/abs/2203.12817).
@@ -293,38 +287,12 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
             # It corresponds to Case I in the algorithm description of the [CLPU paper](https://arxiv.org/abs/2203.12817).
             routed_backbone = self.backbone
 
-        if not self.memory_buffer.is_empty():
-
-            # sample from memory buffer with the same batch size as current batch
-            x_replay, labels_replay, logits_replay, task_labels_replay = (
-                self.memory_buffer.get_data(size=batch_size)
-            )
-
-            # apply augmentation transforms if any
-            if self.augmentation_transforms:
-                x_replay = self.augmentation_transforms(x_replay)
-
-            # get the student logits for this batch using the current model
-            student_feature_replay, _ = routed_backbone(x_replay, stage="test")
-            student_logits_replay = torch.cat(
-                [
-                    self.heads(student_feature_replay[i].unsqueeze(0), task_id=tid)
-                    for i, tid in enumerate(task_labels_replay)
-                ]
-            )
-            with torch.no_grad():  # stop updating the previous heads
-                teacher_logits_replay = logits_replay
-
-            loss_reg = self.distillation_reg(
-                student_logits=student_logits_replay,
-                teacher_logits=teacher_logits_replay,
-            )
-            loss_reg += self.replay_ce_factor * self.criterion(
-                student_logits_replay, labels_replay.long()
-            )
+        derpp_reg = self.compute_distillation_and_replay_ce_reg(
+            backbone=routed_backbone, batch_size=batch_size
+        )
 
         # total loss
-        loss = loss_cls + loss_reg
+        loss = loss_cls + derpp_reg
 
         # predicted labels
         preds = logits.argmax(dim=1)
@@ -341,7 +309,7 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
             "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
-            "loss_reg": loss_reg,
+            "derpp_reg": derpp_reg,
             "acc": acc,  # Return other metrics for lightning loggers callback to handle at `on_train_batch_end()`
             "activations": activations,
         }

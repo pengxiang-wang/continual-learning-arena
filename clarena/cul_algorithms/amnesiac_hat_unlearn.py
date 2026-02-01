@@ -23,10 +23,10 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
         model: AmnesiacHAT,
         if_backup_compensation: bool,
         compensate_order: str | None,
-        if_replay_fixing: bool,
-        fix_batch_size: int | None,
-        fix_num_steps: int | None,
-        fix_strategy: str | None,
+        if_replay_repairing: bool,
+        repair_batch_size: int | None,
+        repair_num_steps: int | None,
+        repair_strategy: str | None,
     ) -> None:
         r"""Initialize the unlearning algorithm with the continual learning model.
 
@@ -34,12 +34,12 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
         - **model** (`AmnesiacHAT`): the continual learning model (`CLAlgorithm` object which already contains the backbone and heads). It must be an `AmnesiacHAT` algorithm.
         - **if_backup_compensation** (`bool`): whether to perform compensation using the backup model before unlearning.
         - **compensate_order** (`str`): the order to compensate the affected tasks upon unlearning. It can be either 'normal' (from oldest to newest) or 'reverse' (from newest to oldest).
-        - **if_replay_fixing** (`bool`): whether to perform fixing with replay after unlearning.
-        - **fix_batch_size** (`int`): the batch size used during the fixing with replay after unlearning.
-        - **fix_num_steps** (`int`): the number of steps to perform fixing with replay after unlearning.
-        - **fix_strategy** (`str`): the strategy to perform fixing with replay after unlearning. It can be:
-            - **joint**: use joint replay data from all affected tasks for fixing.
-            - **sequential**: use replay data from each affected task one by one for fixing.
+        - **if_replay_repairing** (`bool`): whether to perform repairing with replay after unlearning.
+        - **repair_batch_size** (`int`): the batch size used during the repairing with replay after unlearning.
+        - **repair_num_steps** (`int`): the number of steps to perform repairing with replay after unlearning.
+        - **repair_strategy** (`str`): the strategy to perform repairing with replay after unlearning. It can be:
+            - **joint**: use joint replay data from all affected tasks for repairing.
+            - **sequential**: use replay data from each affected task one by one for repairing.
         """
         super().__init__(model=model)
 
@@ -48,14 +48,14 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
         self.compensate_order: str = compensate_order
         r"""The order to compensate the affected tasks upon unlearning. It can be either 'normal' (from oldest to newest) or 'reverse' (from newest to oldest)."""
 
-        self.if_replay_fixing: bool = if_replay_fixing
-        r"""Whether to perform fixing with replay after unlearning."""
-        self.fix_batch_size: int = fix_batch_size
-        r"""The batch size used during the fixing with replay after unlearning."""
-        self.fix_num_steps: int = fix_num_steps
-        r"""The number of steps to perform fixing with replay after unlearning."""
-        self.fix_strategy: str = fix_strategy
-        r"""The strategy to perform fixing with replay after unlearning."""
+        self.if_replay_repairing: bool = if_replay_repairing
+        r"""Whether to perform repairing with replay after unlearning."""
+        self.repair_batch_size: int = repair_batch_size
+        r"""The batch size used during the repairing with replay after unlearning."""
+        self.repair_num_steps: int = repair_num_steps
+        r"""The number of steps to perform repairing with replay after unlearning."""
+        self.repair_strategy: str = repair_strategy
+        r"""The strategy to perform repairing with replay after unlearning."""
 
     def compensate_by_backup(self, unlearning_task_ids: list[int]) -> None:
         r"""Compensate the model before unlearning using the backup model.
@@ -68,7 +68,7 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
             0
         ]  # only one unlearning task is supported for now
 
-        task_ids_to_compensate = self.model.affected_tasks_upon_unlearning()
+        task_ids_to_compensate = self.model.affected_tasks_after_unlearning()
 
         if self.compensate_order == "reverse":
             task_ids_to_compensate.reverse()  # compensate in reverse order
@@ -125,7 +125,7 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
     #         0
     #     ]  # only one unlearning task is supported for now
 
-    #     task_ids_to_compensate = self.model.affected_tasks_upon_unlearning()
+    #     task_ids_to_compensate = self.model.affected_tasks_after_unlearning()
 
     #     if self.compensate_order == "reverse":
     #         task_ids_to_compensate.reverse()  # compensate in reverse order
@@ -213,22 +213,22 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
     #                 bias_masks,
     #             )
 
-    def fixing_with_replay(self, unlearning_task_ids: list[int]) -> None:
-        r"""Fixing the model with replay after unlearning.
+    def repairing_with_replay(self, unlearning_task_ids: list[int]) -> None:
+        r"""Repairing the model with replay after unlearning.
 
         **Args:**
         - **unlearning_task_id** (`list[int]`): the ID of the unlearning task to delete the update.
         """
 
-        task_ids_to_fix = self.model.affected_tasks_upon_unlearning()
+        task_ids_to_repair = self.model.affected_tasks_after_unlearning()
 
-        pylogger.info(f"Tasks to fix after unlearning: {task_ids_to_fix}")
+        pylogger.info(f"Tasks to repair after unlearning: {task_ids_to_repair}")
 
-        if len(task_ids_to_fix) == 0:
-            pylogger.info("No tasks to fix after unlearning. Skipping fixing step.")
+        if len(task_ids_to_repair) == 0:
+            pylogger.info("No tasks to repair after unlearning. Skipping repairing step.")
             return
 
-        print("flag")
+        # **unlearning_mask** (`dict[int, Tensor]`): the union unlearning mask for the unlearning tasks. Keys are layer names and values are the corresponding unlearning mask tensor for the layer.
         unlearning_mask = {}
         for layer_name in self.model.backbone.weighted_layer_names:
             mask_tensors = torch.stack(
@@ -241,22 +241,22 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
             # take element-wise maximum across all unlearning tasks to build a single mask
             unlearning_mask[layer_name] = torch.max(mask_tensors, dim=0).values
 
-        if self.fix_strategy == "sequential":
+        if self.repair_strategy == "sequential":
 
-            summative_mask_for_previous_tasks_in_unlearning_fix = {
+            summative_mask_for_previous_tasks_in_unlearning_repair = {
                 layer_name: torch.zeros(
                     self.model.backbone.get_layer_by_name(layer_name).weight.shape[0]
                 )
                 for layer_name in self.model.backbone.weighted_layer_names
             }
 
-            for task_id_to_fix in task_ids_to_fix:
+            for task_id_to_repair in task_ids_to_repair:
 
-                for s in range(self.fix_num_steps):
-                    # get replay data for fixing from memory buffer
+                for s in range(self.repair_num_steps):
+                    # get replay data for repairing from memory buffer
                     x_replay, _, logits_replay, _ = self.model.memory_buffer.get_data(
-                        self.fix_batch_size,
-                        included_tasks=[task_id_to_fix],
+                        self.repair_batch_size,
+                        included_tasks=[task_id_to_repair],
                     )
 
                     # zero the gradients before forward pass in manual optimization mode
@@ -266,11 +266,11 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
                     student_feature_replay = self.model.backbone(
                         x_replay,
                         stage="test",
-                        test_task_id=task_id_to_fix,
+                        test_task_id=task_id_to_repair,
                     )[0]
 
                     student_logits_replay = self.model.heads(
-                        student_feature_replay, task_id=task_id_to_fix
+                        student_feature_replay, task_id=task_id_to_repair
                     )
 
                     with torch.no_grad():  # stop updating the previous heads
@@ -284,34 +284,36 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
 
                     self.model.manual_backward(loss)  # calculate the gradients
 
-                    self.model.clip_grad_by_unlearning_mask(
-                        unlearning_mask=unlearning_mask
+                    # Clip the gradients that are not masked by unlearning tasks. This is used in the unlearning replay repairing phase to make sure repairing only happens on the parameters affected by unlearning.
+
+                    self.model.clip_grad_by_mask(
+                        mask=unlearning_mask, aggregation_mode="min"
                     )
 
-                    # self.model.clip_grad_by_adjustment_in_unlearning_fix(
-                    #     summative_mask_for_previous_tasks_in_unlearning_fix=summative_mask_for_previous_tasks_in_unlearning_fix
+                    # self.model.clip_grad_by_adjustment_in_unlearning_repair(
+                    #     summative_mask_for_previous_tasks_in_unlearning_repair=summative_mask_for_previous_tasks_in_unlearning_repair
                     # )
 
                     # update parameters with the modified gradients
                     opt.step()
 
-                summative_mask_for_previous_tasks_in_unlearning_fix = {
-                    layer_name: summative_mask_for_previous_tasks_in_unlearning_fix[
+                summative_mask_for_previous_tasks_in_unlearning_repair = {
+                    layer_name: summative_mask_for_previous_tasks_in_unlearning_repair[
                         layer_name
                     ]
-                    + self.model.backbone.masks[task_id_to_fix][layer_name]
+                    + self.model.backbone.masks[task_id_to_repair][layer_name]
                     for layer_name in self.model.backbone.weighted_layer_names
                 }
 
-        elif self.fix_strategy == "joint":
-            pylogger.info("Using joint replay fixing strategy.")
-            for s in range(self.fix_num_steps):
+        elif self.repair_strategy == "joint":
+            pylogger.info("Using joint replay repairing strategy.")
+            for s in range(self.repair_num_steps):
 
-                # get replay data for fixing from memory buffer
+                # get replay data for repairing from memory buffer
                 x_replay, _, logits_replay, task_labels_replay = (
                     self.model.memory_buffer.get_data(
-                        self.fix_batch_size,
-                        included_tasks=task_ids_to_fix,
+                        self.repair_batch_size,
+                        included_tasks=task_ids_to_repair,
                     )
                 )
 
@@ -350,7 +352,9 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
 
                 self.model.manual_backward(loss)  # calculate the gradients
 
-                self.model.clip_grad_by_unlearning_mask(unlearning_mask=unlearning_mask)
+                self.model.clip_grad_by_mask(
+                    mask=unlearning_mask, aggregation_mode="min"
+                )
 
                 # update parameters with the modified gradients
                 opt.step()
@@ -385,5 +389,5 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
         if self.if_backup_compensation:
             self.compensate_by_backup(self.unlearning_task_ids)
 
-        if self.if_replay_fixing:
-            self.fixing_with_replay(self.unlearning_task_ids)
+        if self.if_replay_repairing:
+            self.repairing_with_replay(self.unlearning_task_ids)

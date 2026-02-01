@@ -236,22 +236,20 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
         self.disable_unlearning: bool = disable_unlearning
         r"""Whether to disable unlearning. This is used in reference experiments following continual learning pipeline."""
 
-        if self.disable_unlearning:
-            return
+        if not self.disable_unlearning:
+            self.unlearning_task_ids: list[int]
+            r"""The list of task IDs that are requested to be unlearned after training `self.task_id`."""
 
-        self.unlearning_task_ids: list[int]
-        r"""The list of task IDs that are requested to be unlearned after training `self.task_id`."""
+            self.unlearned_task_ids: set[int] = set()
+            r"""The list of task IDs that have been unlearned in the experiment."""
 
-        self.unlearned_task_ids: set[int] = set()
-        r"""The list of task IDs that have been unlearned in the experiment."""
+            self.unlearnable_task_ids: list[int]
+            r"""The list of task IDs that are unlearnable at the current `self.task_id`."""
 
-        self.unlearnable_task_ids: list[int]
-        r"""The list of task IDs that are unlearnable at the current `self.task_id`."""
+            self.task_ids_just_no_longer_unlearnable: list[int]
+            r"""The list of task IDs that are just no longer unlearnable at the current `self.task_id`."""
 
-        self.task_ids_just_no_longer_unlearnable: list[int]
-        r"""The list of task IDs that are just no longer unlearnable at the current `self.task_id`."""
-
-        UnlearnableCLAlgorithm.sanity_check(self)
+            UnlearnableCLAlgorithm.sanity_check(self)
 
     def sanity_check(self) -> None:
         r"""Sanity check."""
@@ -357,59 +355,55 @@ class AmnesiacCLAlgorithm(UnlearnableCLAlgorithm):
             lr_scheduler=lr_scheduler,
         )
 
-        if self.disable_unlearning:
-            return
-
-        # record initial parameters of any newly created heads for later reconstruction
-        self._record_new_head_parameters()
+        if not self.disable_unlearning:
+            # record initial parameters of any newly created heads for later reconstruction
+            self._record_new_head_parameters()
 
     def on_train_start(self):
         r"""Store the current state dict at the start of training."""
         super().on_train_start()
 
-        if self.disable_unlearning:
-            return
-
-        self.state_dict_task_start = deepcopy(self.backbone.state_dict())
-        self.heads_state_dict_task_start = deepcopy(self.heads.state_dict())
+        if not self.disable_unlearning:
+            self.state_dict_task_start = deepcopy(self.backbone.state_dict())
+            self.heads_state_dict_task_start = deepcopy(self.heads.state_dict())
 
     def on_train_end(self):
         r"""Store the parameters update of a task at the end of its training."""
         super().on_train_end()
 
-        if self.disable_unlearning:
-            return
+        if not self.disable_unlearning:
+            current_state_dict = self.backbone.state_dict()
+            parameters_task_t_update = {}
 
-        current_state_dict = self.backbone.state_dict()
-        parameters_task_t_update = {}
-
-        # compute the parameters update for the current task
-        for layer_name, current_param_tensor in current_state_dict.items():
-            if layer_name.startswith("backup_backbones."):
-                continue
-            parameters_task_t_update[layer_name] = (
-                current_param_tensor - self.state_dict_task_start[layer_name]
-            )
-
-        # store the parameters update for the current task
-        self.parameters_task_update[self.task_id] = parameters_task_t_update
-
-        # compute the heads parameters update for the current task
-        current_heads_state_dict = self.heads.state_dict()
-        parameters_task_t_update_heads = {}
-        for param_name, current_param_tensor in current_heads_state_dict.items():
-            if param_name not in self.heads_state_dict_task_start:
-                pylogger.warning(
-                    "Head parameter %s was not found in task start state dict.",
-                    param_name,
+            # compute the parameters update for the current task
+            for layer_name, current_param_tensor in current_state_dict.items():
+                if layer_name.startswith("backup_backbones."):
+                    continue
+                parameters_task_t_update[layer_name] = (
+                    current_param_tensor - self.state_dict_task_start[layer_name]
                 )
-                continue
-            parameters_task_t_update_heads[param_name] = (
-                current_param_tensor - self.heads_state_dict_task_start[param_name]
-            )
 
-        # store the heads parameters update for the current task
-        self.parameters_task_update_heads[self.task_id] = parameters_task_t_update_heads
+            # store the parameters update for the current task
+            self.parameters_task_update[self.task_id] = parameters_task_t_update
+
+            # compute the heads parameters update for the current task
+            current_heads_state_dict = self.heads.state_dict()
+            parameters_task_t_update_heads = {}
+            for param_name, current_param_tensor in current_heads_state_dict.items():
+                if param_name not in self.heads_state_dict_task_start:
+                    pylogger.warning(
+                        "Head parameter %s was not found in task start state dict.",
+                        param_name,
+                    )
+                    continue
+                parameters_task_t_update_heads[param_name] = (
+                    current_param_tensor - self.heads_state_dict_task_start[param_name]
+                )
+
+            # store the heads parameters update for the current task
+            self.parameters_task_update_heads[self.task_id] = (
+                parameters_task_t_update_heads
+            )
 
     def construct_parameters_from_updates(self):
         r"""Delete the updates for unlearning tasks from the current parameters."""

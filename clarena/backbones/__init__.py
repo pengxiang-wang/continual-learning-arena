@@ -27,7 +27,10 @@ from .base import (
     AmnesiacHATBackbone,
     WSNMaskBackbone,
 )
-from .mlp import MLP, CLMLP, HATMaskMLP, AmnesiacHATMLP, WSNMaskMLP
+from .mlp import MLP, CLMLP
+from .hat_mask_mlp import HATMaskMLP
+from .amnesiac_hat_mlp import AmnesiacHATMLP
+from .wsn_mask_mlp import WSNMaskMLP
 from .resnet import (
     ResNet18,
     ResNet34,
@@ -39,11 +42,15 @@ from .resnet import (
     CLResNet50,
     CLResNet101,
     CLResNet152,
+)
+from .hat_mask_resnet import (
     HATMaskResNet18,
     HATMaskResNet34,
     HATMaskResNet50,
     HATMaskResNet101,
     HATMaskResNet152,
+)
+from .amnesiac_hat_resnet import (
     AmnesiacHATResNet18,
     AmnesiacHATResNet34,
     AmnesiacHATResNet50,
@@ -59,5 +66,10 @@ __all__ = [
     "AmnesiacHATBackbone",
     "WSNMaskBackbone",
     "mlp",
+    "hat_mask_mlp",
+    "amnesiac_hat_mlp",
+    "wsn_mask_mlp",
     "resnet",
+    "hat_mask_resnet",
+    "amnesiac_hat_resnet",
 ]
