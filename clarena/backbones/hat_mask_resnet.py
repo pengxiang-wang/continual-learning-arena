@@ -14,11 +14,12 @@ __all__ = [
 ]
 
 import logging
+from copy import deepcopy
 
 import torchvision
 from torch import Tensor, nn
 
-from clarena.backbones.base import HATMaskBackbone
+from clarena.backbones import HATMaskBackbone
 from clarena.backbones.constants import HATMASKRESNET18_STATE_DICT_MAPPING
 from clarena.backbones.resnet import ResNetBase, ResNetBlockLarge, ResNetBlockSmall
 
@@ -85,6 +86,9 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
             **kwargs,
         )
 
+        self.batch_normalization: str | None = batch_normalization
+        r"""The way to use batch normalization after the convolutional layers. This overrides the `batch_normalization` argument in `ResNetBlockSmall`."""
+
         # construct the task embedding over the 1st weighted convolutional layer. It is channel-wise
         layer_output_channels = (
             input_channels  # the output channels of the 1st convolutional layer
@@ -102,19 +106,19 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
         )
 
         # construct the batch normalization layers if needed
-        if batch_normalization == "independent":
-            self.conv_bn1s: nn.ModuleDict = nn.ModuleDict()  # initially no heads
-            r"""Independent batch normalization layers are stored independently in a `ModuleDict`. Keys are task IDs and values are the corresponding batch normalization layers for the `nn.Linear`. We use `ModuleDict` rather than `dict` to make sure `LightningModule` can track these model parameters for the purpose of, such as automatically to device, recorded in model summaries.
-            
-            Note that the task IDs must be string type in order to let `LightningModule` identify this part of the model. """
-            self.conv_bn1: nn.BatchNorm2d | None = None
-            r"""The batch normalization layer after the 1st weighted convolutional layer. It is created when the task arrives and stored in `self.conv_bn1s`."""
-            self.conv_bn2s: nn.ModuleDict = nn.ModuleDict()  # initially no heads
-            r"""Independent batch normalization layers are stored independently in a `ModuleDict`. Keys are task IDs and values are the corresponding batch normalization layers for the `nn.Linear`. We use `ModuleDict` rather than `dict` to make sure `LightningModule` can track these model parameters for the purpose of, such as automatically to device, recorded in model summaries.
-            
-            Note that the task IDs must be string type in order to let `LightningModule` identify this part of the model. """
-            self.conv_bn2: nn.BatchNorm2d | None = None
-            r"""The batch normalization layer after the 2nd weighted convolutional layer. It is created when the task arrives and stored in `self.conv_bn2s`."""
+        if self.batch_normalization == "independent":
+            self.conv_bn1s: nn.ModuleDict = nn.ModuleDict()  # initially empty
+            r"""Independent batch normalization layers are stored in a `ModuleDict`. Keys are task IDs and values are the corresponding batch normalization layers for the 1st convolutional layer."""
+            self.conv_bn2s: nn.ModuleDict = nn.ModuleDict()  # initially empty
+            r"""Independent batch normalization layers are stored in a `ModuleDict`. Keys are task IDs and values are the corresponding batch normalization layers for the 2nd convolutional layer."""
+            self.original_conv_bn1_state_dict: dict = deepcopy(
+                self.conv_bn1.state_dict()
+            )
+            r"""The original batch normalization state dict for the 1st convolutional layer, used to reset independent BN."""
+            self.original_conv_bn2_state_dict: dict = deepcopy(
+                self.conv_bn2.state_dict()
+            )
+            r"""The original batch normalization state dict for the 2nd convolutional layer, used to reset independent BN."""
 
     def setup_task_id(self, task_id: int) -> None:
         r"""Setup about task `task_id`. This must be done before `forward()` method is called.
@@ -125,17 +129,36 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
         HATMaskBackbone.setup_task_id(self, task_id=task_id)
 
         if self.batch_normalization == "independent":
-            if self.task_id not in self.fc_bns.keys():
+            if f"{self.task_id}" not in self.conv_bn1s.keys():
+                self.conv_bn1s[f"{self.task_id}"] = deepcopy(self.conv_bn1)
+                self.conv_bn2s[f"{self.task_id}"] = deepcopy(self.conv_bn2)
 
-                # construct the batch normalization layer 1st after weighted convolutional layer
-                layer_output_channels = (
-                    self.input_channels  # the output channels of the 1st convolutional layer
-                )
+    def get_bn(
+        self, stage: str, test_task_id: int | None
+    ) -> tuple[nn.Module, nn.Module]:
+        r"""Get the batch normalization layers used in the `forward()` method for different stages."""
+        if self.batch_normalization == "independent" and stage in (
+            "test",
+            "unlearning_test",
+        ):
+            test_task_id_for_bn = self.task_id if test_task_id is None else test_task_id
+            return (
+                self.conv_bn1s[f"{test_task_id_for_bn}"],
+                self.conv_bn2s[f"{test_task_id_for_bn}"],
+            )
+        return self.conv_bn1, self.conv_bn2
 
-                # construct the batch normalization layer
-                self.conv_bn1 = nn.BatchNorm2d(num_features=layer_output_channels)
+    def initialize_independent_bn(self) -> None:
+        r"""Initialize the independent batch normalization layers for the current task."""
+        if self.batch_normalization == "independent":
+            self.conv_bn1.load_state_dict(self.original_conv_bn1_state_dict)
+            self.conv_bn2.load_state_dict(self.original_conv_bn2_state_dict)
 
-                self.fc_bns[f"{self.task_id}"] = self.fc_bn
+    def store_bn(self) -> None:
+        r"""Store the batch normalization layers for the current task `self.task_id`."""
+        if self.batch_normalization == "independent":
+            self.conv_bn1s[f"{self.task_id}"] = deepcopy(self.conv_bn1)
+            self.conv_bn2s[f"{self.task_id}"] = deepcopy(self.conv_bn2)
 
     def forward(
         self,
@@ -154,15 +177,16 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
+            4. 'unlearning_test': unlearning testing stage.
         - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn't apply to testing stage. See chapter 2.4 "Hard Attention Training" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.
         - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.
-        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.
+        - **test_task_id** (`int` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature maps.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
-        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistency for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
         activations = {}
 
@@ -174,6 +198,8 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
             num_batches=num_batches,
             test_task_id=test_task_id,
         )
+        if self.batch_normalization:
+            conv_bn1, conv_bn2 = self.get_bn(stage=stage, test_task_id=test_task_id)
 
         identity = (
             self.identity_downsample(input)
@@ -183,6 +209,8 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
 
         x = input
         x = self.conv1(x)  # weighted convolutional layer first
+        if self.batch_normalization:
+            x = conv_bn1(x)
         x = x * (
             mask[self.full_1st_layer_name].view(1, -1, 1, 1)
         )  # apply the mask to the 1st convolutional layer. Broadcast the dimension of mask to match the input
@@ -191,6 +219,8 @@ class HATMaskResNetBlockSmall(HATMaskBackbone, ResNetBlockSmall):
         activations[self.full_1st_layer_name] = x  # store the hidden feature
 
         x = self.conv2(x)  # weighted convolutional layer first
+        if self.batch_normalization:
+            x = conv_bn2(x)
         x = x + identity
         x = x * (
             mask[self.full_2nd_layer_name].view(1, -1, 1, 1)
@@ -236,7 +266,7 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the convolutional layers; one of:
             - `None`: no batch normalization layers.
             - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
             - `independent`: use independent batch normalization layers for each task.
@@ -262,6 +292,9 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
             **kwargs,
         )
 
+        self.batch_normalization: str | None = batch_normalization
+        r"""The way to use batch normalization after the convolutional layers. This overrides the `batch_normalization` argument in `ResNetBlockLarge`."""
+
         # construct the task embedding over the 1st weighted convolutional layer. It is channel-wise
         layer_output_channels = (
             input_channels  # the output channels of the 1st convolutional layer
@@ -286,6 +319,71 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
             num_embeddings=1, embedding_dim=layer_output_channels
         )
 
+        # construct the batch normalization layers if needed
+        if self.batch_normalization == "independent":
+            self.conv_bn1s: nn.ModuleDict = nn.ModuleDict()  # initially empty
+            r"""Independent batch normalization layers are stored in a `ModuleDict`. Keys are task IDs and values are the corresponding batch normalization layers for the 1st convolutional layer."""
+            self.conv_bn2s: nn.ModuleDict = nn.ModuleDict()  # initially empty
+            r"""Independent batch normalization layers are stored in a `ModuleDict`. Keys are task IDs and values are the corresponding batch normalization layers for the 2nd convolutional layer."""
+            self.conv_bn3s: nn.ModuleDict = nn.ModuleDict()  # initially empty
+            r"""Independent batch normalization layers are stored in a `ModuleDict`. Keys are task IDs and values are the corresponding batch normalization layers for the 3rd convolutional layer."""
+            self.original_conv_bn1_state_dict: dict = deepcopy(
+                self.conv_bn1.state_dict()
+            )
+            r"""The original batch normalization state dict for the 1st convolutional layer, used to reset independent BN."""
+            self.original_conv_bn2_state_dict: dict = deepcopy(
+                self.conv_bn2.state_dict()
+            )
+            r"""The original batch normalization state dict for the 2nd convolutional layer, used to reset independent BN."""
+            self.original_conv_bn3_state_dict: dict = deepcopy(
+                self.conv_bn3.state_dict()
+            )
+            r"""The original batch normalization state dict for the 3rd convolutional layer, used to reset independent BN."""
+
+    def setup_task_id(self, task_id: int) -> None:
+        r"""Setup about task `task_id`. This must be done before `forward()` method is called.
+
+        **Args:**
+        - **task_id** (`int`): the target task ID.
+        """
+        HATMaskBackbone.setup_task_id(self, task_id=task_id)
+
+        if self.batch_normalization == "independent":
+            if f"{self.task_id}" not in self.conv_bn1s.keys():
+                self.conv_bn1s[f"{self.task_id}"] = deepcopy(self.conv_bn1)
+                self.conv_bn2s[f"{self.task_id}"] = deepcopy(self.conv_bn2)
+                self.conv_bn3s[f"{self.task_id}"] = deepcopy(self.conv_bn3)
+
+    def get_bn(
+        self, stage: str, test_task_id: int | None
+    ) -> tuple[nn.Module, nn.Module, nn.Module]:
+        r"""Get the batch normalization layers used in the `forward()` method for different stages."""
+        if self.batch_normalization == "independent" and stage in (
+            "test",
+            "unlearning_test",
+        ):
+            test_task_id_for_bn = self.task_id if test_task_id is None else test_task_id
+            return (
+                self.conv_bn1s[f"{test_task_id_for_bn}"],
+                self.conv_bn2s[f"{test_task_id_for_bn}"],
+                self.conv_bn3s[f"{test_task_id_for_bn}"],
+            )
+        return self.conv_bn1, self.conv_bn2, self.conv_bn3
+
+    def initialize_independent_bn(self) -> None:
+        r"""Initialize the independent batch normalization layers for the current task."""
+        if self.batch_normalization == "independent":
+            self.conv_bn1.load_state_dict(self.original_conv_bn1_state_dict)
+            self.conv_bn2.load_state_dict(self.original_conv_bn2_state_dict)
+            self.conv_bn3.load_state_dict(self.original_conv_bn3_state_dict)
+
+    def store_bn(self) -> None:
+        r"""Store the batch normalization layers for the current task `self.task_id`."""
+        if self.batch_normalization == "independent":
+            self.conv_bn1s[f"{self.task_id}"] = deepcopy(self.conv_bn1)
+            self.conv_bn2s[f"{self.task_id}"] = deepcopy(self.conv_bn2)
+            self.conv_bn3s[f"{self.task_id}"] = deepcopy(self.conv_bn3)
+
     def forward(
         self,
         input: Tensor,
@@ -303,15 +401,16 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
+            4. 'unlearning_test': unlearning testing stage.
         - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn't apply to testing stage. See chapter 2.4 "Hard Attention Training" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.
         - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.
-        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.
+        - **test_task_id** (`int` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature maps.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
-        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistency for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
         activations = {}
 
@@ -323,6 +422,10 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
             num_batches=num_batches,
             test_task_id=test_task_id,
         )
+        if self.batch_normalization:
+            conv_bn1, conv_bn2, conv_bn3 = self.get_bn(
+                stage=stage, test_task_id=test_task_id
+            )
 
         identity = (
             self.identity_downsample(input)
@@ -332,6 +435,8 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
 
         x = input
         x = self.conv1(x)  # weighted convolutional layer first
+        if self.batch_normalization:
+            x = conv_bn1(x)
         x = x * (
             mask[self.full_1st_layer_name].view(1, -1, 1, 1)
         )  # apply the mask to the 1st convolutional layer. Broadcast the dimension of mask to match the input
@@ -340,6 +445,8 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         activations[self.full_1st_layer_name] = x  # store the hidden feature
 
         x = self.conv2(x)  # weighted convolutional layer first
+        if self.batch_normalization:
+            x = conv_bn2(x)
         x = x * (
             mask[self.full_2nd_layer_name].view(1, -1, 1, 1)
         )  # apply the mask to the 2nd convolutional layer. Broadcast the dimension of mask to match the input
@@ -348,6 +455,8 @@ class HATMaskResNetBlockLarge(HATMaskBackbone, ResNetBlockLarge):
         activations[self.full_2nd_layer_name] = x  # store the hidden feature
 
         x = self.conv3(x)  # weighted convolutional layer first
+        if self.batch_normalization:
+            x = conv_bn3(x)
         x = x + identity
         x = x * (
             mask[self.full_3rd_layer_name].view(1, -1, 1, 1)
@@ -385,7 +494,7 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         bias: bool = False,
         **kwargs,
     ) -> None:
-        r"""Construct and initialize the HAT masked ResNet backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
+        r"""Construct and initialize the HAT masked ResNet backbone network with task embedding.
 
         **Args:**
         - **input_channels** (`int`): the number of channels of input. Image data are kept channels when going in ResNet. Note that convolutional networks require number of input channels instead of dimension.
@@ -397,7 +506,7 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the convolutional layers; one of:
             - `None`: no batch normalization layers.
             - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
             - `independent`: use independent batch normalization layers for each task.
@@ -406,6 +515,8 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         """
         # store gate before super().__init__ wires up nn.Module to avoid accessing self.gate early
         self.gate = gate
+        self.batch_normalization_mode: str | None = batch_normalization
+        r"""The batch normalization mode used to initialize building blocks before `super().__init__`."""
 
         # init from both inherited classes
         super().__init__(
@@ -427,6 +538,9 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
             **kwargs,
         )
 
+        self.batch_normalization: str | None = batch_normalization
+        r"""The way to use batch normalization after the convolutional layers. This overrides the `batch_normalization` argument in `ResNetBase`."""
+
         self.update_multiple_blocks_task_embedding()
 
         # construct the task embedding over the 1st weighted convolutional layers. It is channel-wise
@@ -434,6 +548,15 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         self.task_embedding_t["conv1"] = nn.Embedding(
             num_embeddings=1, embedding_dim=layer_output_channels
         )
+
+        # construct the batch normalization layers if needed
+        if self.batch_normalization == "independent":
+            self.conv_bn1s: nn.ModuleDict = nn.ModuleDict()  # initially empty
+            r"""Independent batch normalization layers for the 1st convolutional layer are stored in a `ModuleDict`."""
+            self.original_conv_bn1_state_dict: dict = deepcopy(
+                self.conv_bn1.state_dict()
+            )
+            r"""The original batch normalization state dict for the 1st convolutional layer, used to reset independent BN."""
 
     def _multiple_blocks(
         self,
@@ -463,7 +586,7 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
             - For `ResNetBlockSmall`, it performs at the 2nd (last) layer.
             - For `ResNetBlockLarge`, it performs at the 2nd (middle) layer.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers. In HATMaskResNet, batch normalization is incompatible with HAT mechanism and shoule be always set `False`. We include this argument for compatibility with the original ResNet API.
+        - **batch_normalization** (`bool`): whether to use batch normalization after the weight convolutional layers.
         - **bias** (`bool`): whether to use bias in the convolutional layer. Default `False`.
 
         **Returns:**
@@ -471,6 +594,10 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         """
 
         layer = []
+
+        batch_norm_setting = (
+            self.batch_normalization_mode if batch_normalization else None
+        )
 
         for block_idx in range(building_block_num):
             layer.append(
@@ -491,7 +618,7 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
                         overall_stride if block_idx == 0 else 1
                     ),  # only perform the overall stride at the 1st block in this multi-building-block layer
                     gate=self.gate,
-                    # no batch normalization in HAT masked blocks
+                    batch_normalization=batch_norm_setting,
                     activation_layer=activation_layer,
                     bias=bias,
                 )
@@ -517,11 +644,40 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
         for block in self.conv5x:
             self.task_embedding_t.update(block.task_embedding_t)
 
+    def _iter_blocks(self) -> list[HATMaskResNetBlockSmall | HATMaskResNetBlockLarge]:
+        r"""Iterate over all building blocks in the 2-5 convolutional layers."""
+        blocks: list[HATMaskResNetBlockSmall | HATMaskResNetBlockLarge] = []
+        for layer in (self.conv2x, self.conv3x, self.conv4x, self.conv5x):
+            blocks.extend(list(layer))
+        return blocks
+
+    def setup_task_id(self, task_id: int) -> None:
+        r"""Set up task `task_id`. This must be done before the `forward()` method is called.
+
+        **Args:**
+        - **task_id** (`int`): the target task ID.
+        """
+        HATMaskBackbone.setup_task_id(self, task_id=task_id)
+
+        if self.batch_normalization == "independent":
+            if f"{self.task_id}" not in self.conv_bn1s.keys():
+                self.conv_bn1s[f"{self.task_id}"] = deepcopy(self.conv_bn1)
+            for block in self._iter_blocks():
+                block.setup_task_id(task_id)
+
     def initialize_independent_bn(self) -> None:
         r"""Initialize the independent batch normalization layer for the current task. This is called when a new task is created. Applies only when `batch_normalization` is 'independent'."""
+        if self.batch_normalization == "independent":
+            self.conv_bn1.load_state_dict(self.original_conv_bn1_state_dict)
+            for block in self._iter_blocks():
+                block.initialize_independent_bn()
 
     def store_bn(self) -> None:
         r"""Store the batch normalization layer for the current task `self.task_id`. Applies only when `batch_normalization` is 'independent'."""
+        if self.batch_normalization == "independent":
+            self.conv_bn1s[f"{self.task_id}"] = deepcopy(self.conv_bn1)
+            for block in self._iter_blocks():
+                block.store_bn()
 
     def forward(
         self,
@@ -540,15 +696,16 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
+            4. 'unlearning_test': unlearning testing stage.
         - **s_max** (`float` | `None`): the maximum scaling factor in the gate function. Doesn't apply to testing stage. See chapter 2.4 "Hard Attention Training" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **batch_idx** (`int` | `None`): the current batch index. Applies only to training stage. For other stages, it is default `None`.
         - **num_batches** (`int` | `None`): the total number of batches. Applies only to training stage. For other stages, it is default `None`.
-        - **test_task_id** (`dict[str, Tensor]` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.
+        - **test_task_id** (`int` | `None`): the test task ID. Applies only to testing stage. For other stages, it is default `None`.
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed to the heads.
         - **mask** (`dict[str, Tensor]`): the mask for the current task. Key (`str`) is layer name, value (`Tensor`) is the mask tensor. The mask tensor has size (number of units, ).
-        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistence for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
+        - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes. Although HAT algorithm does not need this, it is still provided for API consistency for other HAT-based algorithms inherited this `forward()` method of `HAT` class.
         """
         batch_size = input.size(0)
         activations = {}
@@ -561,10 +718,21 @@ class HATMaskResNetBase(HATMaskBackbone, ResNetBase):
             num_batches=num_batches,
             test_task_id=test_task_id,
         )
+        if self.batch_normalization:
+            test_task_id_for_bn = self.task_id if test_task_id is None else test_task_id
+            if self.batch_normalization == "independent" and stage in (
+                "test",
+                "unlearning_test",
+            ):
+                conv_bn1 = self.conv_bn1s[f"{test_task_id_for_bn}"]
+            else:
+                conv_bn1 = self.conv_bn1
 
         x = input
 
         x = self.conv1(x)
+        if self.batch_normalization:
+            x = conv_bn1(x)
 
         x = x * (
             mask["conv1"].view(1, -1, 1, 1)
@@ -644,7 +812,7 @@ class HATMaskResNet18(HATMaskResNetBase):
         pretrained_weights: str | None = None,
         **kwargs,
     ) -> None:
-        r"""Construct and initialize the ResNet-18 backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
+        r"""Construct and initialize the ResNet-18 backbone network with task embedding. Batch normalization can be shared or independent per task.
 
         **Args:**
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
@@ -652,7 +820,7 @@ class HATMaskResNet18(HATMaskResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the convolutional layers; one of:
             - `None`: no batch normalization layers.
             - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
             - `independent`: use independent batch normalization layers for each task.
@@ -711,7 +879,7 @@ class HATMaskResNet34(HATMaskResNetBase):
         bias: bool = False,
         **kwargs,
     ) -> None:
-        r"""Construct and initialize the ResNet-34 backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
+        r"""Construct and initialize the ResNet-34 backbone network with task embedding. Batch normalization can be shared or independent per task.
 
         **Args:**
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
@@ -719,7 +887,7 @@ class HATMaskResNet34(HATMaskResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the convolutional layers; one of:
             - `None`: no batch normalization layers.
             - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
             - `independent`: use independent batch normalization layers for each task.
@@ -761,7 +929,7 @@ class HATMaskResNet50(HATMaskResNetBase):
         bias: bool = False,
         **kwargs,
     ) -> None:
-        r"""Construct and initialize the ResNet-50 backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
+        r"""Construct and initialize the ResNet-50 backbone network with task embedding. Batch normalization can be shared or independent per task.
 
         **Args:**
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
@@ -769,7 +937,7 @@ class HATMaskResNet50(HATMaskResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the convolutional layers; one of:
             - `None`: no batch normalization layers.
             - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
             - `independent`: use independent batch normalization layers for each task.
@@ -811,7 +979,7 @@ class HATMaskResNet101(HATMaskResNetBase):
         bias: bool = False,
         **kwargs,
     ) -> None:
-        r"""Construct and initialize the ResNet-101 backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
+        r"""Construct and initialize the ResNet-101 backbone network with task embedding. Batch normalization can be shared or independent per task.
 
         **Args:**
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
@@ -819,7 +987,7 @@ class HATMaskResNet101(HATMaskResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the convolutional layers; one of:
             - `None`: no batch normalization layers.
             - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
             - `independent`: use independent batch normalization layers for each task.
@@ -861,7 +1029,7 @@ class HATMaskResNet152(HATMaskResNetBase):
         bias: bool = False,
         **kwargs,
     ) -> None:
-        r"""Construct and initialize the ResNet-152 backbone network with task embedding. Note that batch normalization is incompatible with HAT mechanism.
+        r"""Construct and initialize the ResNet-152 backbone network with task embedding. Batch normalization can be shared or independent per task.
 
         **Args:**
         - **input_channels** (`int`): the number of channels of input of this building block. Note that convolutional networks require number of input channels instead of dimension.
@@ -869,7 +1037,7 @@ class HATMaskResNet152(HATMaskResNetBase):
         - **gate** (`str`): the type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
         - **activation_layer** (`nn.Module`): activation function of each layer (if not `None`), if `None` this layer won't be used. Default `nn.ReLU`.
-        - **batch_normalization** (`str` | `None`): How to use batch normalization after the fully connected layers; one of:
+        - **batch_normalization** (`str` | `None`): How to use batch normalization after the convolutional layers; one of:
             - `None`: no batch normalization layers.
             - `shared`: use a single batch normalization layer for all tasks. Note that this can cause catastrophic forgetting.
             - `independent`: use independent batch normalization layers for each task.

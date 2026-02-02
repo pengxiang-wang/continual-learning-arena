@@ -8,7 +8,7 @@ import logging
 
 from torch import Tensor, nn
 
-from clarena.backbones.base import Backbone, CLBackbone
+from clarena.backbones import Backbone, CLBackbone
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -192,10 +192,11 @@ class CLMLP(CLBackbone, MLP):
 
         **Args:**
         - **input** (`Tensor`): The input tensor from data.
+        - **stage** (`str` | `None`): Unused. Kept for API compatibility with other backbones.
+        - **task_id** (`int` | `None`): Unused. Kept for API compatibility with other continual learning backbones.
 
         **Returns:**
         - **output_feature** (`Tensor`): The output feature tensor to be passed into heads. This is the main target of backpropagation.
         - **activations** (`dict[str, Tensor]`): The hidden features (after activation) in each weighted layer. Key (`str`) is the weighted layer name; value (`Tensor`) is the hidden feature tensor. This is used for continual learning algorithms that need hidden features for various purposes.
-        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
         """
         return MLP.forward(self, input, stage)  # call the MLP forward method

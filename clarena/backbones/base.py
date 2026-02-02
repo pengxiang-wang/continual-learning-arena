@@ -188,7 +188,6 @@ class HATMaskBackbone(CLBackbone):
         - **output_dim** (`int`): The output dimension that connects to CL output heads. The `input_dim` of output heads is expected to be the same as this `output_dim`. In some cases, this class is used as a block in the backbone network that doesn't have an output dimension. In this case, it can be `None`.
         - **gate** (`str`): The type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
-            - `tanh`: the hyperbolic tangent function.
         - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(output_dim=output_dim, **kwargs)
@@ -330,25 +329,36 @@ class HATMaskBackbone(CLBackbone):
 
         return mask_t
 
-    def masks_intersection(self, masks: list[dict[str, Tensor]]) -> dict[str, Tensor]:
-        r"""Get the intersection of multiple masks.
+    def combine_masks(
+        self, masks: list[dict[str, Tensor]], mode: str
+    ) -> dict[str, Tensor]:
+        r"""Combine multiple masks by taking their element-wise minimum (for intersection) / maximum (for union).
 
         **Args:**
-        - **masks** (`list[dict[str, Tensor]]`): A list of masks. Each mask is a dict
-        where keys are layer names and values are mask tensors.
+        - **masks** (`list[dict[str, Tensor]]`): A list of masks. Each mask is a dict where keys are layer names and values are mask tensors.
+        - **mode** (`str`): The combination mode; one of:
+            - 'intersection': take the element-wise minimum of the masks (for intersection).
+            - 'union': take the element-wise maximum of the masks (for union).
 
         **Returns:**
-        - **intersection_mask** (`dict[str, Tensor]`): The intersection mask.
+        - **combined_mask** (`dict[str, Tensor]`): The combined mask.
         """
 
-        intersection_mask = {}
+        combined_mask = {}
         for layer_name in masks[0].keys():
             layer_mask_tensors = torch.stack(
                 [mask[layer_name] for mask in masks], dim=0
             )
-            intersection_mask[layer_name] = torch.min(layer_mask_tensors, dim=0).values
+            if mode == "intersection":
+                combined_mask[layer_name] = torch.min(layer_mask_tensors, dim=0).values
+            elif mode == "union":
+                combined_mask[layer_name] = torch.max(layer_mask_tensors, dim=0).values
+            else:
+                raise ValueError(
+                    f"Unsupported mode: {mode}. Use 'intersection' or 'union'."
+                )
 
-        return intersection_mask
+        return combined_mask
 
     def store_mask(self) -> None:
         r"""Store the mask for the current task `self.task_id`."""
@@ -479,6 +489,9 @@ class HATMaskBackbone(CLBackbone):
 class AmnesiacHATBackbone(HATMaskBackbone):
     r"""The backbone network for AmnesiacHAT on top of HAT. AmnesiacHAT introduces a parallel backup backbone in case of effects caused by unlearning."""
 
+    original_backbone_class: type[Backbone]
+    r"""The original backbone class used to instantiate backup backbones. Must be defined in subclasses."""
+
     def __init__(
         self,
         output_dim: int | None,
@@ -491,7 +504,6 @@ class AmnesiacHATBackbone(HATMaskBackbone):
         - **output_dim** (`int`): The output dimension that connects to CL output heads. The `input_dim` of output heads is expected to be the same as this `output_dim`. In some cases, this class is used as a block in the backbone network that doesn't have an output dimension. In this case, it can be `None`.
         - **gate** (`str`): The type of gate function turning the real value task embeddings into attention masks; one of:
             - `sigmoid`: the sigmoid function.
-            - `tanh`: the hyperbolic tangent function.
         - **disable_unlearning** (`bool`): whether to disable unlearning. This is used in reference experiments following continual learning pipeline. Default is `False`.
         - **kwargs**: Reserved for multiple inheritance.
         """
@@ -511,6 +523,33 @@ class AmnesiacHATBackbone(HATMaskBackbone):
 
             self.backup_state_dicts: dict[tuple[int, int], dict[str, Tensor]] = {}
             r"""The backup state dict for each task. Keys are tuples (backup task IDs, the task ID that the backup is for) and values are the corresponding state dicts."""
+
+    def instantiate_backup_backbones(
+        self,
+        backup_task_ids: list[int],
+    ) -> None:
+        r"""Instantiate the backup backbone network for the current task. This is called when a new task is created.
+
+        **Args:**
+        - **backup_task_ids** (`list[int]`): The list of task IDs to backup at current task `self.task_id`.
+        """
+
+        self.backup_task_ids = backup_task_ids
+
+        self.backup_backbones = nn.ModuleDict(
+            {
+                f"{task_id_to_backup}": self.original_backbone_class(
+                    **self.backup_backbone_kwargs,
+                )
+                for task_id_to_backup in backup_task_ids
+            }
+        )
+
+        pylogger.debug(
+            "Backup backbones (backing up task IDs %s) for current task ID %d have been instantiated.",
+            backup_task_ids,
+            self.task_id,
+        )
 
 
 class WSNMaskBackbone(CLBackbone):

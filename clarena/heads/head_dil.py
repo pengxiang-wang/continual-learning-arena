@@ -38,6 +38,14 @@ class HeadDIL(nn.Module):
         """
         return self._if_head_setup
 
+    def get_head(self) -> nn.Linear:
+        r"""Get the output head for DIL.
+
+        **Returns:**
+        - **head** (`nn.Linear`): the output head for DIL.
+        """
+        return self.head
+
     def setup_task(self, num_classes: dict[int, int]) -> None:
         r"""Create the output head. This must be done before `forward()` is called.
 

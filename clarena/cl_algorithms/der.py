@@ -382,6 +382,18 @@ class Buffer:
         """
         batch_size = examples.size(0)
 
+        # keep buffer tensors on the same device as incoming data
+        if self.examples.numel() == 0 and self.examples.device != examples.device:
+            self.examples = self.examples.to(examples.device)
+            self.labels = self.labels.to(labels.device)
+            self.logits = self.logits.to(logits.device)
+            self.task_labels = self.task_labels.to(task_labels.device)
+        elif self.examples.numel() > 0 and self.examples.device != examples.device:
+            examples = examples.to(self.examples.device)
+            labels = labels.to(self.labels.device)
+            logits = logits.to(self.logits.device)
+            task_labels = task_labels.to(self.task_labels.device)
+
         for i in range(batch_size):
             self.num_seen_examples += 1
 
@@ -442,19 +454,19 @@ class Buffer:
         if available == 0:
             # empty buffer
             return (
-                torch.empty((0,)),
-                torch.empty((0,)),
-                torch.empty((0,)),
-                torch.empty((0,)),
+                torch.empty((0,), device=self.examples.device),
+                torch.empty((0,), device=self.labels.device),
+                torch.empty((0,), device=self.logits.device),
+                torch.empty((0,), device=self.task_labels.device),
             )
 
         # filter to only included tasks (if specified)
         if included_tasks is not None and len(included_tasks) == 0:
             return (
-                torch.empty((0,)),
-                torch.empty((0,)),
-                torch.empty((0,)),
-                torch.empty((0,)),
+                torch.empty((0,), device=self.examples.device),
+                torch.empty((0,), device=self.labels.device),
+                torch.empty((0,), device=self.logits.device),
+                torch.empty((0,), device=self.task_labels.device),
             )
         if included_tasks:
             included = torch.tensor(included_tasks, device=self.task_labels.device)
@@ -466,10 +478,10 @@ class Buffer:
         # handle case where no valid samples remain
         if valid_indices.numel() == 0:
             return (
-                torch.empty((0,)),
-                torch.empty((0,)),
-                torch.empty((0,)),
-                torch.empty((0,)),
+                torch.empty((0,), device=self.examples.device),
+                torch.empty((0,), device=self.labels.device),
+                torch.empty((0,), device=self.logits.device),
+                torch.empty((0,), device=self.task_labels.device),
             )
 
         # limit batch size to available samples

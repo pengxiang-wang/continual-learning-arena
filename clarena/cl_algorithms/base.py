@@ -4,6 +4,7 @@ The submodule in `cl_algorithms` for continual learning algorithm bases.
 
 __all__ = ["CLAlgorithm", "UnlearnableCLAlgorithm", "AmnesiacCLAlgorithm"]
 
+import inspect
 import logging
 from copy import deepcopy
 from typing import Any
@@ -266,9 +267,22 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
         - **output** (`Tensor`): the aggregated backbone output tensor.
         """
         feature = 0
+        forward_params = inspect.signature(self.backbone.forward).parameters
+        supports_test_task_id = (
+            "test_task_id" in forward_params
+            or any(
+                p.kind == inspect.Parameter.VAR_KEYWORD
+                for p in forward_params.values()
+            )
+        )
 
         for i in self.processed_task_ids:
-            feature_i = self.backbone(input, stage="unlearning_test")[0]
+            if supports_test_task_id:
+                feature_i = self.backbone(
+                    input, stage="unlearning_test", test_task_id=i
+                )[0]
+            else:
+                feature_i = self.backbone(input, stage="unlearning_test")[0]
             feature += feature_i
         feature = feature / len(self.processed_task_ids)
 
@@ -278,7 +292,7 @@ class UnlearnableCLAlgorithm(CLAlgorithm):
 class AmnesiacCLAlgorithm(UnlearnableCLAlgorithm):
     r"""The base class of Amnesiac continual learning algorithms.
 
-    The Amnesiac continual learning algorithm refers to the corresponding continual learning model thatd the Amnesiac continual unlearning algorithm requires. The Amnesiac continual unlearning algorithm refers to update deletion operation that directly delete the parameter updates during a task's training. This is inspired by [AmnesiacML](https://arxiv.org/abs/2010.10981) in machine unlearning. In detail, the task-wise parameter updates are stored:
+    The Amnesiac continual learning algorithm refers to the corresponding continual learning model that the Amnesiac continual unlearning algorithm requires. The Amnesiac continual unlearning algorithm refers to update deletion operation that directly delete the parameter updates during a task's training. This is inspired by [AmnesiacML](https://arxiv.org/abs/2010.10981) in machine unlearning. In detail, the task-wise parameter updates are stored:
 
     $$\theta_{l,ij}^{(t)} = \theta_{l,ij}^{(0)} + \sum_{\tau=1}^{t} \Delta \theta_{l,ij}^{(\tau)}$$
 
@@ -334,7 +348,7 @@ class AmnesiacCLAlgorithm(UnlearnableCLAlgorithm):
         r"""Store the heads state dict at the start of training each task. """
 
     def _record_new_head_parameters(self) -> None:
-        r"""Record the initial parameters for any newly created heads."""
+        r"""Record the initial parameters for any newly created heads. This applies to TIL and CIL settings where new heads are created for new tasks."""
         current_heads_state_dict = self.heads.state_dict()
         for param_name, param_tensor in current_heads_state_dict.items():
             if param_name not in self.original_heads_state_dict:
@@ -404,47 +418,3 @@ class AmnesiacCLAlgorithm(UnlearnableCLAlgorithm):
             self.parameters_task_update_heads[self.task_id] = (
                 parameters_task_t_update_heads
             )
-
-    def construct_parameters_from_updates(self):
-        r"""Delete the updates for unlearning tasks from the current parameters."""
-        if not hasattr(self, "unlearning_task_ids") or not self.unlearning_task_ids:
-            return
-
-        updated_state_dict = deepcopy(self.backbone.state_dict())
-        for task_id in self.unlearning_task_ids:
-            param_update = self.parameters_task_update.get(task_id)
-            if param_update is None:
-                pylogger.warning(
-                    "Attempted to delete update for task %d, but it was not found.",
-                    task_id,
-                )
-                continue
-            for layer_name, param_tensor in param_update.items():
-                if layer_name in updated_state_dict:
-                    updated_state_dict[layer_name] -= param_tensor
-                else:
-                    pylogger.warning(
-                        "Backbone parameter %s was not found for task %d.",
-                        layer_name,
-                        task_id,
-                    )
-
-        self.backbone.load_state_dict(updated_state_dict, strict=False)
-
-        updated_heads_state_dict = deepcopy(self.heads.state_dict())
-        for task_id in self.unlearning_task_ids:
-            param_update = self.parameters_task_update_heads.get(task_id)
-            if param_update is None:
-                continue
-            for param_name, param_tensor in param_update.items():
-                if param_name in updated_heads_state_dict:
-                    updated_heads_state_dict[param_name] -= param_tensor
-                else:
-                    pylogger.warning(
-                        "Head parameter %s was not found for task %d.",
-                        param_name,
-                        task_id,
-                    )
-
-        if updated_heads_state_dict:
-            self.heads.load_state_dict(updated_heads_state_dict, strict=False)

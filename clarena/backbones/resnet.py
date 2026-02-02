@@ -23,7 +23,7 @@ import logging
 import torchvision
 from torch import Tensor, nn
 
-from clarena.backbones.base import Backbone, CLBackbone
+from clarena.backbones import Backbone, CLBackbone
 from clarena.backbones.constants import RESNET18_STATE_DICT_MAPPING
 
 # always get logger for built-in logging in each module
@@ -870,11 +870,12 @@ class CLResNet18(CLBackbone, ResNet18):
 
         **Args:**
         - **input** (`Tensor`): the input tensor from data.
+        - **stage** (`str` | `None`): Unused. Kept for API compatibility with other backbones.
+        - **task_id** (`int` | `None`): Unused. Kept for API compatibility with other continual learning backbones.
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
         - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
-        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
         """
         return ResNet18.forward(self, input, stage)  # call the ResNet18 forward method
 
@@ -923,11 +924,12 @@ class CLResNet34(CLBackbone, ResNet34):
 
         **Args:**
         - **input** (`Tensor`): the input tensor from data.
+        - **stage** (`str` | `None`): Unused. Kept for API compatibility with other backbones.
+        - **task_id** (`int` | `None`): Unused. Kept for API compatibility with other continual learning backbones.
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
         - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
-        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
         """
         return ResNet34.forward(self, input, stage)  # call the ResNet34 forward method
 
@@ -976,11 +978,12 @@ class CLResNet50(CLBackbone, ResNet50):
 
         **Args:**
         - **input** (`Tensor`): the input tensor from data.
+        - **stage** (`str` | `None`): Unused. Kept for API compatibility with other backbones.
+        - **task_id** (`int` | `None`): Unused. Kept for API compatibility with other continual learning backbones.
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
         - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
-        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
         """
         return ResNet50.forward(self, input, stage)  # call the ResNet50 forward method
 
@@ -1029,12 +1032,12 @@ class CLResNet101(CLBackbone, ResNet101):
 
         **Args:**
         - **input** (`Tensor`): the input tensor from data.
+        - **stage** (`str` | `None`): Unused. Kept for API compatibility with other backbones.
+        - **task_id** (`int` | `None`): Unused. Kept for API compatibility with other continual learning backbones.
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
         - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
-        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
-
         """
         return ResNet101.forward(
             self, input, stage
@@ -1085,11 +1088,12 @@ class CLResNet152(CLBackbone, ResNet152):
 
         **Args:**
         - **input** (`Tensor`): the input tensor from data.
+        - **stage** (`str` | `None`): Unused. Kept for API compatibility with other backbones.
+        - **task_id** (`int` | `None`): Unused. Kept for API compatibility with other continual learning backbones.
 
         **Returns:**
         - **output_feature** (`Tensor`): the output feature tensor to be passed into heads. This is the main target of backpropagation.
         - **activations** (`dict[str, Tensor]`): the hidden features (after activation) in each weighted layer. Keys (`str`) are the weighted layer names and values (`Tensor`) are the hidden feature tensors. This is used for the continual learning algorithms that need to use the hidden features for various purposes.
-        - **task_id** (`int` | `None`): The task ID of the current data. Although it is not used in this basic CLMLP, it is provided for API consistency for other continual learning backbones that inherit this `forward()` method.
         """
         return ResNet152.forward(
             self, input, stage

@@ -9,7 +9,7 @@ from copy import deepcopy
 from typing import Any
 
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning
@@ -32,7 +32,7 @@ class LwF(Finetuning):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL | HeadDIL,
+        heads: HeadsTIL | HeadDIL,
         distillation_reg_factor: float,
         distillation_reg_temperature: float,
         non_algorithmic_hparams: dict[str, Any] = {},
@@ -42,7 +42,7 @@ class LwF(Finetuning):
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
+        - **heads** (`HeadsTIL` | `HeadDIL`): output heads. Currently this LwF supports Task-Incremental Learning (TIL) and Domain-Incremental Learning (DIL) scenarios.
         - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor. It controls the strength of preventing forgetting.
         - **distillation_reg_temperature** (`float`): hyperparameter, the temperature in the distillation regularization. It controls the softness of the labels that the student model (here is the current model) learns from the teacher models (here are the previous models), thereby controlling the strength of the distillation. It controls the strength of preventing forgetting.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
@@ -56,11 +56,14 @@ class LwF(Finetuning):
             **kwargs,
         )
 
-        self.previous_task_backbones: dict[int, CLBackbone] = {}
-        r"""The backbone models of the previous tasks. Keys are task IDs (int) and values are the corresponding models. Each model is a `CLBackbone` after the corresponding previous task was trained.
+        self.previous_task_backbones: dict[str, nn.Module] = {}
+        r"""Store the backbone models of the previous tasks. Keys are task IDs (string type) and values are the corresponding models. Each model is a `nn.Module` backbone after the corresponding previous task was trained.
         
         Some would argue that since we could store the model of the previous tasks, why don't we test the task directly with the stored model, instead of doing the less easier LwF thing? The thing is, LwF only uses the model of the previous tasks to train current and future tasks, which aggregate them into a single model. Once the training of the task is done, the storage for those parameters can be released. However, this make the future tasks not able to use LwF anymore, which is a disadvantage for LwF.
         """
+        if isinstance(self.heads, HeadDIL):
+            self.previous_task_heads: dict[str, nn.Module] = {}
+            r"""The heads snapshot of the previous task (teacher). This is only used when the heads is `HeadDIL`, because in DIL scenario, all tasks share the same head, so we need to store the previous head for distillation; where in TIL scenario, each task has its own head, so we can directly use the head of the previous task without storing it separately."""
 
         self.distillation_reg_factor: float = distillation_reg_factor
         r"""The distillation regularization factor."""
@@ -111,16 +114,15 @@ class LwF(Finetuning):
 
         # regularization loss. See equation (2) (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
         distillation_reg = 0.0
-        for previous_task_id in self.processed_task_ids:
-            if previous_task_id == self.task_id:
-                continue
+        for previous_task_id in range(1, self.task_id):
             # sum over all previous models, because [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520) says: "If there are multiple old tasks, or if an old task is multi-label classification, we take the sum of the loss for each old task and label."
 
-            # get the student logits for this batch using the current model (to previous output head)
+            # get the teacher logits for this batch, which is from the current model (to previous output head)
             student_feature, _ = self.backbone(
                 x, stage="train", task_id=previous_task_id
             )
-            student_logits = self.heads(student_feature, task_id=previous_task_id)
+            with torch.no_grad():  # stop updating the previous heads
+                student_logits = self.heads(student_feature, task_id=previous_task_id)
 
             # get the teacher logits for this batch, which is from the previous model
             previous_backbone = self.previous_task_backbones[previous_task_id]
@@ -128,7 +130,17 @@ class LwF(Finetuning):
                 teacher_feature, _ = previous_backbone(
                     x, stage="test", task_id=previous_task_id
                 )
-                teacher_logits = self.heads(teacher_feature, task_id=previous_task_id)
+                if isinstance(self.heads, HeadDIL):
+                    previous_head = self.previous_task_heads[previous_task_id]
+                    teacher_logits = previous_head(teacher_feature)
+                elif isinstance(self.heads, HeadsTIL):
+                    teacher_logits = self.heads(
+                        teacher_feature, task_id=previous_task_id
+                    )
+                else:
+                    raise TypeError(
+                        f"Unsupported heads type {type(self.heads)} in LwF."
+                    )
 
             distillation_reg += self.distillation_reg(
                 student_logits=student_logits,
@@ -156,19 +168,21 @@ class LwF(Finetuning):
         }
 
     def on_train_end(self) -> None:
-        r"""The backbone model after the training of a task.
+        r"""Store the backbone model after the training of a task.
 
-        The model is stored in `self.previous_task_backbones` for constructing the regularization loss in the future tasks.
+        The model is stored in `self.previous_task_backbones` for constructing the regularisation loss in the future tasks.
         """
-        previous_backbone = deepcopy(self.backbone)
-        previous_backbone.eval()  # set the stored model to evaluation mode to prevent updating
-        head = (
-            self.heads.heads[f"{self.task_id}"]
-            if hasattr(self.heads, "heads")
-            else self.heads.head
-        )
-        head.eval()  # set the head to evaluation mode
-        self.previous_task_backbones[self.task_id] = previous_backbone
+        current_backbone = deepcopy(self.backbone)
+        current_backbone.eval()  # set the store model to evaluation mode to prevent updating
+        if isinstance(self.heads, HeadDIL):
+            current_head = deepcopy(self.heads.get_head())
+            current_head.eval()  # set the store model to evaluation mode to prevent updating
+        self.heads.get_head(
+            self.task_id
+        ).eval()  # set the store model to evaluation mode to prevent updating
+        self.previous_task_backbones[self.task_id] = current_backbone
+        if isinstance(self.heads, HeadDIL):
+            self.previous_task_heads[self.task_id] = current_head
 
 
 class AmnesiacLwF(AmnesiacCLAlgorithm, LwF):
@@ -177,7 +191,7 @@ class AmnesiacLwF(AmnesiacCLAlgorithm, LwF):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL | HeadDIL,
+        heads: HeadsTIL | HeadDIL,
         non_algorithmic_hparams: dict[str, Any] = {},
         disable_unlearning: bool = False,
         **kwargs,
@@ -187,7 +201,7 @@ class AmnesiacLwF(AmnesiacCLAlgorithm, LwF):
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
+        - **heads** (`HeadsTIL` | `HeadDIL`): output heads. Currently this LwF supports Task-Incremental Learning (TIL) and Domain-Incremental Learning (DIL) scenarios.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
         - **disable_unlearning** (`bool`): whether to disable the unlearning functionality. Default is `False`.
         - **kwargs**: Reserved for multiple inheritance.

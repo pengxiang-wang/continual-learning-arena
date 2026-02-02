@@ -4,6 +4,7 @@ The submodule in `cl_algorithms` for Independent learning algorithm.
 
 __all__ = ["Independent"]
 
+import inspect
 import logging
 from copy import deepcopy
 from typing import Any
@@ -15,7 +16,7 @@ from torch.utils.data import DataLoader
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning, UnlearnableCLAlgorithm
-from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
+from clarena.heads import HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class Independent(Finetuning):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL | HeadDIL,
+        heads: HeadsTIL,
         non_algorithmic_hparams: dict[str, Any] = {},
         **kwargs,
     ) -> None:
@@ -47,7 +48,7 @@ class Independent(Finetuning):
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
+        - **heads** (`HeadsTIL`): output heads. Independent supports only TIL (Task-Incremental Learning).
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations.
         - **kwargs**: Reserved for multiple inheritance.
         """
@@ -121,7 +122,7 @@ class UnlearnableIndependent(UnlearnableCLAlgorithm, Independent):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL | HeadDIL,
+        heads: HeadsTIL,
         non_algorithmic_hparams: dict[str, Any] = {},
         disable_unlearning: bool = False,
     ) -> None:
@@ -129,7 +130,7 @@ class UnlearnableIndependent(UnlearnableCLAlgorithm, Independent):
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
+        - **heads** (`HeadsTIL`): output heads. Independent supports only TIL (Task-Incremental Learning).
         - **disable_unlearning** (`bool`): disable unlearning or not.
         """
         super().__init__(
@@ -153,7 +154,17 @@ class UnlearnableIndependent(UnlearnableCLAlgorithm, Independent):
         feature = 0
 
         for t in self.backbone_valid_task_ids:
-            feature_t = self.backbones[t](input, stage="unlearning_test")[0]
+            backbone_t = self.backbones[t]
+            forward_params = inspect.signature(backbone_t.forward).parameters
+            supports_test_task_id = "test_task_id" in forward_params or any(
+                p.kind == inspect.Parameter.VAR_KEYWORD for p in forward_params.values()
+            )
+            if supports_test_task_id:
+                feature_t = backbone_t(input, stage="unlearning_test", test_task_id=t)[
+                    0
+                ]
+            else:
+                feature_t = backbone_t(input, stage="unlearning_test")[0]
             feature += feature_t
 
         feature = feature / len(self.backbone_valid_task_ids)

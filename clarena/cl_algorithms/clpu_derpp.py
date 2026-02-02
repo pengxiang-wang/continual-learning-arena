@@ -9,13 +9,14 @@ from copy import deepcopy
 from typing import Any, Callable
 
 import torch
+from rich.progress import track
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import DERpp, UnlearnableCLAlgorithm
-from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
+from clarena.heads import HeadDIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadsCIL | HeadDIL,
+        heads: HeadsTIL | HeadDIL,
         buffer_size: int,
         distillation_reg_factor: float,
         replay_ce_factor: float,
@@ -48,7 +49,7 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadsCIL` | `HeadDIL`): output heads.
+        - **heads** (`HeadsTIL` | `HeadDIL`): output heads. CLPU-DER++ only supports TIL (Task-Incremental Learning) and DIL (Domain-Incremental Learning).
         - **buffer_size** (`int`): the size of the memory buffer. For now we only support fixed size buffer.
         - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor ($\alpha$ in the [DER++ paper](https://arxiv.org/abs/2004.07211)). It controls the strength of preventing forgetting.
         - **replay_ce_factor** (`float`): hyperparameter, the classification loss factor for replayed samples, ($\beta$ in the [DER++ paper](https://arxiv.org/abs/2004.07211)). It also controls the strength of preventing forgetting.
@@ -174,7 +175,11 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
             ]
 
         self.train()
-        for s in range(self.merge_iters):
+        for s in track(
+            range(self.merge_iters),
+            description=f"Merging temporary backbone for task {task_id}",
+            transient=True,
+        ):
             loss = 0.0
 
             if replay_task_ids:

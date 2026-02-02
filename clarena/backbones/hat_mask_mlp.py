@@ -9,8 +9,7 @@ from copy import deepcopy
 
 from torch import Tensor, nn
 
-from clarena.backbones.base import HATMaskBackbone
-from clarena.backbones.mlp import MLP
+from clarena.backbones import MLP, HATMaskBackbone
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -115,13 +114,18 @@ class HATMaskMLP(HATMaskBackbone, MLP):
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
+            4. 'unlearning_test': unlearning testing stage.
         - **test_task_id** (`int` | `None`): The test task ID. Applies only to the testing stage. For other stages, it is `None`.
 
         **Returns:**
         - **fc_bn** (`nn.Module` | `None`): The batch normalization module.
         """
-        if self.batch_normalization == "independent" and stage == "test":
-            return self.fc_bns[f"{test_task_id}"]
+        if self.batch_normalization == "independent" and stage in (
+            "test",
+            "unlearning_test",
+        ):
+            test_task_id_for_bn = self.task_id if test_task_id is None else test_task_id
+            return self.fc_bns[f"{test_task_id_for_bn}"]
         else:
             return self.fc_bn
 
@@ -154,6 +158,7 @@ class HATMaskMLP(HATMaskBackbone, MLP):
             1. 'train': training stage.
             2. 'validation': validation stage.
             3. 'test': testing stage.
+            4. 'unlearning_test': unlearning testing stage.
         - **s_max** (`float`): The maximum scaling factor in the gate function. Doesn't apply to the testing stage. See Sec. 2.4 in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **batch_idx** (`int` | `None`): The current batch index. Applies only to the training stage. For other stages, it is `None`.
         - **num_batches** (`int` | `None`): The total number of batches. Applies only to the training stage. For other stages, it is `None`.

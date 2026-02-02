@@ -5,7 +5,6 @@ The submodule in `cl_algorithms` for [HAT (Hard Attention to the Task) algorithm
 __all__ = ["HAT"]
 
 import logging
-from copy import deepcopy
 from typing import Any
 
 import torch
@@ -14,8 +13,8 @@ from torch.utils.data import DataLoader
 
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import CLAlgorithm
-from clarena.cl_algorithms.regularizers import HATMaskSparsityReg, hat_mask_sparsity
-from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
+from clarena.cl_algorithms.regularizers import HATMaskSparsityReg
+from clarena.heads import HeadDIL, HeadsTIL
 from clarena.utils.metrics import HATNetworkCapacityMetric
 
 # always get logger for built-in logging in each module
@@ -31,7 +30,7 @@ class HAT(CLAlgorithm):
     def __init__(
         self,
         backbone: HATMaskBackbone,
-        heads: HeadsTIL,
+        heads: HeadsTIL | HeadDIL,
         adjustment_mode: str,
         s_max: float,
         clamp_threshold: float,
@@ -46,7 +45,7 @@ class HAT(CLAlgorithm):
 
         **Args:**
         - **backbone** (`HATMaskBackbone`): must be a backbone network with the HAT mask mechanism.
-        - **heads** (`HeadsTIL`): output heads. HAT only supports TIL (Task-Incremental Learning).
+        - **heads** (`HeadsTIL` | `HeadDIL`): output heads. HAT supports TIL (Task-Incremental Learning) and DIL (Domain-Incremental Learning).
         - **adjustment_mode** (`str`): the strategy of adjustment (i.e., the mode of gradient clipping), must be one of:
             1. 'hat': set gradients of parameters linking to masked units to zero. This is how HAT fixes the part of the network for previous tasks completely. See Eq. (2) in Sec. 2.3 "Network Training" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
             2. 'hat_random': set gradients of parameters linking to masked units to random 0–1 values. See "Baselines" in Sec. 4.1 in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).

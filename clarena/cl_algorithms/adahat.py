@@ -13,6 +13,7 @@ from torch import Tensor
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import HAT
 from clarena.heads import HeadsTIL
+from clarena.heads.head_dil import HeadDIL
 from clarena.utils.metrics import HATNetworkCapacityMetric
 
 # always get logger for built-in logging in each module
@@ -30,7 +31,7 @@ class AdaHAT(HAT):
     def __init__(
         self,
         backbone: HATMaskBackbone,
-        heads: HeadsTIL,
+        heads: HeadsTIL | HeadDIL,
         adjustment_mode: str,
         adjustment_intensity: float,
         s_max: float,
@@ -46,7 +47,7 @@ class AdaHAT(HAT):
 
         **Args:**
         - **backbone** (`HATMaskBackbone`): must be a backbone network with the HAT mask mechanism.
-        - **heads** (`HeadsTIL`): output heads. AdaHAT supports only TIL (Task-Incremental Learning).
+        - **heads** (`HeadsTIL` | `HeadDIL`): output heads. AdaHAT supports TIL (Task-Incremental Learning) and DIL (Domain-Incremental Learning).
         - **adjustment_mode** (`str`): the strategy of adjustment (i.e., the mode of gradient clipping), must be one of:
             1. 'adahat': set gradients of parameters linking to masked units to a soft adjustment rate in the original AdaHAT approach (allows slight updates on previous-task parameters). See Eqs. (8) and (9) in Sec. 3.1 of the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
             2. 'adahat_no_sum': as above but without parameter-importance (i.e., no summative mask). See Sec. 4.3 (ablation study) in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).

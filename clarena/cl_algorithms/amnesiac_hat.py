@@ -16,7 +16,7 @@ from torchvision.transforms import transforms
 
 from clarena.backbones import AmnesiacHATBackbone
 from clarena.cl_algorithms import AdaHAT, AmnesiacCLAlgorithm, DERpp
-from clarena.heads import HeadsTIL
+from clarena.heads import HeadsTIL, HeadDIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
     def __init__(
         self,
         backbone: AmnesiacHATBackbone,
-        heads: HeadsTIL,
+        heads: HeadsTIL | HeadDIL,
         buffer_size: int,
         distillation_reg_factor: float,
         replay_ce_factor: float,
@@ -56,7 +56,7 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
 
         **Args:**
         - **backbone** (`AmnesiacHATBackbone`): must be a backbone network with AmnesiacHAT mechanism.
-        - **heads** (`HeadsTIL`): output heads. AmnesiacHAT algorithm only supports TIL (Task-Incremental Learning).
+        - **heads** (`HeadsTIL` | `HeadDIL`): output heads. AmnesiacHAT algorithm only supports TIL (Task-Incremental Learning) and DIL (Domain-Incremental Learning).
         - **buffer_size** (`int`): the size of the memory buffer. For now we only support fixed size buffer.
         - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor. It controls the strength of preventing forgetting.
         - **replay_ce_factor** (`float`): hyperparameter, the classification loss factor for replayed samples, ($\beta$ in the [DER paper](https://arxiv.org/abs/2004.07211)). It also controls the strength of preventing forgetting.
@@ -103,8 +103,7 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
             **kwargs,
         )
 
-        # save additional hyperparameters
-        self.save_hyperparameters()  # no additional hyperparameters to save
+        # no additional hyperparameters to save
 
     def setup_task_id(
         self,
@@ -165,6 +164,17 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
                     param_update = self.parameters_task_update[task_id]
                     for layer_name, param_tensor in param_update.items():
                         if layer_name in state_dict_before_the_backup_task:
+                            target_tensor = state_dict_before_the_backup_task[
+                                layer_name
+                            ]
+                            if (
+                                param_tensor.device != target_tensor.device
+                                or param_tensor.dtype != target_tensor.dtype
+                            ):
+                                param_tensor = param_tensor.to(
+                                    device=target_tensor.device,
+                                    dtype=target_tensor.dtype,
+                                )
                             state_dict_before_the_backup_task[
                                 layer_name
                             ] += param_tensor
@@ -407,7 +417,6 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
             mask, self.cumulative_mask_for_previous_tasks
         )
 
-        
         derpp_reg = self.compute_distillation_and_replay_ce_reg(
             backbone=self.backbone, batch_size=batch_size
         )
@@ -486,14 +495,7 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
             )
 
             self.cumulative_mask_for_previous_tasks = (
-                {
-                    layer_name: torch.stack(
-                        [m[layer_name] for m in cumulated_masks], dim=0
-                    )
-                    .max(dim=0)
-                    .values
-                    for layer_name in self.backbone.weighted_layer_names
-                }
+                self.backbone.combine_masks(cumulated_masks, mode="union")
                 if cumulated_masks
                 else {
                     layer_name: torch.zeros(

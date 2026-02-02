@@ -25,7 +25,7 @@ from torch import Tensor
 
 from clarena.backbones import HATMaskBackbone
 from clarena.cl_algorithms import AdaHAT
-from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
+from clarena.heads import HeadDIL, HeadsTIL
 from clarena.utils.metrics import HATNetworkCapacityMetric
 from clarena.utils.transforms import min_max_normalize
 
@@ -44,7 +44,7 @@ class FGAdaHAT(AdaHAT):
     def __init__(
         self,
         backbone: HATMaskBackbone,
-        heads: HeadsTIL,
+        heads: HeadsTIL | HeadDIL,
         adjustment_intensity: float,
         importance_type: str,
         importance_summing_strategy: str,
@@ -71,7 +71,7 @@ class FGAdaHAT(AdaHAT):
 
         **Args:**
         - **backbone** (`HATMaskBackbone`): must be a backbone network with the HAT mask mechanism.
-        - **heads** (`HeadsTIL`): output heads. FG-AdaHAT supports only TIL (Task-Incremental Learning).
+        - **heads** (`HeadsTIL` | `HeadDIL`): output heads. FG-AdaHAT supports TIL (Task-Incremental Learning) and DIL (Domain-Incremental Learning).
         - **adjustment_intensity** (`float`): hyperparameter, controls the overall intensity of gradient adjustment (the $\alpha$ in the paper).
         - **importance_type** (`str`): the type of neuron-wise importance, must be one of:
             1. 'input_weight_abs_sum': sum of absolute input weights;

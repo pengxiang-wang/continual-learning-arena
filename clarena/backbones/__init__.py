@@ -9,7 +9,7 @@ Here are the base classes for backbone networks, which inherit from PyTorch `nn.
 - `Backbone`: the base class for all backbone networks. Multi-task and single-task learning can use this class directly.
 -   `CLBackbone`: the base class for continual learning backbone networks, which incorporates mechanisms for managing continual learning tasks.
     - `HATMaskBackbone`: the base class for backbones used in [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a) CL algorithm.
-    - `AmnesiacHATBackbone`: The base class for backbones used in AmnesiacHAT CL algorithm.
+        - `AmnesiacHATBackbone`: The base class for backbones used in AmnesiacHAT CL algorithm.
     - `WSNMaskBackbone`: The base class for backbones used in [WSN (Winning Subnetworks)](https://proceedings.mlr.press/v162/kang22b/kang22b.pdf) CL algorithm.
 
 Please note that this is an API documentation. Please refer to the main documentation pages for more information about how to configure and implement backbone networks:

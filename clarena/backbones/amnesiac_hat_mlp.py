@@ -7,17 +7,21 @@ __all__ = ["AmnesiacHATMLP"]
 import logging
 
 from torch import Tensor, nn
-from torch.nn import ModuleDict
 
-from clarena.backbones.base import AmnesiacHATBackbone
-from clarena.backbones.hat_mask_mlp import HATMaskMLP
-from clarena.backbones.mlp import MLP
+from clarena.backbones import MLP, AmnesiacHATBackbone, HATMaskMLP
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
 
 
 class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
+    """AmnesiacHAT masked multi-layer perceptron (MLP) backbone network for continual learning.
+
+    This backbone network implements the AmnesiacHAT algorithm that extends HAT to support unlearning of specific tasks while retaining performance on other tasks. It uses task-specific attention masks to protect important neurons for each task, and maintains backup backbones for unlearning compensation.
+    """
+
+    original_backbone_class: type = MLP
+    r"""The original backbone class used for the AmnesiacHAT backbone network."""
 
     def __init__(
         self,
@@ -60,11 +64,9 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
             batch_normalization=batch_normalization,
             bias=bias,
             dropout=dropout,
+            disable_unlearning=disable_unlearning,
             **kwargs,
         )
-
-        self.disable_unlearning: bool = disable_unlearning
-        r"""Whether to disable unlearning. This is used in reference experiments following continual learning pipeline."""
 
         if not disable_unlearning:
             # save these arguments for backup backbone initialization
@@ -79,34 +81,24 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
             }
             r"""The initialization arguments for the backup MLP backbone network."""
 
-    def instantiate_backup_backbones(
+    def _route_backup_layer_output_by_mask(
         self,
-        backup_task_ids: list[int],
-    ) -> None:
-        r"""Instantiate the backup backbone network for the current task. This is called when a new task is created.
-
-        **Args:**
-        - **backup_task_ids** (`list[int]`): The list of task IDs to backup at current task `self.task_id`.
-        """
-
-        self.backup_task_ids = backup_task_ids
-
-        self.backup_backbones = ModuleDict(
-            {
-                f"{task_id_to_backup}": (
-                    MLP(
-                        **self.backup_backbone_kwargs,
-                    )
-                )
-                for task_id_to_backup in backup_task_ids
-            }
-        )
-
-        pylogger.debug(
-            "Backup backbones (backuping task IDs %s) for current task ID %d have been instantiated.",
-            backup_task_ids,
-            self.task_id,
-        )
+        layer_name: str,
+        main_layer: nn.Module,
+        backup_layer: nn.Module,
+        input: Tensor,
+        mask_backup_task: dict[str, Tensor],
+        main_bn: nn.Module | None = None,
+        backup_bn: nn.Module | None = None,
+    ) -> Tensor:
+        mask = mask_backup_task[layer_name]
+        main_output = main_layer(input)
+        backup_output = backup_layer(input)
+        if main_bn is not None:
+            main_output = main_bn(main_output)
+        if backup_bn is not None:
+            backup_output = backup_bn(backup_output)
+        return mask * backup_output + (1 - mask) * main_output
 
     def forward(
         self,
@@ -117,7 +109,7 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
         num_batches: int | None = None,
         test_task_id: int | None = None,
     ) -> tuple[Tensor, dict[str, Tensor], dict[str, Tensor]]:
-        r"""The forward pass for data from task `self.task_id`. Task-specific masks for `self.task_id` are applied to units (neurons) in each fully connected layer. During training, the backup backbone masked by cumulative mask is trained parallely.
+        r"""The forward pass for data from task `self.task_id`. Task-specific masks for `self.task_id` are applied to units (neurons) in each fully connected layer. During training, the backup backbone masked by cumulative mask is trained in parallel.
 
         **Args:**
         - **input** (`Tensor`): The input tensor from data.
@@ -141,92 +133,86 @@ class AmnesiacHATMLP(AmnesiacHATBackbone, HATMaskMLP):
         batch_size = input.size(0)
         activations = {}
 
-        get_mask_stage = "train" if stage == "train_with_backup" else stage
-
         mask = self.get_mask(
-            stage=get_mask_stage,
+            stage="train" if stage == "train_with_backup" else stage,
             s_max=s_max,
             batch_idx=batch_idx,
             num_batches=num_batches,
             test_task_id=test_task_id,
         )
         if self.batch_normalization:
-            fc_bn = self.get_bn(stage=get_mask_stage, test_task_id=test_task_id)
+            fc_bn = self.get_bn(
+                stage="train" if stage == "train_with_backup" else stage,
+                test_task_id=test_task_id,
+            )
+
+        # for each layer, backup backbones are trained in parallel during 'train_with_backup' stage. Operations are repeated in the same way as the main backbone.
 
         x = input.view(batch_size, -1)  # flatten before going through MLP
         if stage == "train_with_backup":
-            x_backup = {}
-            for unlearnable_task_id in self.backup_task_ids:
-                x_backup[unlearnable_task_id] = input.view(
-                    batch_size, -1
-                )  # flatten for backup backbone
+            # flatten for backup backbone
+            x_backup = {
+                backup_task_id: input.view(batch_size, -1)
+                for backup_task_id in self.backup_task_ids
+            }
 
         for layer_idx, layer_name in enumerate(self.weighted_layer_names):
 
             # fully-connected layer first
-            x = self.fc[layer_idx](x)
-            if stage == "train_with_backup":
-                # backup_backbone = self.backup_backbones[1]
-                # x_backup = self.masks[1][layer_name] * backup_backbone.fc[layer_idx](
-                #     x_backup
-                # ) + (1 - self.masks[1][layer_name]) * self.fc[layer_idx](x_backup)
-                for unlearnable_task_id in self.backup_task_ids:
-                    backup_backbone = self.backup_backbones[f"{unlearnable_task_id}"]
-                    mask_backup_task = self.masks[unlearnable_task_id]
+            fc_layer = self.fc[layer_idx]
+            x = fc_layer(x)
 
-                    x_backup[unlearnable_task_id] = mask_backup_task[
-                        layer_name
-                    ] * backup_backbone.fc[layer_idx](x_backup[unlearnable_task_id]) + (
-                        1 - mask_backup_task[layer_name]
-                    ) * self.fc[
-                        layer_idx
-                    ](
-                        x_backup[unlearnable_task_id]
-                    )  # apply cumulative mask to backup backbone
-
+            # batch normalization second
+            fc_bn_layer = None
             if self.batch_normalization:
-                # batch normalization second
-                x = fc_bn[layer_idx](x)
-                if stage == "train_with_backup":
-                    # x_backup = fc_bn[layer_idx](x_backup)
+                fc_bn_layer = fc_bn[layer_idx]
+                x = fc_bn_layer(x)
 
-                    for unlearnable_task_id in self.backup_task_ids:
-
-                        x_backup[unlearnable_task_id] = fc_bn[layer_idx](
-                            x_backup[unlearnable_task_id]
-                        )
-
-            # apply the mask to the parameters second
-            x = x * mask[f"fc/{layer_idx}"]
-            if stage == "train_with_backup":
-                # x_backup = x_backup * mask[f"fc/{layer_idx}"]
-                for unlearnable_task_id in self.backup_task_ids:
-                    x_backup[unlearnable_task_id] = (
-                        x_backup[unlearnable_task_id] * mask[f"fc/{layer_idx}"]
-                    )
+            # apply the mask to the parameters
+            mask_layer = mask[f"fc/{layer_idx}"]
+            x = x * mask_layer
 
             # activation function third
             if self.activation:
-                x = self.fc_activation[layer_idx](x)
-                if stage == "train_with_backup":
-
-                    # x_backup = self.fc_activation[layer_idx](x_backup)
-                    for unlearnable_task_id in self.backup_task_ids:
-                        x_backup[unlearnable_task_id] = self.fc_activation[layer_idx](
-                            x_backup[unlearnable_task_id]
-                        )
+                fc_activation_layer = self.fc_activation[layer_idx]
+                x = fc_activation_layer(x)
             activations[layer_name] = x  # store the hidden feature
 
             # dropout last
             if self.dropout:
-                x = self.fc_dropout[layer_idx](x)
-                if stage == "train_with_backup":
+                fc_dropout_layer = self.fc_dropout[layer_idx]
+                x = fc_dropout_layer(x)
 
-                    # x_backup = self.fc_dropout[layer_idx](x_backup)
-                    for unlearnable_task_id in self.backup_task_ids:
-                        x_backup[unlearnable_task_id] = self.fc_dropout[layer_idx](
-                            x_backup[unlearnable_task_id]
-                        )
+            if stage == "train_with_backup":
+                # backup backbone forward after main backbone completes this layer
+                for backup_task_id in self.backup_task_ids:
+                    backup_backbone = self.backup_backbones[f"{backup_task_id}"]
+                    backup_fc_layer = backup_backbone.fc[layer_idx]
+                    mask_backup_task = self.masks[backup_task_id]
+                    backup_fc_bn_layer = None
+                    if self.batch_normalization and backup_backbone.batch_normalization:
+                        backup_fc_bn_layer = backup_backbone.fc_bn[layer_idx]
+
+                    x_b = x_backup[backup_task_id]
+                    x_b = self._route_backup_layer_output_by_mask(
+                        layer_name=layer_name,
+                        main_layer=fc_layer,
+                        backup_layer=backup_fc_layer,
+                        input=x_b,
+                        mask_backup_task=mask_backup_task,
+                        main_bn=fc_bn_layer,
+                        backup_bn=backup_fc_bn_layer,
+                    )
+
+                    x_b = x_b * mask_layer
+
+                    if self.activation:
+                        x_b = fc_activation_layer(x_b)
+
+                    if self.dropout:
+                        x_b = fc_dropout_layer(x_b)
+
+                    x_backup[backup_task_id] = x_b
 
         output_feature = x
 

@@ -6,6 +6,7 @@ __all__ = ["CULAlgorithm", "AmnesiacCULAlgorithm"]
 
 import logging
 from abc import abstractmethod
+from copy import deepcopy
 
 from clarena.cl_algorithms import AmnesiacCLAlgorithm, UnlearnableCLAlgorithm
 
@@ -112,36 +113,63 @@ class AmnesiacCULAlgorithm(CULAlgorithm):
         """
         super().__init__(model=model)
 
-    def delete_update(self, unlearning_task_ids: list[int]) -> None:
-        r"""Delete the update of the specified unlearning task.
+    def delete_update(self):
+        r"""Delete the updates for unlearning tasks from the current parameters."""
 
-        **Args:**
-        - **unlearning_task_id** (`list[int]`): the ID of the unlearning task to delete the update.
-        """
-
-        for unlearning_task_id in unlearning_task_ids:
-            if unlearning_task_id not in self.model.parameters_task_update:
+        # substract the corresponding parameter update from backbone
+        updated_state_dict = deepcopy(self.model.backbone.state_dict())
+        for task_id in self.unlearning_task_ids:
+            param_update = self.model.parameters_task_update.get(task_id)
+            if param_update is None:
                 pylogger.warning(
-                    "Attempted to delete update for task %d, but it was not found.",
-                    unlearning_task_id,
+                    "Attempted to delete backbone update for task %d, but it was not found.",
+                    task_id,
                 )
                 continue
+            for layer_name, param_tensor in param_update.items():
+                if layer_name in updated_state_dict:
+                    target_tensor = updated_state_dict[layer_name]
+                    if (
+                        param_tensor.device != target_tensor.device
+                        or param_tensor.dtype != target_tensor.dtype
+                    ):
+                        param_tensor = param_tensor.to(
+                            device=target_tensor.device, dtype=target_tensor.dtype
+                        )
+                    updated_state_dict[layer_name] -= param_tensor
 
-            # delete the parameter update for the unlearning task so that it won't be used in future parameter constructions
-            del self.model.parameters_task_update[unlearning_task_id]
+            del self.model.parameters_task_update[task_id]  # delete the record
 
-            if unlearning_task_id in self.model.parameters_task_update_heads:
-                del self.model.parameters_task_update_heads[unlearning_task_id]
+        self.model.backbone.load_state_dict(updated_state_dict, strict=False)
 
-        pylogger.info(
-            "Deleted parameter update for unlearning task %s.", unlearning_task_ids
-        )
+        # substract the corresponding parameter update from heads
+        updated_heads_state_dict = deepcopy(self.model.heads.state_dict())
+        for task_id in self.unlearning_task_ids:
+            param_update = self.model.parameters_task_update_heads.get(task_id)
+            if param_update is None:
+                pylogger.warning(
+                    "Attempted to delete head update for task %d, but it was not found.",
+                    task_id,
+                )
+                continue
+            for param_name, param_tensor in param_update.items():
+                if param_name in updated_heads_state_dict:
+                    target_tensor = updated_heads_state_dict[param_name]
+                    if (
+                        param_tensor.device != target_tensor.device
+                        or param_tensor.dtype != target_tensor.dtype
+                    ):
+                        param_tensor = param_tensor.to(
+                            device=target_tensor.device, dtype=target_tensor.dtype
+                        )
+                    updated_heads_state_dict[param_name] -= param_tensor
+
+            del self.model.parameters_task_update_heads[task_id]  # delete the record
+
+        self.model.heads.load_state_dict(updated_heads_state_dict, strict=False)
 
     def unlearn(self) -> None:
         r"""Unlearn the requested unlearning tasks in the current task `self.task_id`."""
 
-        # delete updates from current parameters before removing update records
-        self.model.construct_parameters_from_updates()
-
         # delete the corresponding parameter update records
-        self.delete_update(self.unlearning_task_ids)
+        self.delete_update()
