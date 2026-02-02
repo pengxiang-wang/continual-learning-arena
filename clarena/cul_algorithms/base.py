@@ -169,7 +169,10 @@ class AmnesiacCULAlgorithm(CULAlgorithm):
         self.model.heads.load_state_dict(updated_heads_state_dict, strict=False)
 
     def unlearn(self) -> None:
-        r"""Unlearn the requested unlearning tasks in the current task `self.task_id`."""
+        r"""Unlearn the requested unlearning tasks in the current task `self.task_id`.
+
+        This is the default implementation of `unlearn()` method for Amnesiac continual unlearning algorithms. Please override it in subclasses if necessary.
+        """
 
         # delete the corresponding parameter update records
         self.delete_update()
