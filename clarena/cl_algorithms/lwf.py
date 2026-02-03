@@ -107,11 +107,11 @@ class LwF(Finetuning):
         """
         x, y = batch
 
-        # classification loss. See equation (1) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
+        # classification loss. See equation (1) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520)
         logits, activations = self.forward(x, stage="train", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
 
-        # regularization loss. See equation (2) (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520).
+        # regularization loss. See equation (2) (3) in the [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520)
         distillation_reg = 0.0
         for previous_task_id, previous_backbone in self.previous_task_backbones.items():
             # sum over all previous models, because [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520) says: "If there are multiple old tasks, or if an old task is multi-label classification, we take the sum of the loss for each old task and label."

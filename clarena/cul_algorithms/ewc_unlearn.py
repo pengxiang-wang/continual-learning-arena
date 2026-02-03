@@ -1,129 +1,133 @@
 r"""
-The submodule in `cul_algorithms` for EWC unlearning algorithm.
+The submodule in `cul_algorithms` for [EWC (Elastic Weight Consolidation) algorithm](https://www.pnas.org/doi/10.1073/pnas.1611835114) unlearning.
 """
 
 __all__ = ["AmnesiacEWCUnlearn"]
 
 import logging
+from copy import deepcopy
 
 from clarena.cl_algorithms import AmnesiacEWC
 from clarena.cul_algorithms import AmnesiacCULAlgorithm
+from clarena.heads import HeadDIL
 
 pylogger = logging.getLogger(__name__)
 
 
 class AmnesiacEWCUnlearn(AmnesiacCULAlgorithm):
-    r"""Amnesiac continual unlearning algorithm for EWC."""
+    r"""Amnesiac continual unlearning algorithm for [EWC (Elastic Weight Consolidation) algorithm](https://www.pnas.org/doi/10.1073/pnas.1611835114)."""
 
     def __init__(
         self,
         model: AmnesiacEWC,
+        if_unlearn_previous_network: bool = False,
     ) -> None:
         r"""Initialize the unlearning algorithm with the continual learning model.
 
         **Args:**
         - **model** (`AmnesiacEWC`): the continual learning model. It must be `AmnesiacEWC`.
+        - **if_unlearn_previous_network** (`bool`): whether to adjust previous task snapshots after unlearning. Default is `False`.
         """
         super().__init__(model=model)
 
+        self.if_unlearn_previous_network: bool = if_unlearn_previous_network
+        r"""Whether to adjust previous task snapshots after unlearning."""
 
-# class EWCUnlearn(CULAlgorithm):
-#     r"""Vanilla unlearning algorithm for EWC (Amnesiac Hat style).
+    def unlearn(self) -> None:
+        r"""Unlearn the requested unlearning tasks after training `self.task_id`."""
 
-#     For each requested unlearning task u:
-#     - Roll back parameters by subtracting the recorded delta: θ ← θ - Δ_u
-#       (implemented by `UnlearnableEWC.unlearn_task(u)`)
-#     - Remove u from valid_task_ids (so future regularization ignores it)
-#     - Delete stored fisher/importances & previous backbone snapshot of u
-#     - Reset the corresponding head parameters if the head exists (TIL/DIL case)
-#     """
+        # delete the corresponding parameter update records
+        self.delete_update()
 
-#     def __init__(self, model: UnlearnableEWC) -> None:
-#         super().__init__(model=model)
+        # remove the memory related to unlearning tasks
+        for unlearning_task_id in self.unlearning_task_ids:
 
-#     def _reset_head_if_possible(self, task_id: int) -> None:
-#         """Best-effort reset for task-specific head (TIL/DIL)."""
-#         try:
-#             # Some heads implementations provide get_head(task_id)
-#             head = self.model.heads.get_head(task_id)
-#             if hasattr(head, "reset_parameters"):
-#                 head.reset_parameters()
-#         except Exception:
-#             # Fallback for common HeadsTIL implementation: heads.heads is a dict-like
-#             try:
-#                 if hasattr(self.model.heads, "heads"):
-#                     key = f"{task_id}"
-#                     if key in self.model.heads.heads:
-#                         head = self.model.heads.heads[key]
-#                         if hasattr(head, "reset_parameters"):
-#                             head.reset_parameters()
-#             except Exception:
-#                 pass
+            del self.model.parameter_importance[unlearning_task_id]
+            del self.model.previous_task_backbones[unlearning_task_id]
 
-#     def unlearn(self) -> None:
-#         if not self.unlearning_task_ids:
-#             return
+            if (
+                unlearning_task_id in self.model.parameter_importance_heads
+                and isinstance(self.model.heads, HeadDIL)
+            ):
+                del self.model.parameter_importance_heads[unlearning_task_id]
+            if unlearning_task_id in self.model.previous_task_heads and isinstance(
+                self.model.heads, HeadDIL
+            ):
+                del self.model.previous_task_heads[unlearning_task_id]
 
-#         pylogger.info(
-#             "Starting unlearning process for tasks: %s...", self.unlearning_task_ids
-#         )
+    def delete_update(self) -> None:
+        r"""Delete the updates for unlearning tasks from the current parameters, and optionally from previous network snapshots."""
 
-#         for unlearning_task_id in self.unlearning_task_ids:
-#             # 0) Amnesiac Hat rollback: θ ← θ - Δ_u
-#             #    (minimal change: delegate to model's rollback method)
-#             if hasattr(self.model, "unlearn_task"):
-#                 self.model.unlearn_task(unlearning_task_id)
+        # delete updates from previous network snapshots
+        if self.if_unlearn_previous_network:
+            self.delete_previous_network_update()
 
-#             # 1) remove from valid set (so future EWC regularization ignores it)
-#             if hasattr(self.model, "valid_task_ids"):
-#                 self.model.valid_task_ids.discard(unlearning_task_id)
+        # delete updates from current parameters and the records
+        super().delete_update()
 
-#             # 2) delete stored EWC memory for that task if present
-#             if hasattr(self.model, "parameter_importance") and (
-#                 unlearning_task_id in self.model.parameter_importance
-#             ):
-#                 del self.model.parameter_importance[unlearning_task_id]
+    def delete_previous_network_update(self) -> None:
+        r"""Delete the updates for unlearning tasks from the previous network snapshots."""
 
-#             if hasattr(self.model, "previous_task_backbones") and (
-#                 unlearning_task_id in self.model.previous_task_backbones
-#             ):
-#                 del self.model.previous_task_backbones[unlearning_task_id]
+        for unlearning_task_id in self.unlearning_task_ids:
+            param_update = self.model.parameters_task_update.get(unlearning_task_id)
+            if param_update is None:
+                pylogger.warning(
+                    "Attempted to delete update from previous network snapshot for task %d, but the update was not found.",
+                    unlearning_task_id,
+                )
+                continue
+            for (
+                previous_task_id,
+                previous_backbone,
+            ) in self.model.previous_task_backbones.items():
+                # only delete updates for tasks after the unlearning task
+                if previous_task_id <= unlearning_task_id:
+                    continue
 
-#             # 3) reset the task head if applicable (TIL/DIL)
-#             self._reset_head_if_possible(unlearning_task_id)
+                updated_state_dict = deepcopy(previous_backbone.state_dict())
+                for layer_name, param_tensor in param_update.items():
+                    if layer_name in updated_state_dict:
+                        target_tensor = updated_state_dict[layer_name]
+                        if (
+                            param_tensor.device != target_tensor.device
+                            or param_tensor.dtype != target_tensor.dtype
+                        ):
+                            param_tensor = param_tensor.to(
+                                device=target_tensor.device,
+                                dtype=target_tensor.dtype,
+                            )
+                        updated_state_dict[layer_name] -= param_tensor
+                previous_backbone.load_state_dict(updated_state_dict, strict=False)
 
-#         pylogger.info("Unlearning process finished.")
-
-
-# class EWCUnlearnHeadOnly(CULAlgorithm):
-#     r"""Vanilla unlearning algorithm for EWC.
-
-#     For each requested unlearning task u:
-#     - Remove u from the valid_task_ids (so future regularization ignores it)
-#     - Delete stored fisher/importances & previous backbone snapshot of u (optional but recommended)
-#     - Reset the corresponding head parameters if the head exists (TIL/DIL case)
-#     """
-
-#     def __init__(self, model: UnlearnableEWC) -> None:
-#         super().__init__(model=model)
-
-#     def unlearn(self) -> None:
-#         for unlearning_task_id in self.unlearning_task_ids:
-#             # 1) remove from valid set (use discard to avoid KeyError)
-#             self.model.valid_task_ids.discard(unlearning_task_id)
-
-#             # 2) delete stored EWC memory for that task if present
-#             if unlearning_task_id in self.model.parameter_importance:
-#                 del self.model.parameter_importance[unlearning_task_id]
-#             if unlearning_task_id in self.model.previous_task_backbones:
-#                 del self.model.previous_task_backbones[unlearning_task_id]
-
-#             # 3) reset the task head if applicable
-#             #    (safe-guard because HeadsCIL may not have per-task heads)
-#             try:
-#                 head = self.model.heads.get_head(unlearning_task_id)
-#                 if hasattr(head, "reset_parameters"):
-#                     head.reset_parameters()
-#             except Exception:
-#                 # If heads does not support get_head or task_id not applicable, ignore.
-#                 pass
+        if isinstance(self.model.heads, HeadDIL):
+            for unlearning_task_id in self.unlearning_task_ids:
+                param_update = self.model.parameters_task_update_heads.get(
+                    unlearning_task_id
+                )
+                if param_update is None:
+                    pylogger.warning(
+                        "Attempted to delete update from previous network snapshot for task %d, but the update was not found.",
+                        unlearning_task_id,
+                    )
+                    continue
+                for (
+                    previous_task_id,
+                    previous_heads,
+                ) in self.model.previous_task_heads.items():
+                    # only delete updates for tasks after the unlearning task
+                    if previous_task_id <= unlearning_task_id:
+                        continue
+                    updated_state_dict = deepcopy(previous_heads.state_dict())
+                    for param_name, param_tensor in param_update.items():
+                        if param_name in updated_state_dict:
+                            target_tensor = updated_state_dict[param_name]
+                            if (
+                                param_tensor.device != target_tensor.device
+                                or param_tensor.dtype != target_tensor.dtype
+                            ):
+                                param_tensor = param_tensor.to(
+                                    device=target_tensor.device,
+                                    dtype=target_tensor.dtype,
+                                )
+                            updated_state_dict[param_name] -= param_tensor
+                    previous_heads.load_state_dict(updated_state_dict, strict=False)
