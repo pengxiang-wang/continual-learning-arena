@@ -329,6 +329,11 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
             }
         )
 
+    # For full-experiment attached evals, skip writing config_tree.log (last eval step).
+    if type in ["CL_FULL_EVAL_ATTACHED", "CUL_FULL_EVAL_ATTACHED"]:
+        if cfg.get("misc") and cfg.misc.get("config_tree"):
+            cfg.misc.config_tree.save = False
+
     OmegaConf.set_struct(cfg, True)
 
     if cfg.get("misc"):

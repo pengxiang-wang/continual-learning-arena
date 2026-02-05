@@ -9,12 +9,13 @@ from copy import deepcopy
 from typing import Any
 
 import torch
+import torch.nn.functional as F
 from torch import Tensor, nn
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import AmnesiacCLAlgorithm, Finetuning
 from clarena.cl_algorithms.regularizers import DistillationReg
-from clarena.heads import HeadDIL, HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class LwF(Finetuning):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL | HeadDIL,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
         distillation_reg_factor: float,
         distillation_reg_temperature: float,
         non_algorithmic_hparams: dict[str, Any] = {},
@@ -41,7 +42,7 @@ class LwF(Finetuning):
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL` | `HeadDIL`): output heads. Currently this LwF supports Task-Incremental Learning (TIL) and Domain-Incremental Learning (DIL) scenarios.
+        - **heads** (`HeadsTIL` | `HeadDIL`): output heads.
         - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor. It controls the strength of preventing forgetting.
         - **distillation_reg_temperature** (`float`): hyperparameter, the temperature in the distillation regularization. It controls the softness of the labels that the student model (here is the current model) learns from the teacher models (here are the previous models), thereby controlling the strength of the distillation. It controls the strength of preventing forgetting.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
@@ -116,12 +117,21 @@ class LwF(Finetuning):
         for previous_task_id, previous_backbone in self.previous_task_backbones.items():
             # sum over all previous models, because [LwF paper](https://ieeexplore.ieee.org/abstract/document/8107520) says: "If there are multiple old tasks, or if an old task is multi-label classification, we take the sum of the loss for each old task and label."
 
-            # get the teacher logits for this batch, which is from the current model (to previous output head)
+            # get the student logits for this batch, using detached head params to avoid updating old heads
             student_feature, _ = self.backbone(
                 x, stage="train", task_id=previous_task_id
             )
-            with torch.no_grad():  # stop updating the previous heads
-                student_logits = self.heads(student_feature, task_id=previous_task_id)
+            if isinstance(self.heads, HeadDIL):
+                head = self.heads.get_head()
+            elif isinstance(self.heads, HeadsTIL):
+                head = self.heads.get_heads(previous_task_id)
+            else:
+                raise TypeError(f"Unsupported heads type {type(self.heads)} in LwF.")
+            student_logits = F.linear(
+                student_feature,
+                head.weight.detach(),
+                head.bias.detach() if head.bias is not None else None,
+            )
 
             # get the teacher logits for this batch, which is from the previous model
             with torch.no_grad():  # stop updating the previous backbones and heads

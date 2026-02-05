@@ -44,7 +44,7 @@ class CLAlgorithm(LightningModule):
         # components
         self.backbone: CLBackbone = backbone
         r"""The backbone network."""
-        self.heads: HeadsTIL | HeadsCIL | HeadsCIL = heads
+        self.heads: HeadsTIL | HeadsCIL | HeadDIL = heads
         r"""The output heads."""
         self.optimizer_t: Optimizer
         r"""Optimizer (partially initialized) for the current task `self.task_id`. Will be equipped with parameters in `configure_optimizers()`."""

@@ -10,13 +10,11 @@ from copy import deepcopy
 from typing import Any
 
 from torch import Tensor
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
 
 from clarena.backbones import CLBackbone
 from clarena.cl_algorithms import Finetuning, UnlearnableCLAlgorithm
-from clarena.heads import HeadsTIL
+from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -38,7 +36,7 @@ class Independent(Finetuning):
     def __init__(
         self,
         backbone: CLBackbone,
-        heads: HeadsTIL,
+        heads: HeadsTIL | HeadsCIL | HeadDIL,
         non_algorithmic_hparams: dict[str, Any] = {},
         **kwargs,
     ) -> None:
@@ -48,7 +46,7 @@ class Independent(Finetuning):
 
         **Args:**
         - **backbone** (`CLBackbone`): backbone network.
-        - **heads** (`HeadsTIL`): output heads. Independent supports only TIL (Task-Incremental Learning).
+        - **heads** (`HeadsTIL`): output heads.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations.
         - **kwargs**: Reserved for multiple inheritance.
         """
@@ -104,11 +102,13 @@ class Independent(Finetuning):
         logits = self.heads(feature, test_task_id)
 
         loss_cls = self.criterion(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        preds = logits.argmax(dim=1)
+        acc = (preds == y).float().mean()
 
         return {
             "loss_cls": loss_cls,
             "acc": acc,
+            "preds": preds,
         }
 
 

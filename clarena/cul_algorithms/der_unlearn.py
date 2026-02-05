@@ -1,5 +1,5 @@
 r"""
-The submodule in `cul_algorithms` for DER unlearning algorithm.
+The submodule in `cul_algorithms` for [DER (Dark Experience Replay)](https://arxiv.org/abs/2004.07211) unlearning algorithm.
 """
 
 __all__ = ["AmnesiacDERUnlearn", "AmnesiacDERppUnlearn"]

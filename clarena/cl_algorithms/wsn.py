@@ -207,10 +207,14 @@ class WSN(CLAlgorithm):
         # update parameters with the modified gradients
         opt.step()
 
+        # predicted labels
+        preds = logits.argmax(dim=1)
+
         # accuracy of the batch
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        acc = (preds == y).float().mean()
 
         return {
+            "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,
@@ -279,11 +283,13 @@ class WSN(CLAlgorithm):
         x, y = batch
         logits, _, _, _ = self.forward(x, stage="validation", task_id=self.task_id)
         loss_cls = self.criterion(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        preds = logits.argmax(dim=1)
+        acc = (preds == y).float().mean()
 
         return {
             "loss_cls": loss_cls,
             "acc": acc,  # return metrics for Lightning loggers callback to handle at `on_validation_batch_end()`
+            "preds": preds,
         }
 
     def test_step(
@@ -307,9 +313,11 @@ class WSN(CLAlgorithm):
             task_id=test_task_id,
         )  # use the corresponding head and mask to test (instead of the current task `self.task_id`)
         loss_cls = self.criterion(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        preds = logits.argmax(dim=1)
+        acc = (preds == y).float().mean()
 
         return {
             "loss_cls": loss_cls,
             "acc": acc,  # return metrics for Lightning loggers callback to handle at `on_test_batch_end()`
+            "preds": preds,
         }

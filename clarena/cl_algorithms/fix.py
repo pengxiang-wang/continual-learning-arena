@@ -81,10 +81,14 @@ class Fix(Finetuning):
         # total loss
         loss = loss_cls
 
+        # predicted labels
+        preds = logits.argmax(dim=1)
+
         # accuracy of the batch
-        acc = (logits.argmax(dim=1) == y).float().mean()
+        acc = (preds == y).float().mean()
 
         return {
+            "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,

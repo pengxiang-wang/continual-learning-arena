@@ -38,8 +38,11 @@ class HeadDIL(nn.Module):
         """
         return self._if_head_setup
 
-    def get_head(self) -> nn.Linear:
+    def get_head(self, task_id: int | None = None) -> nn.Linear:
         r"""Get the output head for DIL.
+
+        **Args:**
+        - **task_id** (`int` or `None`): the task ID where the data are from. This does not matter at all for DIL head as there is only one head for all tasks, so it is just a placeholder for API consistence with the TIL heads but never used. Best practices are not to provide this argument and leave it as the default value.
 
         **Returns:**
         - **head** (`nn.Linear`): the output head for DIL.

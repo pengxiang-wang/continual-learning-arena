@@ -82,11 +82,13 @@ class Random(Finetuning):
             logits, activations = self.forward(x, stage="train", task_id=self.task_id)
             loss_cls = self.criterion(logits, y)
             loss = loss_cls
-            acc = (logits.argmax(dim=1) == y).float().mean()
+            preds = logits.argmax(dim=1)
+            acc = (preds == y).float().mean()
 
         # note: no optimizer step, by design of Random algorithm.
 
         return {
+            "preds": preds,
             "loss": loss,  # return loss is essential for training step, or backpropagation will fail
             "loss_cls": loss_cls,
             "acc": acc,

@@ -16,7 +16,7 @@ from torchvision.transforms import transforms
 from clarena.backbones import CLBackbone
 from clarena.backbones.base import AmnesiacHATBackbone
 from clarena.cl_algorithms import AmnesiacCLAlgorithm, Finetuning
-from clarena.cl_algorithms.regularizers import DistillationReg, distillation
+from clarena.cl_algorithms.regularizers import DistillationReg
 from clarena.heads import HeadDIL, HeadsCIL, HeadsTIL
 
 # always get logger for built-in logging in each module
@@ -97,7 +97,9 @@ class DER(Finetuning):
 
             # sample from memory buffer with the same batch size as current batch
             x_replay, _, logits_replay, task_labels_replay = (
-                self.memory_buffer.get_data(size=batch_size, included_tasks=previous_task_ids)
+                self.memory_buffer.get_data(
+                    size=batch_size, included_tasks=previous_task_ids
+                )
             )
 
             # apply augmentation transforms if any
@@ -516,6 +518,14 @@ class Buffer:
         self.labels = self.labels[mask]
         self.logits = self.logits[mask]
         self.task_labels = self.task_labels[mask]
+
+    def stored_tasks(self) -> list[int]:
+        r"""Get the list of task IDs stored in the buffer.
+
+        **Returns:**
+        - **task_ids** (`list[int]`): the list of task IDs stored in the buffer.
+        """
+        return self.task_labels.unique().tolist()
 
 
 class AmnesiacDER(AmnesiacCLAlgorithm, DER):

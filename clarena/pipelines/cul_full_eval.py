@@ -232,3 +232,4 @@ class CULFullEvaluation:
             model=self.evaluation_module,
             datamodule=self.cl_dataset,
         )
+        # please note this will set up last task dataset twice, which is fine

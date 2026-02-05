@@ -77,7 +77,7 @@ class CLMainExperiment:
         # task-specific components
         self.optimizer_t: Optimizer
         r"""Optimizer object for the current task `self.task_id`."""
-        self.lr_scheduler_t: LRScheduler | None
+        self.lr_scheduler_t: LRScheduler | None = None
         r"""Learning rate scheduler object for the current task `self.task_id`."""
         self.trainer_t: Trainer
         r"""Trainer object for the current task `self.task_id`."""
