@@ -350,7 +350,7 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
             # use the temporary task's temporary backbone if it wasn't merged yet
             routed_backbone = self.temporary_backbones[str(test_task_id)]
         else:
-            # use the main backbone if the task is permanent and the temporary backbone has been merged
+            # use the main backbone if the task is permanent and the temporary backbone has been merged. Also routed here for unlearned tasks that have no temporary backbone.
             routed_backbone = self.backbone
 
         feature, _ = routed_backbone(x, stage="test", task_id=test_task_id)

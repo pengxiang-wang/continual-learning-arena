@@ -223,7 +223,6 @@ class CLDataset(LightningDataModule):
             )
 
         elif stage == "test":
-            print("called")
             pylogger.debug("Construct test dataset for task %d...", self.task_id)
 
             self.dataset_test[self.task_id] = self.test_dataset()
