@@ -21,7 +21,7 @@ from .base import MetricCallback
 from .cl_acc import CLAccuracy
 from .cl_loss import CLLoss
 from .cul_dd import CULDistributionDistance
-from .cul_ad import CULAccuracyDifference
+from .cul_ag import CULAccuracyGain
 from .hat_adjustment_rate import HATAdjustmentRate
 from .hat_network_capacity import HATNetworkCapacity
 from .hat_masks import HATMasks
@@ -38,7 +38,7 @@ __all__ = [
     "cl_acc",
     "cl_loss",
     "cul_dd",
-    "cul_ad",
+    "cul_ag",
     "hat_adjustment_rate",
     "hat_network_capacity",
     "hat_masks",

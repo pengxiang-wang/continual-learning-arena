@@ -56,6 +56,7 @@ class CLAccuracy(MetricCallback):
         """
         super().__init__(save_dir=save_dir)
 
+        # paths
         self.test_acc_csv_path: str = os.path.join(save_dir, test_acc_csv_name)
         r"""The path to save test accuracy matrix and average accuracy CSV file."""
         if test_acc_matrix_plot_name:

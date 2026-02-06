@@ -261,7 +261,7 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
         # construct the config for continual unlearning full evaluation from the config for continual unlearning main experiment
 
         dd_eval_tasks = cfg.train_tasks
-        ad_eval_tasks = cfg.train_tasks
+        ag_eval_tasks = cfg.train_tasks
         global_seed = cfg.global_seed
 
         main_model_path = os.path.join(cfg.output_dir, "saved_models", "cl_model.pth")
@@ -288,15 +288,15 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
                 {
                     "_target_": "clarena.metrics.CULDistributionDistance",
                     "save_dir": "${output_dir}/results/",
-                    "distribution_distance_type": "cka",
+                    "distribution_distance_type": "cosine",
                     "distribution_distance_csv_name": "dd.csv",
                     "distribution_distance_plot_name": "dd.png",
                 },
                 {
-                    "_target_": "clarena.metrics.CULAccuracyDifference",
+                    "_target_": "clarena.metrics.CULAccuracyGain",
                     "save_dir": "${output_dir}/results/",
-                    "accuracy_difference_csv_name": "ad.csv",
-                    "accuracy_difference_plot_name": "ad.png",
+                    "accuracy_gain_csv_name": "ag.csv",
+                    "accuracy_gain_plot_name": "ag.png",
                 },
             ]
         )
@@ -314,7 +314,7 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
             {
                 "pipeline": "CUL_FULL_EVAL",
                 "dd_eval_tasks": dd_eval_tasks,
-                "ad_eval_tasks": ad_eval_tasks,
+                "ag_eval_tasks": ag_eval_tasks,
                 "global_seed": global_seed,
                 "main_model_path": main_model_path,
                 "refretrain_model_path": refretrain_model_path,

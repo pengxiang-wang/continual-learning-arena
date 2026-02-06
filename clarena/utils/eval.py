@@ -22,7 +22,7 @@ class CULEvaluation(LightningModule):
         refretrain_model: CLAlgorithm,
         reforiginal_model: CLAlgorithm,
         dd_eval_task_ids: list[int],
-        ad_eval_task_ids: list[int],
+        ag_eval_task_ids: list[int],
     ):
         r"""
         **Args:**
@@ -30,7 +30,7 @@ class CULEvaluation(LightningModule):
         - **refretrain_model** (`CLAlgorithm`): the reference retrain model to evaluate against.
         - **reforiginal_model** (`CLAlgorithm`): the reference original model that has been trained on all tasks.
         - **dd_eval_task_ids** (`list[int]`): the list of task IDs to evaluate the DD on.
-        - **ad_eval_task_ids** (`list[int]`): the list of task IDs to evaluate the accuracy difference on.
+        - **ag_eval_task_ids** (`list[int]`): the list of task IDs to evaluate the accuracy gain on.
         """
         super().__init__()
 
@@ -46,8 +46,8 @@ class CULEvaluation(LightningModule):
 
         self.dd_eval_task_ids: list[int] = dd_eval_task_ids
         r"""The task IDs to evaluate the DD on. """
-        self.ad_eval_task_ids: list[int] = ad_eval_task_ids
-        r"""The task IDs to evaluate the AD on. """
+        self.ag_eval_task_ids: list[int] = ag_eval_task_ids
+        r"""The task IDs to evaluate the AG on. """
 
     def get_test_task_id_from_dataloader_idx(self, dataloader_idx: int) -> int:
         r"""Get the test task ID from the dataloader index.
@@ -97,13 +97,13 @@ class CULEvaluation(LightningModule):
         acc_full = (logits_full.argmax(dim=1) == y).float().mean()
         # Return metrics for lightning loggers callback to handle at `on_test_batch_end()`
 
-        # calculate the difference in accuracy between the main model and the full model
-        acc_diff = acc_main - acc_full
+        # calculate the accuracy gain between the main model and the full model
+        acc_gain = acc_main - acc_full
 
         return {
             "agg_out_main": agg_out_main,
             "agg_out_ref": agg_out_ref,
-            "acc_diff": acc_diff,
+            "acc_gain": acc_gain,
         }
 
 

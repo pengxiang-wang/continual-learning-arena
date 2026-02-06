@@ -49,12 +49,12 @@ class CULFullEvaluation:
             else list(range(1, cfg.dd_eval_tasks + 1))
         )
         r"""The list of tasks to be evaluated for DD."""
-        self.ad_eval_tasks: list[int] = (
-            cfg.ad_eval_tasks
-            if isinstance(cfg.ad_eval_tasks, ListConfig)
-            else list(range(1, cfg.ad_eval_tasks + 1))
+        self.ag_eval_tasks: list[int] = (
+            cfg.ag_eval_tasks
+            if isinstance(cfg.ag_eval_tasks, ListConfig)
+            else list(range(1, cfg.ag_eval_tasks + 1))
         )
-        r"""The list of tasks to be evaluated for AD."""
+        r"""The list of tasks to be evaluated for AG."""
         self.global_seed: int = cfg.global_seed
         r"""The global seed for the entire experiment."""
         self.output_dir: str = cfg.output_dir
@@ -109,7 +109,7 @@ class CULFullEvaluation:
 
         if not self.cfg.get("reforiginal_model_path"):
             pylogger.warning(
-                "`reforiginal_model_path` not provided. Accuracy Difference (AD) cannot be calculated."
+                "`reforiginal_model_path` not provided. Accuracy Gain (AG) cannot be calculated."
             )
 
     def instantiate_cl_dataset(self, cl_dataset_cfg: DictConfig) -> None:
@@ -157,7 +157,7 @@ class CULFullEvaluation:
             refretrain_model=refretrain_model,
             reforiginal_model=reforiginal_model,
             dd_eval_task_ids=self.dd_eval_tasks,
-            ad_eval_task_ids=self.ad_eval_tasks,
+            ag_eval_task_ids=self.ag_eval_tasks,
         )
         pylogger.debug(
             "Evaluation module (clarena.utils.eval.CULEvaluation) instantiated!"
@@ -224,7 +224,7 @@ class CULFullEvaluation:
 
         # setup tasks for dataset and evaluation module
         self.cl_dataset.setup_tasks_eval(
-            eval_tasks=sorted(set(self.dd_eval_tasks + self.ad_eval_tasks))
+            eval_tasks=sorted(set(self.dd_eval_tasks + self.ag_eval_tasks))
         )
 
         # evaluation
