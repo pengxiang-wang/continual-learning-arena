@@ -124,7 +124,7 @@ class LwF(Finetuning):
             if isinstance(self.heads, HeadDIL):
                 head = self.heads.get_head()
             elif isinstance(self.heads, HeadsTIL):
-                head = self.heads.get_heads(previous_task_id)
+                head = self.heads.get_head(previous_task_id)
             else:
                 raise TypeError(f"Unsupported heads type {type(self.heads)} in LwF.")
             student_logits = F.linear(
