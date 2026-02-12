@@ -1,8 +1,8 @@
 r"""
-The submodule in `utils` for custom torchmetrics.
+The submodule in `utils` for metric utilities and custom torchmetrics.
 """
 
-__all__ = ["MeanMetricBatch", "HATNetworkCapacityMetric"]
+__all__ = ["linear_cka", "MeanMetricBatch", "HATNetworkCapacityMetric"]
 
 
 import logging
@@ -14,6 +14,40 @@ from torchmetrics.aggregation import BaseAggregator
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
+
+
+def linear_cka(x: Tensor, y: Tensor, eps: float = 1e-12) -> Tensor:
+    r"""Compute linear CKA similarity between two representation matrices.
+
+    **Args:**
+    - **x** (`Tensor`): the first representation matrix with shape `(num_samples, num_features_x)`.
+    - **y** (`Tensor`): the second representation matrix with shape `(num_samples, num_features_y)`.
+    - **eps** (`float`): a small constant to avoid division by zero.
+
+    **Returns:**
+    - **cka_similarity** (`Tensor`): a scalar tensor of linear CKA similarity.
+    """
+    if x.dim() != 2:
+        raise ValueError(
+            f"Expected `x` to be a 2D tensor with shape (num_samples, num_features_x), but got {x.dim()} dimensions."
+        )
+    if y.dim() != 2:
+        raise ValueError(
+            f"Expected `y` to be a 2D tensor with shape (num_samples, num_features_y), but got {y.dim()} dimensions."
+        )
+    if x.size(0) != y.size(0):
+        raise ValueError(
+            f"Expected `x` and `y` to have the same number of samples, but got {x.size(0)} and {y.size(0)}."
+        )
+
+    # Center features across samples before computing similarities.
+    x = x - x.mean(dim=0, keepdim=True)
+    y = y - y.mean(dim=0, keepdim=True)
+
+    cross_cov_norm = torch.norm(x.T @ y, p="fro") ** 2
+    normalization = torch.norm(x.T @ x, p="fro") * torch.norm(y.T @ y, p="fro")
+
+    return cross_cov_norm / (normalization + eps)
 
 
 class MeanMetricBatch(BaseAggregator):

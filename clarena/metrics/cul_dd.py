@@ -18,7 +18,7 @@ from torchmetrics import MeanMetric
 
 from clarena.metrics import MetricCallback
 from clarena.utils.eval import CULEvaluation
-from clarena.utils.metrics import MeanMetricBatch
+from clarena.utils.metrics import MeanMetricBatch, linear_cka
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -52,7 +52,8 @@ class CULDistributionDistance(MetricCallback):
         - **save_dir** (`str`): The directory where data and figures of metrics will be saved. Better inside the output folder.
         - **distribution_distance_type** (`str`): the type of distribution distance to use; one of:
             - 'euclidean': Euclidean distance.
-            - 'cosine': Cosine distance.
+            - 'cosine': Cosine distance. This is calculated as 1 - cosine similarity, where the cosine similarity is the mean of the cosine similarities between the main and reference model outputs across the batch.
+            - 'linear_cka': Linear CKA distance. This is calculated as 1 - linear CKA similarity. Please note batch size should be larger than 1 when using CKA distance, otherwise the distance will be 0.0.
             - 'manhattan': Manhattan distance.
         - **distribution_distance_csv_name** (`str`): file name to save test distribution distance metrics as CSV file.
         - **distribution_distance_plot_name** (`str` | `None`): file name to save test distribution distance metrics as plot. If `None`, no plot will be saved.
@@ -93,6 +94,17 @@ class CULDistributionDistance(MetricCallback):
 
     def sanity_check(self) -> None:
         r"""Sanity check."""
+
+        valid_distribution_distance_types = {
+            "euclidean",
+            "cosine",
+            "linear_cka",
+            "manhattan",
+        }
+        if self.distribution_distance_type not in valid_distribution_distance_types:
+            raise ValueError(
+                f"Invalid distribution_distance_type: {self.distribution_distance_type} in `CULDistributionDistance`. Must be one of {sorted(valid_distribution_distance_types)}."
+            )
 
         if self.average_scope not in ["all", "remaining", "unlearned"]:
             raise ValueError(
@@ -193,6 +205,8 @@ class CULDistributionDistance(MetricCallback):
             distance_batch = torch.norm(
                 agg_out_main - agg_out_ref, p=1, dim=-1
             ).mean()  # Manhattan distance
+        elif self.distribution_distance_type == "linear_cka":
+            distance_batch = 1 - linear_cka(agg_out_main, agg_out_ref)  # CKA distance
         else:
             raise ValueError(
                 f"Invalid distribution_distance_type: {self.distribution_distance_type}"
@@ -330,9 +344,7 @@ class CULDistributionDistance(MetricCallback):
 
         ax.set_xticks(range(num_tasks))
         ax.set_yticks(range(num_rows))
-        ax.set_xticklabels(
-            eval_task_ids, fontsize=10 + num_tasks
-        )  # adaptive font size
+        ax.set_xticklabels(eval_task_ids, fontsize=10 + num_tasks)  # adaptive font size
         ax.set_yticklabels(
             range(1, num_rows + 1), fontsize=10 + num_rows
         )  # adaptive font size
@@ -347,23 +359,3 @@ class CULDistributionDistance(MetricCallback):
         fig.tight_layout()
         fig.savefig(plot_path)
         plt.close(fig)
-
-
-# def linear_CKA(X, Y, eps: float = 1e-12):
-#     """
-#     计算两个表征矩阵的 CKA 相似度
-#     Args:
-#         X: [n, d1] torch.Tensor
-#         Y: [n, d2] torch.Tensor
-#     Returns:
-#         cka: float (相似度，范围 [0,1])
-#     """
-#     # 居中 (center)
-#     X = X - X.mean(0, keepdim=True)
-#     Y = Y - Y.mean(0, keepdim=True)
-
-#     # Gram 矩阵内积
-#     dot_product = torch.norm(X.T @ Y, p="fro") ** 2
-#     normalization = torch.norm(X.T @ X, p="fro") * torch.norm(Y.T @ Y, p="fro")
-
-#     return dot_product / (normalization + eps)

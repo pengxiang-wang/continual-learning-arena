@@ -301,6 +301,11 @@ class HATMaskBackbone(CLBackbone):
                 ).squeeze()
         elif stage == "test":
             mask = self.masks[test_task_id]
+            for layer_name, layer_mask in mask.items():
+                layer = self.get_layer_by_name(layer_name)
+                target_device = layer.weight.device
+                if layer_mask.device != target_device:
+                    mask[layer_name] = layer_mask.to(target_device)
         elif stage == "unlearning_test":
             for layer_name in self.weighted_layer_names:
                 layer = self.get_layer_by_name(layer_name)

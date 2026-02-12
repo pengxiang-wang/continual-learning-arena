@@ -288,7 +288,7 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
                 {
                     "_target_": "clarena.metrics.CULDistributionDistance",
                     "save_dir": "${output_dir}/results/",
-                    "distribution_distance_type": "cosine",
+                    "distribution_distance_type": "linear_cka",
                     "distribution_distance_csv_name": "dd.csv",
                     "distribution_distance_plot_name": "dd.png",
                 },
