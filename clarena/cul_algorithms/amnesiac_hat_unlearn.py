@@ -225,12 +225,16 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
                     transient=True,
                 ):
                     # get replay data for repairing from memory buffer
-                    x_replay, _, logits_replay, _ = self.model.memory_buffer.get_data(
-                        self.repair_batch_size,
-                        included_tasks=[task_id_to_repair],
+                    x_replay, labels_replay, logits_replay, _ = (
+                        self.model.memory_buffer.get_data(
+                            self.repair_batch_size,
+                            included_tasks=[task_id_to_repair],
+                        )
                     )
                     if x_replay.device != model_device:
                         x_replay = x_replay.to(model_device)
+                    if labels_replay.device != model_device:
+                        labels_replay = labels_replay.to(model_device)
                     if logits_replay.device != model_device:
                         logits_replay = logits_replay.to(model_device)
 
@@ -253,6 +257,9 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
                     loss = self.model.distillation_reg(
                         student_logits=student_logits_replay,
                         teacher_logits=teacher_logits_replay,
+                    )
+                    loss += self.model.replay_ce_factor * self.model.criterion(
+                        student_logits_replay, labels_replay.long()
                     )
 
                     self.model.manual_backward(loss)  # calculate the gradients
@@ -300,7 +307,7 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
             ):
 
                 # get replay data for repairing from memory buffer
-                x_replay, _, logits_replay, task_labels_replay = (
+                x_replay, labels_replay, logits_replay, task_labels_replay = (
                     self.model.memory_buffer.get_data(
                         self.repair_batch_size,
                         included_tasks=task_ids_to_repair,
@@ -308,6 +315,8 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
                 )
                 if x_replay.device != model_device:
                     x_replay = x_replay.to(model_device)
+                if labels_replay.device != model_device:
+                    labels_replay = labels_replay.to(model_device)
                 if logits_replay.device != model_device:
                     logits_replay = logits_replay.to(model_device)
                 if task_labels_replay.device != model_device:
@@ -342,6 +351,9 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
                 loss = self.model.distillation_reg(
                     student_logits=student_logits_replay,
                     teacher_logits=teacher_logits_replay,
+                )
+                loss += self.model.replay_ce_factor * self.model.criterion(
+                    student_logits_replay, labels_replay.long()
                 )
 
                 self.model.manual_backward(loss)  # calculate the gradients
