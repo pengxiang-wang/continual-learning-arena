@@ -15,7 +15,7 @@ from torch.optim.lr_scheduler import LRScheduler
 from torchvision.transforms import transforms
 
 from clarena.backbones import AmnesiacHATBackbone
-from clarena.cl_algorithms import AdaHAT, AmnesiacCLAlgorithm, DERpp
+from clarena.cl_algorithms import AdaHAT, AmnesiacCLAlgorithm, DERpp, HAT
 from clarena.heads import HeadsTIL, HeadDIL
 
 # always get logger for built-in logging in each module
@@ -25,11 +25,11 @@ pylogger = logging.getLogger(__name__)
 class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
     r"""AmnesiacHAT (Amnesiac Hard Attention to the Task) algorithm.
 
-    A variant of [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a) enabling HAT with unlearning ability, based on the [AdaHAT (Adaptive Hard Attention to the Task)](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9) algorithm.
+    A variant of [HAT (Hard Attention to the Task)](http://proceedings.mlr.press/v80/serra18a) enabling HAT with unlearning ability, with optional [AdaHAT (Adaptive Hard Attention to the Task)](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9) gradient adjustment and optional replay regularization.
 
     This algorithm is paired with the `AmnesiacHATUnlearn` unlearning algorithm.
 
-    We implement AmnesiacHAT as a subclass of `AdaHAT`, `DERpp` algorithm.
+    We implement AmnesiacHAT as a subclass of `AdaHAT`, `DERpp` algorithm, and add runtime switches to choose `HAT`/`AdaHAT` adjustment and replay on/off.
     """
 
     def __init__(
@@ -50,6 +50,8 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
         augmentation_transforms: Callable | transforms.Compose | None = None,
         non_algorithmic_hparams: dict[str, Any] = {},
         disable_unlearning: bool = False,
+        architecture: str = "AdaHAT",
+        if_replay: bool = True,
         **kwargs,
     ) -> None:
         r"""Initialize the AmnesiacHAT algorithm with the network.
@@ -60,10 +62,9 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
         - **buffer_size** (`int`): the size of the memory buffer. For now we only support fixed size buffer.
         - **distillation_reg_factor** (`float`): hyperparameter, the distillation regularization factor. It controls the strength of preventing forgetting.
         - **replay_ce_factor** (`float`): hyperparameter, the classification loss factor for replayed samples, ($\beta$ in the [DER paper](https://arxiv.org/abs/2004.07211)). It also controls the strength of preventing forgetting.
-        - **adjustment_mode** (`str`): the strategy of adjustment i.e. the mode of gradient clipping; one of:
-            1. 'adahat': set the gradients of parameters linking to masked units to a soft adjustment rate in the original AdaHAT approach. This is the way that AdaHAT does, which allowes the part of network for previous tasks to be updated slightly. See equation (8) and (9) chapter 3.1 in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
-            2. 'adahat_no_sum': set the gradients of parameters linking to masked units to a soft adjustment rate in the original AdaHAT approach, but without considering the information of parameter importance i.e. summative mask. This is the way that one of the AdaHAT ablation study does. See chapter 4.3 in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
-            3. 'adahat_no_reg': set the gradients of parameters linking to masked units to a soft adjustment rate in the original AdaHAT approach, but without considering the information of network sparsity i.e. mask sparsity regularization value. This is the way that one of the AdaHAT ablation study does. See chapter 4.3 in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
+        - **adjustment_mode** (`str`): the strategy of adjustment i.e. the mode of gradient clipping. Valid options depend on `architecture`:
+            1. If `architecture='HAT'`: one of 'hat', 'hat_random', 'hat_const_1'.
+            2. If `architecture='AdaHAT'`: one of 'adahat', 'adahat_no_sum', 'adahat_no_reg'.
         - **adjustment_intensity** (`float`): hyperparameter, control the overall intensity of gradient adjustment. It's the $\alpha$ in equation (9) in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9).
         - **s_max** (`float`): hyperparameter, the maximum scaling factor in the gate function. See chapter 2.4 "Hard Attention Training" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
         - **clamp_threshold** (`float`): the threshold for task embedding gradient compensation. See chapter 2.5 "Embedding Gradient compensation" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a).
@@ -81,6 +82,10 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
         - **augmentation_transforms** (`transform` or `transforms.Compose` or `None`): the transforms to apply for augmentation after replay sampling. Not to confuse with the data transforms applied to the input of training data. Can be a single transform, composed transforms, or no transform.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
         - **disable_unlearning** (`bool`): whether to disable unlearning. This is used in reference experiments following continual learning pipeline. Default is `False`.
+        - **architecture** (`str`): architecture mode for gradient adjustment; one of:
+            1. 'HAT': use HAT-style gradient adjustment.
+            2. 'AdaHAT' (default): use AdaHAT-style gradient adjustment.
+        - **if_replay** (`bool`): whether to enable DER++ replay regularization in continual learning training. If `False`, replay regularization is skipped.
         - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
@@ -103,7 +108,51 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
             **kwargs,
         )
 
-        # no additional hyperparameters to save
+        normalized_architecture = architecture.lower()
+        if normalized_architecture == "hat":
+            architecture = "HAT"
+        elif normalized_architecture == "adahat":
+            architecture = "AdaHAT"
+
+        self.architecture: str = architecture
+        r"""The architecture mode for gradient adjustment."""
+        self.if_replay: bool = if_replay
+        r"""Whether replay regularization is enabled in continual learning training."""
+
+        self.save_hyperparameters("architecture", "if_replay")
+
+        AmnesiacHAT.sanity_check(self)
+
+    def sanity_check(self) -> None:
+        r"""Sanity check."""
+
+        architecture_options = ["HAT", "AdaHAT"]
+        if self.architecture not in architecture_options:
+            raise ValueError(
+                "The architecture should be one of 'HAT', 'AdaHAT', "
+                f"but got '{self.architecture}'."
+            )
+
+        if self.architecture == "HAT":
+            hat_adjustment_modes = [
+                "hat",
+                "hat_random",
+                "hat_const_1",
+            ]
+            if self.adjustment_mode not in hat_adjustment_modes:
+                raise ValueError(
+                    "For architecture='HAT', adjustment_mode should be one of "
+                    "'hat', 'hat_random', 'hat_const_1', "
+                    f"but got '{self.adjustment_mode}'."
+                )
+        elif self.architecture == "AdaHAT":
+            adahat_adjustment_modes = ["adahat", "adahat_no_sum", "adahat_no_reg"]
+            if self.adjustment_mode not in adahat_adjustment_modes:
+                raise ValueError(
+                    "For architecture='AdaHAT', adjustment_mode should be one of "
+                    "'adahat', 'adahat_no_sum', 'adahat_no_reg', "
+                    f"but got '{self.adjustment_mode}'."
+                )
 
     def setup_task_id(
         self,
@@ -266,8 +315,14 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
 
     def on_train_start(self):
         r"""Initialize backup backbones at the start of training."""
-        AdaHAT.on_train_start(self)  # Explicitly call AdaHAT's on_train_start
-        DERpp.on_train_start(self)  # Explicitly call DER++'s on_train_start
+        if self.architecture == "HAT":
+            HAT.on_train_start(self)
+        elif self.architecture == "AdaHAT":
+            AdaHAT.on_train_start(self)
+
+        if self.if_replay:
+            DERpp.on_train_start(self)  # Explicitly call DER++'s on_train_start
+
         AmnesiacCLAlgorithm.on_train_start(self)
 
     def forward(
@@ -406,19 +461,23 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
             backup_loss_cls_total = (
                 sum(backup_loss_cls.values()) / backup_task_num
                 if backup_task_num > 0
-                else 0.0
+                else torch.zeros((), device=loss_cls.device)
             )
 
         else:
-            backup_loss_cls_total = 0.0
+            backup_loss_cls_total = torch.zeros((), device=loss_cls.device)
 
         # regularization loss. See Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
         hat_mask_sparsity_reg, network_sparsity = self.mark_sparsity_reg(
             mask, self.cumulative_mask_for_previous_tasks
         )
 
-        derpp_reg = self.compute_distillation_and_replay_ce_reg(
-            backbone=self.backbone, batch_size=batch_size
+        derpp_reg = (
+            self.compute_distillation_and_replay_ce_reg(
+                backbone=self.backbone, batch_size=batch_size
+            )
+            if self.if_replay
+            else torch.zeros((), device=loss_cls.device)
         )
 
         # total loss. See Eq. (4) in Sec. 2.6 "Promoting Low Capacity Usage" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
@@ -433,11 +492,17 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
         # HAT hard-clips gradients using the cumulative masks. See Eq. (2) in Sec. 2.3 "Network Training" in the HAT paper.
         # Network capacity is computed along with this process (defined as the average adjustment rate over all parameters; see Sec. 4.1 in the [AdaHAT paper](https://link.springer.com/chapter/10.1007/978-3-031-70352-2_9)).
 
-        adjustment_rate_weight, adjustment_rate_bias, capacity = (
-            self.clip_grad_by_adjustment(
-                network_sparsity=network_sparsity,  # passed for compatibility with AdaHAT, which inherits this method
+        if self.architecture == "HAT":
+            adjustment_rate_weight, adjustment_rate_bias, capacity = (
+                HAT.clip_grad_by_adjustment(self)
             )
-        )
+        elif self.architecture == "AdaHAT":
+            adjustment_rate_weight, adjustment_rate_bias, capacity = (
+                AdaHAT.clip_grad_by_adjustment(
+                    self,
+                    network_sparsity=network_sparsity,
+                )
+            )
 
         # compensate the gradients of task embedding. See Sec. 2.5 "Embedding Gradient Compensation" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
         self.compensate_task_embedding_gradients(
@@ -478,8 +543,14 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
 
     def on_train_end(self):
         r"""Store the parameters update of a task at the end of its training."""
-        AdaHAT.on_train_end(self)  # Explicitly call AdaHAT's on_train_end
-        DERpp.on_train_end(self)  # Explicitly call DER++'s on_train_end
+        if self.architecture == "HAT":
+            HAT.on_train_end(self)
+        elif self.architecture == "AdaHAT":
+            AdaHAT.on_train_end(self)
+
+        if self.if_replay:
+            DERpp.on_train_end(self)  # Explicitly call DER++'s on_train_end
+
         AmnesiacCLAlgorithm.on_train_end(self)
 
         if not self.disable_unlearning:
