@@ -218,6 +218,18 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
 
             total_tasks = len(task_ids_to_repair)
             for task_index, task_id_to_repair in enumerate(task_ids_to_repair, start=1):
+                affected_task_mask = {
+                    layer_name: layer_mask.to(model_device)
+                    if layer_mask.device != model_device
+                    else layer_mask
+                    for layer_name, layer_mask in self.model.backbone.masks[
+                        task_id_to_repair
+                    ].items()
+                }
+                unlearning_and_affected_mask = self.model.backbone.combine_masks(
+                    [union_unlearning_mask, affected_task_mask],
+                    mode="intersection",
+                )
 
                 for s in track(
                     range(self.repair_num_steps),
@@ -264,10 +276,11 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
 
                     self.model.manual_backward(loss)  # calculate the gradients
 
-                    # Clip the gradients that are not masked by unlearning tasks. This is used in the unlearning replay repairing phase to make sure repairing only happens on the parameters affected by unlearning.
+                    # Clip gradients outside the intersection between
+                    # unlearning-affected units and the current affected task.
 
                     self.model.clip_grad_by_mask(
-                        mask=union_unlearning_mask, aggregation_mode="min"
+                        mask=unlearning_and_affected_mask, aggregation_mode="min"
                     )
 
                     if self.repair_strategy == "sequential_adahat":
@@ -358,8 +371,29 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
 
                 self.model.manual_backward(loss)  # calculate the gradients
 
+                batch_task_ids = [int(task_id) for task_id in torch.unique(task_labels_replay)]
+                batch_affected_task_masks = []
+                for task_id in batch_task_ids:
+                    affected_task_mask = {
+                        layer_name: layer_mask.to(model_device)
+                        if layer_mask.device != model_device
+                        else layer_mask
+                        for layer_name, layer_mask in self.model.backbone.masks[
+                            task_id
+                        ].items()
+                    }
+                    batch_affected_task_masks.append(affected_task_mask)
+                union_batch_affected_mask = self.model.backbone.combine_masks(
+                    batch_affected_task_masks,
+                    mode="union",
+                )
+                unlearning_and_affected_mask = self.model.backbone.combine_masks(
+                    [union_unlearning_mask, union_batch_affected_mask],
+                    mode="intersection",
+                )
+
                 self.model.clip_grad_by_mask(
-                    mask=union_unlearning_mask, aggregation_mode="min"
+                    mask=unlearning_and_affected_mask, aggregation_mode="min"
                 )
 
                 # update parameters with the modified gradients
