@@ -385,7 +385,7 @@ class AmnesiacHATUnlearn(AmnesiacCULAlgorithm):
                     batch_affected_task_masks.append(affected_task_mask)
                 union_batch_affected_mask = self.model.backbone.combine_masks(
                     batch_affected_task_masks,
-                    mode="union",
+                    mode="union",  
                 )
                 unlearning_and_affected_mask = self.model.backbone.combine_masks(
                     [union_unlearning_mask, union_batch_affected_mask],

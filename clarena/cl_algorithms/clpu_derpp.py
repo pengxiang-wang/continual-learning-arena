@@ -5,6 +5,7 @@ The submodule in `cl_algorithms` for [CLPU-DER++](https://arxiv.org/abs/2203.128
 __all__ = ["CLPUDERpp"]
 
 import logging
+import math
 from copy import deepcopy
 from typing import Any, Callable
 
@@ -56,7 +57,7 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
         - **temporary_backbone_init_mode** (`str`): method to initialize temporary task backbone networks, must be one of:
             1. 'from_main': initialize from the current main backbone weights.
             2. 'from_scratch': initialize from scratch.
-        - **merge_num_steps** (`int`): number of optimization steps to merge a temporary task back into the main backbone.
+        - **merge_num_steps** (`int`): fallback number of optimization steps for merge when training schedule cannot be inferred. By default, merge steps follow official CLPU-DER++ behavior: `n_epochs * len(train_loader)`.
         - **merge_batch_size** (`int`): batch size used for merge.
         - **augmentation_transforms** (`transform` or `transforms.Compose` or `None`): the transforms to apply for augmentation after replay sampling. Not to confuse with the data transforms applied to the input of training data. Can be a single transform, composed transforms, or no transform.
         - **non_algorithmic_hparams** (`dict[str, Any]`): non-algorithmic hyperparameters that are not related to the algorithm itself are passed to this `LightningModule` object from the config, such as optimizer and learning rate scheduler configurations. They are saved for Lightning APIs from `save_hyperparameters()` method. This is useful for the experiment configuration and reproducibility.
@@ -79,7 +80,7 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
         r"""Method to initialize temporary task backbone networks."""
 
         self.merge_num_steps: int = merge_num_steps
-        r"""Number of optimization steps used to merge a temporary task."""
+        r"""Fallback number of optimization steps used to merge a temporary task."""
 
         self.merge_batch_size: int = merge_batch_size
         r"""Batch size used during merge optimization."""
@@ -134,13 +135,57 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
         r"""Merge and delete temporary backbones that just become no longer unlearnable."""
 
         if not self.disable_unlearning:
+            merge_num_steps = self.resolve_merge_num_steps()
             # merge and delete temporary backbones that just becomes no longer unlearnable. It corresponds to Case III in the algorithm description of the [CLPU paper](https://arxiv.org/abs/2203.12817).
             for tid in self.task_ids_just_no_longer_unlearnable:
                 if tid not in self.unlearned_task_ids and tid != self.task_id:
-                    self.merge_temporary_backbone_to_main(tid)
+                    self.merge_temporary_backbone_to_main(
+                        tid, merge_num_steps=merge_num_steps
+                    )
                     del self.temporary_backbones[f"{tid}"]
 
-    def merge_temporary_backbone_to_main(self, task_id_to_be_merged: int) -> None:
+    def resolve_merge_num_steps(self) -> int:
+        r"""Resolve merge optimization steps using current training schedule.
+
+        Official CLPU-DER++ uses `n_epochs * len(train_loader)` for merge. We
+        derive that from the active trainer; if unavailable, we fall back to the
+        configured `self.merge_num_steps`.
+        """
+
+        trainer = getattr(self, "trainer", None)
+        if trainer is None:
+            return self.merge_num_steps
+
+        max_epochs = int(getattr(trainer, "max_epochs", 1))
+        if max_epochs <= 0:
+            max_epochs = 1
+
+        steps_per_epoch = getattr(trainer, "num_training_batches", None)
+        if isinstance(steps_per_epoch, list):
+            steps_per_epoch = sum(steps_per_epoch)
+        if steps_per_epoch is None or steps_per_epoch <= 0 or not math.isfinite(
+            float(steps_per_epoch)
+        ):
+            datamodule = getattr(trainer, "datamodule", None)
+            if datamodule is None:
+                return self.merge_num_steps
+            try:
+                steps_per_epoch = len(datamodule.train_dataloader())
+            except Exception:
+                return self.merge_num_steps
+
+        resolved_steps = max(1, int(max_epochs * steps_per_epoch))
+        pylogger.info(
+            "Resolved merge_num_steps from training schedule: %d (max_epochs=%d, steps_per_epoch=%d).",
+            resolved_steps,
+            max_epochs,
+            int(steps_per_epoch),
+        )
+        return resolved_steps
+
+    def merge_temporary_backbone_to_main(
+        self, task_id_to_be_merged: int, merge_num_steps: int | None = None
+    ) -> None:
         r"""Merge the temporary backbone for `task_id_to_be_merged` into the main backbone using DER++ replay."""
 
         pylogger.info(
@@ -165,16 +210,24 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
             params=[p for p in self.parameters() if p.requires_grad]
         )
 
+        merge_num_steps = (
+            self.resolve_merge_num_steps()
+            if merge_num_steps is None
+            else max(1, int(merge_num_steps))
+        )
+        temporary_task_ids = {int(tid) for tid in self.temporary_backbones.keys()}
         remaining_replay_task_ids = [
             tid
             for tid in self.memory_buffer.stored_tasks()
-            if tid != task_id_to_be_merged and tid not in self.unlearned_task_ids
+            if tid != task_id_to_be_merged
+            and tid not in temporary_task_ids
+            and tid not in self.unlearned_task_ids
         ]
 
         # merge process with replay
         self.train()
         for s in track(
-            range(self.merge_num_steps),
+            range(merge_num_steps),
             description=f"Merging temporary backbone for task {task_id_to_be_merged}",
             transient=True,
         ):  # tqdm loop for progress bar
@@ -294,13 +347,15 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
             # use the temporary task's temporary backbone if it wasn't merged yet
             # It corresponds to Case II in the algorithm description of the [CLPU paper](https://arxiv.org/abs/2203.12817).
             routed_backbone = self.temporary_backbones[str(self.task_id)]
+            # Official CLPU-DER++ does not apply DER++ replay regularization while
+            # a task is in temporary-learning status.
+            derpp_reg = 0.0
         else:
             # It corresponds to Case I in the algorithm description of the [CLPU paper](https://arxiv.org/abs/2203.12817).
             routed_backbone = self.backbone
-
-        derpp_reg = self.compute_distillation_and_replay_ce_reg(
-            backbone=routed_backbone, batch_size=batch_size
-        )
+            derpp_reg = self.compute_distillation_and_replay_ce_reg(
+                backbone=routed_backbone, batch_size=batch_size
+            )
 
         # total loss
         loss = loss_cls + derpp_reg
