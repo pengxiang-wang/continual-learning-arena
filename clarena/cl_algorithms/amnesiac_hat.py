@@ -15,8 +15,8 @@ from torch.optim.lr_scheduler import LRScheduler
 from torchvision.transforms import transforms
 
 from clarena.backbones import AmnesiacHATBackbone
-from clarena.cl_algorithms import AdaHAT, AmnesiacCLAlgorithm, DERpp, HAT
-from clarena.heads import HeadsTIL, HeadDIL
+from clarena.cl_algorithms import HAT, AdaHAT, AmnesiacCLAlgorithm, DERpp
+from clarena.heads import HeadDIL, HeadsTIL
 
 # always get logger for built-in logging in each module
 pylogger = logging.getLogger(__name__)
@@ -52,6 +52,7 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
         disable_unlearning: bool = False,
         architecture: str = "AdaHAT",
         if_replay: bool = True,
+        backup_init_mode: str = "before",
         **kwargs,
     ) -> None:
         r"""Initialize the AmnesiacHAT algorithm with the network.
@@ -86,6 +87,9 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
             1. 'HAT': use HAT-style gradient adjustment.
             2. 'AdaHAT' (default): use AdaHAT-style gradient adjustment.
         - **if_replay** (`bool`): whether to enable DER++ replay regularization in continual learning training. If `False`, replay regularization is skipped.
+        - **backup_init_mode** (`str`): the initialization mode of each backup backbone:
+            1. 'before' (default): initialize as $\theta_0 + \sum_{\tau < backup\_task\_id}\Delta\theta^{(\tau)}$.
+            2. 'delete': initialize as current backbone parameters minus only $\Delta\theta^{(backup\_task\_id)}$.
         - **kwargs**: Reserved for multiple inheritance.
         """
         super().__init__(
@@ -114,12 +118,18 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
         elif normalized_architecture == "adahat":
             architecture = "AdaHAT"
 
+        normalized_backup_init_mode = backup_init_mode.lower()
+        if normalized_backup_init_mode in ["before", "delete"]:
+            backup_init_mode = normalized_backup_init_mode
+
         self.architecture: str = architecture
         r"""The architecture mode for gradient adjustment."""
         self.if_replay: bool = if_replay
         r"""Whether replay regularization is enabled in continual learning training."""
+        self.backup_init_mode: str = backup_init_mode
+        r"""How to initialize backup backbones for unlearning tasks."""
 
-        self.save_hyperparameters("architecture", "if_replay")
+        self.save_hyperparameters("architecture", "if_replay", "backup_init_mode")
 
         AmnesiacHAT.sanity_check(self)
 
@@ -131,6 +141,13 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
             raise ValueError(
                 "The architecture should be one of 'HAT', 'AdaHAT', "
                 f"but got '{self.architecture}'."
+            )
+
+        backup_init_mode_options = ["before", "delete"]
+        if self.backup_init_mode not in backup_init_mode_options:
+            raise ValueError(
+                "backup_init_mode should be one of 'before', 'delete', "
+                f"but got '{self.backup_init_mode}'."
             )
 
         if self.architecture == "HAT":
@@ -184,62 +201,103 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
             # instantiate backup backbones for unlearning tasks
             self.backbone.instantiate_backup_backbones(backup_task_ids=backup_task_ids)
 
-            # initialize backup backbones for unlearning tasks with the parameters just before the training of each backup task
+            # initialize backup backbones for unlearning tasks according to the selected mode
             self.initialize_backup_backbones()
 
     def initialize_backup_backbones(
         self,
     ) -> None:
-        r"""Initialize backup backbones for unlearning tasks with the parameters just before the training of each backup task."""
+        r"""Initialize backup backbones for unlearning tasks according to `self.backup_init_mode`."""
+
+        def apply_task_update(
+            state_dict: dict[str, Tensor], task_id: int, operation: str
+        ) -> bool:
+            r"""Apply one task update to a state dict with add/subtract operation."""
+            param_update = self.parameters_task_update.get(task_id)
+            if param_update is None:
+                return False
+
+            for layer_name, param_tensor in param_update.items():
+                if layer_name in state_dict:
+                    target_tensor = state_dict[layer_name]
+                    if (
+                        param_tensor.device != target_tensor.device
+                        or param_tensor.dtype != target_tensor.dtype
+                    ):
+                        param_tensor = param_tensor.to(
+                            device=target_tensor.device,
+                            dtype=target_tensor.dtype,
+                        )
+                    if operation == "add":
+                        state_dict[layer_name] += param_tensor
+                    elif operation == "subtract":
+                        state_dict[layer_name] -= param_tensor
+                    else:
+                        raise ValueError(
+                            "operation should be one of 'add', 'subtract', "
+                            f"but got '{operation}'."
+                        )
+
+            return True
 
         for backup_task_id in self.backbone.backup_backbones:
             backup_task_id = int(backup_task_id)
 
-            # for each backup backbone, compute the init state dict
-            state_dict_before_the_backup_task = deepcopy(
-                self.original_backbone_state_dict
-            )
+            if self.backup_init_mode == "before":
+                # initialize from parameters just before the backup task starts
+                backup_init_state_dict = deepcopy(self.original_backbone_state_dict)
 
-            # construct parameters saved before the training of each backup task
-            tasks_before_backup = []
-            for task_id in range(1, backup_task_id):
-                # tasks before the backup task
-                if (
-                    task_id in self.parameters_task_update
-                ):  # only consider tasks that are not unlearned
-                    tasks_before_backup.append(task_id)
+                tasks_before_backup = []
+                for task_id in range(1, backup_task_id):
+                    if apply_task_update(
+                        state_dict=backup_init_state_dict,
+                        task_id=task_id,
+                        operation="add",
+                    ):
+                        tasks_before_backup.append(task_id)
 
-                    # add the parameter updates from this task
-                    param_update = self.parameters_task_update[task_id]
-                    for layer_name, param_tensor in param_update.items():
-                        if layer_name in state_dict_before_the_backup_task:
-                            target_tensor = state_dict_before_the_backup_task[
-                                layer_name
-                            ]
-                            if (
-                                param_tensor.device != target_tensor.device
-                                or param_tensor.dtype != target_tensor.dtype
-                            ):
-                                param_tensor = param_tensor.to(
-                                    device=target_tensor.device,
-                                    dtype=target_tensor.dtype,
-                                )
-                            state_dict_before_the_backup_task[
-                                layer_name
-                            ] += param_tensor
+                pylogger.info(
+                    "For backuping %s for %s, the backup backbone is initialized in mode='before' as original backbone ($\\theta_0$) plus accumulated parameter updates from tasks %s (before backup task %s).",
+                    backup_task_id,
+                    self.task_id,
+                    tasks_before_backup,
+                    backup_task_id,
+                )
+            elif self.backup_init_mode == "delete":
+                # initialize by deleting only the backup task update from current parameters
+                backup_init_state_dict = deepcopy(self.backbone.state_dict())
+                backup_init_state_dict = {
+                    layer_name: param_tensor
+                    for layer_name, param_tensor in backup_init_state_dict.items()
+                    if not layer_name.startswith("backup_backbones.")
+                }
+
+                if apply_task_update(
+                    state_dict=backup_init_state_dict,
+                    task_id=backup_task_id,
+                    operation="subtract",
+                ):
+                    pylogger.info(
+                        "For backuping %s for %s, the backup backbone is initialized in mode='delete' as current backbone minus update from backup task %s only.",
+                        backup_task_id,
+                        self.task_id,
+                        backup_task_id,
+                    )
+                else:
+                    pylogger.warning(
+                        "For backuping %s for %s, mode='delete' requested but update for backup task %s is unavailable. Backup backbone uses current backbone parameters unchanged.",
+                        backup_task_id,
+                        self.task_id,
+                        backup_task_id,
+                    )
+            else:
+                raise ValueError(
+                    "backup_init_mode should be one of 'before', 'delete', "
+                    f"but got '{self.backup_init_mode}'."
+                )
 
             backup_backbone = self.backbone.backup_backbones[f"{backup_task_id}"]
-            backup_backbone.load_state_dict(
-                state_dict_before_the_backup_task, strict=False
-            )
-
-            pylogger.info(
-                "For backuping %s for %s, the backup backbone is initialized as original backbone ($\theta_0$) plus accumulated parameter updates from tasks %s (before the backup task %s).",
-                backup_task_id,
-                self.task_id,
-                tasks_before_backup,
-                backup_task_id,
-            )
+            backup_backbone.load_state_dict(backup_init_state_dict, strict=False)
 
     def clip_grad_by_adjustment_in_replay_repairing(
         self,
@@ -502,6 +560,10 @@ class AmnesiacHAT(AdaHAT, DERpp, AmnesiacCLAlgorithm):
                     self,
                     network_sparsity=network_sparsity,
                 )
+            )
+        else:
+            raise ValueError(
+                f"Invalid architecture '{self.architecture}' for gradient adjustment."
             )
 
         # compensate the gradients of task embedding. See Sec. 2.5 "Embedding Gradient Compensation" in the [HAT paper](http://proceedings.mlr.press/v80/serra18a)
