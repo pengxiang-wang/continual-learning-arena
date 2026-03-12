@@ -169,6 +169,8 @@ class CULDistributionDistance(MetricCallback):
         batch_size = len(batch)
 
         test_task_id = pl_module.get_test_task_id_from_dataloader_idx(dataloader_idx)
+        if test_task_id not in self.distribution_distance:
+            return
 
         # get the raw outputs from the outputs dictionary
         agg_out_main = outputs["agg_out_main"]  # aggregated outputs from the main model

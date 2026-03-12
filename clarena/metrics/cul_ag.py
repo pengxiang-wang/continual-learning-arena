@@ -143,6 +143,8 @@ class CULAccuracyGain(MetricCallback):
         batch_size = len(batch)
 
         test_task_id = pl_module.get_test_task_id_from_dataloader_idx(dataloader_idx)
+        if test_task_id not in self.accuracy_gain:
+            return
 
         # get the metrics values of the batch from the outputs
         acc_gain_batch = outputs["acc_gain"]  # accuracy gain

@@ -261,7 +261,8 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
         # construct the config for continual unlearning full evaluation from the config for continual unlearning main experiment
 
         dd_eval_tasks = cfg.train_tasks
-        ag_eval_tasks = cfg.train_tasks
+        if_run_reforiginal = cfg.get("if_run_reforiginal") is not False
+        ag_eval_tasks = cfg.train_tasks if if_run_reforiginal else []
         global_seed = cfg.global_seed
 
         main_model_path = os.path.join(cfg.output_dir, "saved_models", "cl_model.pth")
@@ -273,7 +274,9 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
                 cfg.output_dir, "refretrain", "saved_models", "cl_model.pth"
             )
 
-        if cfg.get("reforiginal_model_path"):
+        if not if_run_reforiginal:
+            reforiginal_model_path = None
+        elif cfg.get("reforiginal_model_path"):
             reforiginal_model_path = cfg.reforiginal_model_path
         else:
             reforiginal_model_path = os.path.join(
@@ -283,23 +286,25 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
         cl_paradigm = cfg.cl_paradigm
         cl_dataset = cfg.cl_dataset
         trainer = cfg.trainer
-        metrics = OmegaConf.create(
-            [
-                {
-                    "_target_": "clarena.metrics.CULDistributionDistance",
-                    "save_dir": "${output_dir}/results/",
-                    "distribution_distance_type": "linear_cka",
-                    "distribution_distance_csv_name": "dd.csv",
-                    "distribution_distance_plot_name": "dd.png",
-                },
+        metrics = [
+            {
+                "_target_": "clarena.metrics.CULDistributionDistance",
+                "save_dir": "${output_dir}/results/",
+                "distribution_distance_type": "linear_cka",
+                "distribution_distance_csv_name": "dd.csv",
+                "distribution_distance_plot_name": "dd.png",
+            }
+        ]
+        if if_run_reforiginal:
+            metrics.append(
                 {
                     "_target_": "clarena.metrics.CULAccuracyGain",
                     "save_dir": "${output_dir}/results/",
                     "accuracy_gain_csv_name": "ag.csv",
                     "accuracy_gain_plot_name": "ag.png",
-                },
-            ]
-        )
+                }
+            )
+        metrics = OmegaConf.create(metrics)
         callbacks = OmegaConf.create(
             [
                 {
@@ -319,6 +324,7 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
                 "main_model_path": main_model_path,
                 "refretrain_model_path": refretrain_model_path,
                 "reforiginal_model_path": reforiginal_model_path,
+                "if_run_reforiginal": if_run_reforiginal,
                 "cl_paradigm": cl_paradigm,
                 "cl_dataset": cl_dataset,
                 "trainer": trainer,
@@ -328,6 +334,19 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
                 "output_dir": output_dir,
             }
         )
+
+    if type == "CUL_FULL_EVAL" and cfg.get("if_run_reforiginal") is False:
+        cfg.reforiginal_model_path = None
+        if cfg.get("ag_eval_tasks") is not None:
+            cfg.ag_eval_tasks = OmegaConf.create([])
+        if cfg.get("metrics"):
+            cfg.metrics = OmegaConf.create(
+                [
+                    metric
+                    for metric in cfg.metrics
+                    if metric.get("_target_") != "clarena.metrics.CULAccuracyGain"
+                ]
+            )
 
     # For full-experiment attached evals, skip writing config_tree.log (last eval step).
     if type in ["CL_FULL_EVAL_ATTACHED", "CUL_FULL_EVAL_ATTACHED"]:

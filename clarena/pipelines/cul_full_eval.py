@@ -38,21 +38,32 @@ class CULFullEvaluation:
         r"""The path to the model file to load the main model from."""
         self.refretrain_model_path: str = cfg.refretrain_model_path
         r"""The path to the model file to load the reference retrain model from."""
-        self.reforiginal_model_path: str = cfg.reforiginal_model_path
+        self.if_run_reforiginal: bool = cfg.get("if_run_reforiginal") is not False
+        r"""Whether reference original evaluation is enabled."""
+        self.reforiginal_model_path: str | None = (
+            cfg.reforiginal_model_path
+            if self.if_run_reforiginal and cfg.get("reforiginal_model_path")
+            else None
+        )
         r"""The path to the model file to load the reference original model from."""
         self.cl_paradigm: str = cfg.cl_paradigm
         r"""The continual learning paradigm."""
 
         self.dd_eval_tasks: list[int] = (
-            cfg.dd_eval_tasks
+            list(cfg.dd_eval_tasks)
             if isinstance(cfg.dd_eval_tasks, ListConfig)
             else list(range(1, cfg.dd_eval_tasks + 1))
         )
         r"""The list of tasks to be evaluated for DD."""
+        ag_eval_tasks_cfg = cfg.get("ag_eval_tasks")
         self.ag_eval_tasks: list[int] = (
-            cfg.ag_eval_tasks
-            if isinstance(cfg.ag_eval_tasks, ListConfig)
-            else list(range(1, cfg.ag_eval_tasks + 1))
+            (
+                list(ag_eval_tasks_cfg)
+                if isinstance(ag_eval_tasks_cfg, ListConfig)
+                else list(range(1, ag_eval_tasks_cfg + 1))
+            )
+            if self.reforiginal_model_path and ag_eval_tasks_cfg is not None
+            else []
         )
         r"""The list of tasks to be evaluated for AG."""
         self.global_seed: int = cfg.global_seed
@@ -107,7 +118,11 @@ class CULFullEvaluation:
                 "`refretrain_model_path` not provided. Distribution Distance (DD) cannot be calculated."
             )
 
-        if not self.cfg.get("reforiginal_model_path"):
+        if self.cfg.get("if_run_reforiginal") is False:
+            pylogger.info(
+                "`if_run_reforiginal` is false. Skip loading the reference original model and AG evaluation."
+            )
+        elif not self.cfg.get("reforiginal_model_path"):
             pylogger.warning(
                 "`reforiginal_model_path` not provided. Accuracy Gain (AG) cannot be calculated."
             )
@@ -130,10 +145,15 @@ class CULFullEvaluation:
             "Instantiating evaluation module (clarena.utils.eval.CULEvaluation)...",
         )
 
-        # --- Step 1: print paths (run once is enough) ---
-        print("main_model_path:", self.main_model_path)
-        print("refretrain_model_path:", self.refretrain_model_path)
-        print("reforiginal_model_path:", self.reforiginal_model_path)
+        pylogger.debug("Loading main model from %s.", self.main_model_path)
+        pylogger.debug(
+            "Loading reference retrain model from %s.", self.refretrain_model_path
+        )
+        if self.reforiginal_model_path:
+            pylogger.debug(
+                "Loading reference original model from %s.",
+                self.reforiginal_model_path,
+            )
 
         # NOTE: PyTorch >= 2.6 defaults to weights_only=True, which blocks loading custom classes.
         # We explicitly set weights_only=False to allow loading full objects from our own checkpoints.
@@ -143,14 +163,20 @@ class CULFullEvaluation:
         refretrain_model = torch.load(
             self.refretrain_model_path, map_location="cpu", weights_only=False
         )
-        reforiginal_model = torch.load(
-            self.reforiginal_model_path, map_location="cpu", weights_only=False
+        reforiginal_model = (
+            torch.load(
+                self.reforiginal_model_path, map_location="cpu", weights_only=False
+            )
+            if self.reforiginal_model_path
+            else None
         )
 
-        # --- Step 1 (critical): print loaded object types ---
-        print("main_model type:", type(main_model))
-        print("refretrain_model type:", type(refretrain_model))
-        print("reforiginal_model type:", type(reforiginal_model))
+        pylogger.debug("Loaded main model type: %s", type(main_model))
+        pylogger.debug("Loaded reference retrain model type: %s", type(refretrain_model))
+        if reforiginal_model is not None:
+            pylogger.debug(
+                "Loaded reference original model type: %s", type(reforiginal_model)
+            )
 
         self.evaluation_module = CULEvaluation(
             main_model=main_model,
@@ -171,9 +197,21 @@ class CULFullEvaluation:
             "Instantiating callbacks (lightning.Callback)...",
         )
 
+        enabled_metric_cfgs = []
+        for callback in metrics_cfg:
+            if (
+                callback.get("_target_") == "clarena.metrics.CULAccuracyGain"
+                and (not self.reforiginal_model_path or not self.ag_eval_tasks)
+            ):
+                pylogger.info(
+                    "Skipping `clarena.metrics.CULAccuracyGain` because reference original evaluation is disabled."
+                )
+                continue
+            enabled_metric_cfgs.append(callback)
+
         # instantiate metric callbacks
         metric_callbacks = [
-            hydra.utils.instantiate(callback) for callback in metrics_cfg
+            hydra.utils.instantiate(callback) for callback in enabled_metric_cfgs
         ]
 
         # instantiate other callbacks

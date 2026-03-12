@@ -172,12 +172,17 @@ def clarena(cfg: DictConfig) -> None:
         pipeline.run()
 
     elif cfg.pipeline == "CUL_REF_ORIGINAL_EXPR":
-        pylogger.info(
-            "Running: reference original experiment (continual unlearning)..."
-        )
-        reforiginal_cfg = preprocess_config(cfg, type="CUL_REF_ORIGINAL_EXPR")
-        pipeline = CLMainExperiment(reforiginal_cfg)
-        pipeline.run()
+        if cfg.get("if_run_reforiginal") is False:
+            pylogger.info(
+                "`if_run_reforiginal` is false. Skip reference original experiment (continual unlearning)."
+            )
+        else:
+            pylogger.info(
+                "Running: reference original experiment (continual unlearning)..."
+            )
+            reforiginal_cfg = preprocess_config(cfg, type="CUL_REF_ORIGINAL_EXPR")
+            pipeline = CLMainExperiment(reforiginal_cfg)
+            pipeline.run()
 
     elif cfg.pipeline == "CUL_FULL_EVAL":
         pylogger.info("Running: continual unlearning full evaluation...")
@@ -213,7 +218,11 @@ def clarena(cfg: DictConfig) -> None:
         pylogger.info(
             "[Full Exeperiment] Running: reference original experiment (continual unlearning)..."
         )
-        if not cfg.get("reforiginal_model_path"):
+        if cfg.get("if_run_reforiginal") is False:
+            pylogger.info(
+                "`if_run_reforiginal` is false. Skip reference original experiment and AG evaluation (continual unlearning)."
+            )
+        elif not cfg.get("reforiginal_model_path"):
             reforiginal_cfg = preprocess_config(cfg, type="CUL_REF_ORIGINAL_EXPR")
             pipeline = CLMainExperiment(reforiginal_cfg)
             pipeline.run()

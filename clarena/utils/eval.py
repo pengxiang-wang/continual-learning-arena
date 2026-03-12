@@ -20,7 +20,7 @@ class CULEvaluation(LightningModule):
         self,
         main_model: CULAlgorithm,
         refretrain_model: CLAlgorithm,
-        reforiginal_model: CLAlgorithm,
+        reforiginal_model: CLAlgorithm | None,
         dd_eval_task_ids: list[int],
         ag_eval_task_ids: list[int],
     ):
@@ -28,7 +28,7 @@ class CULEvaluation(LightningModule):
         **Args:**
         - **main_model** (`CULAlgorithm`): the main model to evaluate.
         - **refretrain_model** (`CLAlgorithm`): the reference retrain model to evaluate against.
-        - **reforiginal_model** (`CLAlgorithm`): the reference original model that has been trained on all tasks.
+        - **reforiginal_model** (`CLAlgorithm` | `None`): the reference original model that has been trained on all tasks. If `None`, AG-related evaluation is skipped.
         - **dd_eval_task_ids** (`list[int]`): the list of task IDs to evaluate the DD on.
         - **ag_eval_task_ids** (`list[int]`): the list of task IDs to evaluate the accuracy gain on.
         """
@@ -82,29 +82,30 @@ class CULEvaluation(LightningModule):
         agg_out_main = self.main_model.aggregated_backbone_output(x)
         agg_out_ref = self.refretrain_model.aggregated_backbone_output(x)
 
-        logits_main = self.main_model.forward(x, stage="test", task_id=test_task_id)[
-            0
-        ]  # use the corresponding head to test (instead of the current task `self.task_id`)
-        loss_cls_main = self.criterion(logits_main, y)
-        acc_main = (logits_main.argmax(dim=1) == y).float().mean()
-
-        logits_full = self.reforiginal_model.forward(
-            x, stage="test", task_id=test_task_id
-        )[
-            0
-        ]  # use the corresponding head to test (instead of the current task `self.task_id`)
-        loss_cls_full = self.criterion(logits_full, y)
-        acc_full = (logits_full.argmax(dim=1) == y).float().mean()
-        # Return metrics for lightning loggers callback to handle at `on_test_batch_end()`
-
-        # calculate the accuracy gain between the main model and the full model
-        acc_gain = acc_main - acc_full
-
-        return {
+        outputs = {
             "agg_out_main": agg_out_main,
             "agg_out_ref": agg_out_ref,
-            "acc_gain": acc_gain,
         }
+
+        if self.reforiginal_model is not None and test_task_id in self.ag_eval_task_ids:
+            logits_main = self.main_model.forward(
+                x, stage="test", task_id=test_task_id
+            )[
+                0
+            ]  # use the corresponding head to test (instead of the current task `self.task_id`)
+            acc_main = (logits_main.argmax(dim=1) == y).float().mean()
+
+            logits_full = self.reforiginal_model.forward(
+                x, stage="test", task_id=test_task_id
+            )[
+                0
+            ]  # use the corresponding head to test (instead of the current task `self.task_id`)
+            acc_full = (logits_full.argmax(dim=1) == y).float().mean()
+
+            # Return metrics for lightning loggers callback to handle at `on_test_batch_end()`
+            outputs["acc_gain"] = acc_main - acc_full
+
+        return outputs
 
 
 # print("Unlearning JS divergence results:", eval_module.results)
