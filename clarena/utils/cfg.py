@@ -128,6 +128,12 @@ def preprocess_config(cfg: DictConfig, type: str) -> None:
                         "test_loss_cls_plot_name": "loss_cls.png",
                     }
                 )
+            elif (
+                target == "clarena.metrics.HATMasks"
+                or target == "clarena.metrics.HATNetworkSparsity"
+                or target == "clarena.metrics.HATAdjustmentRate"
+            ):
+                pass
             else:
                 new_metrics.append(metric)
         cfg.metrics = new_metrics

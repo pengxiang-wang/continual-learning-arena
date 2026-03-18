@@ -231,7 +231,7 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
             description=f"Merging temporary backbone for task {task_id_to_be_merged}",
             transient=True,
         ):  # tqdm loop for progress bar
-            loss = 0.0
+            loss: Tensor | None = None
 
             # the first loss term of Case III in the algorithm description of the [CLPU paper](https://arxiv.org/abs/2203.12817). For current temporary task
             x_t, y_t, logits_t, _ = self.memory_buffer.get_data(
@@ -241,14 +241,24 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
             if self.augmentation_transforms:
                 x_t = self.augmentation_transforms(x_t)
 
-            student_feature_t, _ = self.backbone(
-                x_t, stage="train", task_id=task_id_to_be_merged
-            )
-            student_logits_t = self.heads(student_feature_t, task_id_to_be_merged)
-            loss += self.replay_ce_factor * self.criterion(student_logits_t, y_t.long())
-            loss += self.distillation_reg(
-                student_logits=student_logits_t, teacher_logits=logits_t
-            )
+            if x_t.size(0) > 0:
+                student_feature_t, _ = self.backbone(
+                    x_t, stage="train", task_id=task_id_to_be_merged
+                )
+                student_logits_t = self.heads(student_feature_t, task_id_to_be_merged)
+                loss_t = self.replay_ce_factor * self.criterion(
+                    student_logits_t, y_t.long()
+                )
+                loss_t += self.distillation_reg(
+                    student_logits=student_logits_t, teacher_logits=logits_t
+                )
+                loss = loss_t if loss is None else loss + loss_t
+            else:
+                pylogger.debug(
+                    "Skipping merge term for task %d at step %d: empty replay batch.",
+                    task_id_to_be_merged,
+                    s,
+                )
 
             # the second loss term of Case III in the algorithm description of the [CLPU paper](https://arxiv.org/abs/2203.12817). For replay from other remaining tasks
             if not self.memory_buffer.is_empty() and remaining_replay_task_ids:
@@ -261,24 +271,35 @@ class CLPUDERpp(DERpp, UnlearnableCLAlgorithm):
                 if self.augmentation_transforms:
                     x_replay = self.augmentation_transforms(x_replay)
 
-                student_feature_replay, _ = self.backbone(x_replay, stage="train")
-                student_logits_replay = torch.cat(
-                    [
-                        self.heads(
-                            student_feature_replay[i].unsqueeze(0),
-                            task_id=int(task_labels_replay[i].item()),
-                        )
-                        for i in range(task_labels_replay.numel())
-                    ]
-                )
+                if x_replay.size(0) > 0:
+                    student_feature_replay, _ = self.backbone(x_replay, stage="train")
+                    student_logits_replay = torch.cat(
+                        [
+                            self.heads(
+                                student_feature_replay[i].unsqueeze(0),
+                                task_id=int(task_labels_replay[i].item()),
+                            )
+                            for i in range(task_labels_replay.numel())
+                        ]
+                    )
 
-                loss += self.distillation_reg(
-                    student_logits=student_logits_replay,
-                    teacher_logits=logits_replay,
-                )
-                loss += self.replay_ce_factor * self.criterion(
-                    student_logits_replay, labels_replay.long()
-                )
+                    loss_replay = self.distillation_reg(
+                        student_logits=student_logits_replay,
+                        teacher_logits=logits_replay,
+                    )
+                    loss_replay += self.replay_ce_factor * self.criterion(
+                        student_logits_replay, labels_replay.long()
+                    )
+                    loss = loss_replay if loss is None else loss + loss_replay
+                else:
+                    pylogger.debug(
+                        "Skipping merge replay term at step %d: empty replay batch for tasks %s.",
+                        s,
+                        remaining_replay_task_ids,
+                    )
+
+            if loss is None:
+                continue
 
             optimizer.zero_grad()
             loss.backward()

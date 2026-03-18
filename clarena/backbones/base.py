@@ -300,12 +300,21 @@ class HATMaskBackbone(CLBackbone):
                     self.task_embedding_t[layer_name].weight * s_max
                 ).squeeze()
         elif stage == "test":
-            mask = self.masks[test_task_id]
-            for layer_name, layer_mask in mask.items():
+            stored_mask = self.masks[test_task_id]
+            for layer_name in self.weighted_layer_names:
+                layer_mask = stored_mask[layer_name]
                 layer = self.get_layer_by_name(layer_name)
+                if layer is None:
+                    raise ValueError(
+                        f"Failed to locate layer '{layer_name}' in {self.__class__.__name__} during test-time mask loading."
+                    )
                 target_device = layer.weight.device
                 if layer_mask.device != target_device:
-                    mask[layer_name] = layer_mask.to(target_device)
+                    stored_mask[layer_name] = layer_mask.to(target_device)
+            mask = {
+                layer_name: stored_mask[layer_name]
+                for layer_name in self.weighted_layer_names
+            }
         elif stage == "unlearning_test":
             for layer_name in self.weighted_layer_names:
                 layer = self.get_layer_by_name(layer_name)
@@ -371,7 +380,10 @@ class HATMaskBackbone(CLBackbone):
 
         for subhatmodule in self.modules():
             if isinstance(subhatmodule, HATMaskBackbone):  # for all sub HAT modules
-                subhatmodule.masks[self.task_id] = mask_t
+                subhatmodule.masks[self.task_id] = {
+                    layer_name: mask_t[layer_name]
+                    for layer_name in subhatmodule.weighted_layer_names
+                }
 
         return mask_t
 

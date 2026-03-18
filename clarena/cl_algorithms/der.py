@@ -106,6 +106,14 @@ class DER(Finetuning):
             if self.augmentation_transforms:
                 x_replay = self.augmentation_transforms(x_replay)
 
+            # replay candidates for requested tasks may be empty; skip this replay term
+            if x_replay.size(0) == 0:
+                pylogger.debug(
+                    "Skipping DER replay regularization: empty replay batch for included tasks %s.",
+                    previous_task_ids,
+                )
+                return loss_reg
+
             # get the student logits for this batch using the current model
             student_feature_replay, _ = backbone(x_replay, stage="test")
             student_logits_replay = torch.cat(
@@ -253,6 +261,14 @@ class DERpp(DER):
             # apply augmentation transforms if any
             if self.augmentation_transforms:
                 x_replay = self.augmentation_transforms(x_replay)
+
+            # replay candidates for requested tasks may be empty; skip this replay term
+            if x_replay.size(0) == 0:
+                pylogger.debug(
+                    "Skipping DER++ replay regularization: empty replay batch for included tasks %s.",
+                    previous_task_ids,
+                )
+                return loss_reg
 
             # get the student logits for this batch using the current model
             if isinstance(backbone, AmnesiacHATBackbone):
