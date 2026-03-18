@@ -57,9 +57,18 @@ class Backbone(nn.Module):
         if layer_name is None:
             return None
 
+        target_name = layer_name.replace("/", ".")
+        suffix_matches: list[tuple[int, nn.Module]] = []
+
         for name, layer in self.named_modules():
-            if name == layer_name.replace("/", "."):
+            if name == target_name:
                 return layer
+            if name and target_name.endswith(f".{name}"):
+                suffix_matches.append((name.count("."), layer))
+
+        if suffix_matches:
+            suffix_matches.sort(key=lambda item: item[0], reverse=True)
+            return suffix_matches[0][1]
 
     def preceding_layer_name(self, layer_name: str | None) -> str | None:
         r"""Get the name of the preceding layer of the given layer from the stored `weighted_layer_names`.
